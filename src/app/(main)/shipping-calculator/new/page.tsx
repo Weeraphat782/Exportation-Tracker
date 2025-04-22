@@ -43,7 +43,7 @@ const palletSchema = z.object({
   width: z.number().min(0, { message: 'Must be 0 or positive' }),
   height: z.number().min(0, { message: 'Must be 0 or positive' }),
   weight: z.number().min(0, { message: 'Must be 0 or positive' }),
-  quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }).default(1),
+  quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }),
 });
 
 // --- Additional Charge Schema ---
@@ -509,21 +509,15 @@ export default function ShippingCalculatorPage() {
     const form = useForm<QuotationFormValues>({
         resolver: zodResolver(quotationFormSchema),
         defaultValues: {
-            client_id: '',
-            destination_id: '',
-            // Initialize with one empty pallet that includes quantity
-            pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }], 
-            freight_cost_input_currency: 'THB',
-            freight_cost_input_value: 0,
-            clearance_cost_input_currency: 'THB',
-            clearance_cost_input_value: 0,
-            delivery_service_id: '',
-            delivery_cost_input_currency: 'THB',
-            delivery_cost_input_value: 0,
-            // Initialize with one empty charge that includes name
-            additional_charges: [{ name: '', description: '', amount: 0 }], 
+            companyId: '',
+            contactPerson: '',
+            contractNo: '',
+            destinationId: '',
+            pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
+            deliveryServiceRequired: false,
+            deliveryVehicleType: '4wheel',
+            additionalCharges: [{ name: '', description: '', amount: 0 }],
             notes: '',
-            status: 'sent', // Default status
         },
         mode: 'onChange',
     });
@@ -601,7 +595,6 @@ export default function ShippingCalculatorPage() {
                  console.log("Effect 1: All data fetched, setting isLoading to false.");
                  setIsLoading(false);
 
-            } catch (error: unknown) {
             } catch (error: any) {
                 console.error('Error fetching initial data:', error);
                 toast.error("Initialization Error", { description: error.message || "Failed to load required data." });
@@ -640,32 +633,19 @@ export default function ShippingCalculatorPage() {
                         // Assuming dbGetQuotationById returns Quotation | null
                         const typedExistingQuotation = existingQuotation as Quotation;
                         reset({
-                            // @ts-expect-error Property 'client_id' might not exist on inferred type after schema change
-                            client_id: typedExistingQuotation.company_id || '', 
-                            destination_id: typedExistingQuotation.destination_id || '',
-                            pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0 
-                                ? typedExistingQuotation.pallets 
+                            companyId: typedExistingQuotation.company_id || '',
+                            contactPerson: typedExistingQuotation.contact_person || '',
+                            contractNo: typedExistingQuotation.contract_no || '',
+                            destinationId: typedExistingQuotation.destination_id || '',
+                            pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
+                                ? typedExistingQuotation.pallets.map(p => ({ ...p, quantity: p.quantity ?? 1 }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
-                            // @ts-expect-error Property 'freight_cost_input_currency' might not exist
-                            freight_cost_input_currency: typedExistingQuotation.currency || 'THB', 
-                            // @ts-expect-error Property 'freight_cost_input_value' might not exist
-                            freight_cost_input_value: typedExistingQuotation.freight_cost || 0, 
-                            // @ts-expect-error Property 'clearance_cost_input_currency' might not exist
-                            clearance_cost_input_currency: typedExistingQuotation.currency || 'THB',
-                            // @ts-expect-error Property 'clearance_cost_input_value' might not exist
-                            clearance_cost_input_value: typedExistingQuotation.clearance_cost || 0,
-                            // @ts-expect-error Property 'delivery_service_id' might not exist
-                            delivery_service_id: typedExistingQuotation.delivery_service_id || '',
-                            // @ts-expect-error Property 'delivery_cost_input_currency' might not exist
-                            delivery_cost_input_currency: typedExistingQuotation.currency || 'THB',
-                            // @ts-expect-error Property 'delivery_cost_input_value' might not exist
-                            delivery_cost_input_value: typedExistingQuotation.delivery_cost || 0,
-                            additional_charges: Array.isArray(typedExistingQuotation.additional_charges) 
-                                ? typedExistingQuotation.additional_charges 
+                            deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
+                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                            additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
+                                ? typedExistingQuotation.additional_charges
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
-                            // @ts-expect-error Property 'status' might not exist
-                            status: typedExistingQuotation.status || 'sent',
                         });
                     } else {
                         console.log("Effect 2: Quotation not found or access denied, redirecting.");
@@ -675,19 +655,15 @@ export default function ShippingCalculatorPage() {
                 } else {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
                     reset({
-                        client_id: '',
-                        destination_id: '',
+                        companyId: '',
+                        contactPerson: '',
+                        contractNo: '',
+                        destinationId: '',
                         pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
-                        freight_cost_input_currency: 'THB',
-                        freight_cost_input_value: 0,
-                        clearance_cost_input_currency: 'THB',
-                        clearance_cost_input_value: 0,
-                        delivery_service_id: '',
-                        delivery_cost_input_currency: 'THB',
-                        delivery_cost_input_value: 0,
-                        additional_charges: [{ name: '', description: '', amount: 0 }],
+                        deliveryServiceRequired: false,
+                        deliveryVehicleType: '4wheel',
+                        additionalCharges: [{ name: '', description: '', amount: 0 }],
                         notes: '',
-                        status: 'sent',
                     });
                 }
             } catch (error: unknown) {
