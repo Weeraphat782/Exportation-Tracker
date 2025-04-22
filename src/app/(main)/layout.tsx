@@ -3,12 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Settings, FileText, Package, Box } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
-
-interface MainLayoutProps {
-  children: ReactNode;
-}
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (

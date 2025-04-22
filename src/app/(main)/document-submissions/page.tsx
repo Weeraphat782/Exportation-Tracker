@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { getDocumentSubmissions, updateDocumentSubmission } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
+import Image from 'next/image';
 
 // นิยามประเภทข้อมูลสำหรับ Document Submission
 interface DocumentSubmission {
@@ -248,12 +249,14 @@ export default function DocumentSubmissionsPage() {
 
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Document Preview</h3>
-                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center min-h-[200px]">
+                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center min-h-[200px] relative">
                     {selectedSubmission.mime_type?.startsWith('image/') ? (
-                      <img
+                      <Image
                         src={selectedSubmission.file_url}
                         alt={selectedSubmission.file_name}
-                        className="max-h-[300px] max-w-full object-contain"
+                        fill
+                        style={{ objectFit: 'contain' }}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
                       <div className="text-center">
