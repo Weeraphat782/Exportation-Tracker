@@ -27,7 +27,12 @@ const freightRateFormSchema = z.object({
   max_weight: z.coerce.number().positive().optional().nullable(),
   base_rate: z.coerce.number().positive({ message: 'Base rate must be positive' }),
   effective_date: z.string().optional().nullable(),
-}).refine(data => data.min_weight === null || data.max_weight === null || data.min_weight <= data.max_weight, {
+}).refine(data => {
+  // Handle potential null/undefined values
+  const minW = data.min_weight ?? -Infinity;
+  const maxW = data.max_weight ?? Infinity;
+  return minW <= maxW;
+}, {
   message: "Max weight must be greater than or equal to min weight",
   path: ["max_weight"],
 });
@@ -123,7 +128,7 @@ export default function EditFreightRatePage() {
          effective_date: data.effective_date || null,
       };
 
-      // @ts-ignore - db.ts updateFreightRate expects slightly different Partial type now
+      // Remove unused @ts-expect-error
       const updatedRate = await updateFreightRate(rateId, updates);
 
       if (updatedRate) {
@@ -133,9 +138,9 @@ export default function EditFreightRatePage() {
         throw new Error('Failed to update freight rate in database.');
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating freight rate:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

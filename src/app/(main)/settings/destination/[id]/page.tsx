@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getDestinationById, updateDestination, Destination } from '@/lib/db'; // Import db functions
+import { getDestinationById, updateDestination /*, Destination */ } from '@/lib/db'; // Import db functions
 
 // ใช้ Schema เดียวกับหน้า New ที่แก้ไขแล้ว
 const destinationFormSchema = z.object({
@@ -89,9 +89,9 @@ export default function EditDestinationPage() {
         throw new Error('Failed to update destination in database.');
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating destination:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

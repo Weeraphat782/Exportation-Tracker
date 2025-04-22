@@ -13,6 +13,8 @@ import { supabase } from '@/lib/supabase';
 import { generateDocumentUploadLink } from '@/lib/storage';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, Quotation } from '@/lib/db';
 
+// Remove unused mockQuotations
+/*
 // In a real application, this would come from an API
 // For now, we'll use some mock data
 const mockQuotations = [
@@ -24,31 +26,9 @@ const mockQuotations = [
     totalCost: 38050,
     status: 'draft'
   },
-  {
-    id: 'QT-2025-0002',
-    date: '2025-03-03',
-    companyName: 'Company B',
-    destination: 'China',
-    totalCost: 25750,
-    status: 'sent'
-  },
-  {
-    id: 'QT-2025-0003',
-    date: '2025-03-05',
-    companyName: 'Company C',
-    destination: 'South Korea',
-    totalCost: 42300,
-    status: 'accepted'
-  },
-  {
-    id: 'QT-2025-0004',
-    date: '2025-03-10',
-    companyName: 'Company D',
-    destination: 'Hong Kong',
-    totalCost: 31200,
-    status: 'draft'
-  },
+  // ... other mock data ...
 ];
+*/
 
 export default function ShippingCalculatorPage() {
   const router = useRouter();
@@ -204,7 +184,7 @@ export default function ShippingCalculatorPage() {
         month: 'short',
         day: 'numeric'
       }).format(date);
-    } catch (e) {
+    } catch /* Remove unused (e) */ {
       return dateString; // Return original string if parsing fails
     }
   };
@@ -270,7 +250,7 @@ export default function ShippingCalculatorPage() {
           const savedQuotations = localStorage.getItem('quotations');
           if (savedQuotations) {
             const parsedQuotations = JSON.parse(savedQuotations);
-            const updatedQuotations = parsedQuotations.filter((q: any) => q.id !== id);
+            const updatedQuotations = parsedQuotations.filter((q: { id: string }) => q.id !== id);
             localStorage.setItem('quotations', JSON.stringify(updatedQuotations));
           }
         } catch (error) {

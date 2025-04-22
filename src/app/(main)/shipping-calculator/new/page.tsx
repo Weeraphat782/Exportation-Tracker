@@ -673,6 +673,8 @@ export default function ShippingCalculatorPage() {
                  console.error('Error setting form defaults:', error);
                  const errorMessage = error instanceof Error ? error.message : "Could not set default values for the form.";
                  toast.error("Form Setup Error", { description: errorMessage });
+            } finally {
+                setIsLoading(false);
             }
         };
 

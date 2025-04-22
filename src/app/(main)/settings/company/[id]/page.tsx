@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getCompanyById, updateCompany, Company } from '@/lib/db';
+import { getCompanyById, updateCompany } from '@/lib/db';
 
 const companyFormSchema = z.object({
   name: z.string().min(1, { message: 'Company name is required' }),
@@ -100,9 +100,9 @@ export default function EditCompanyPage() {
         throw new Error('Failed to update company in database.');
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating company:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

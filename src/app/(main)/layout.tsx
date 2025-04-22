@@ -2,8 +2,8 @@
 
 import { ReactNode } from 'react';
 import { UserProfile } from '@/components/ui/user-profile';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+// import Link from 'next/link'; // Remove unused import
+// import { usePathname } from 'next/navigation'; // Remove unused import
 import MainLayout from '@/components/layout/MainLayout';
 
 export default function AppLayout({ children }: { children: ReactNode }) {

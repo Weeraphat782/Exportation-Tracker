@@ -68,9 +68,9 @@ export default function NewCompanyPage() {
         throw new Error('Failed to save company to database.');
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving company:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

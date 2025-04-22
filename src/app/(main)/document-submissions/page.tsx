@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { getDocumentSubmissions, updateDocumentSubmission } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
+import Image from 'next/image';
 
 // นิยามประเภทข้อมูลสำหรับ Document Submission
 interface DocumentSubmission {
@@ -248,34 +249,26 @@ export default function DocumentSubmissionsPage() {
 
                 <div className="border-t pt-4 mt-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Document Preview</h3>
-                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center min-h-[200px]">
-                    {selectedSubmission.mime_type?.startsWith('image/') ? (
-                      <img
-                        src={selectedSubmission.file_url}
-                        alt={selectedSubmission.file_name}
-                        className="max-h-[300px] max-w-full object-contain"
+                  {selectedSubmission.mime_type?.startsWith('image/') ? (
+                    <div className="relative max-w-full overflow-hidden rounded border" style={{ width: '500px', height: '500px' }}>
+                      <Image 
+                        src={selectedSubmission.file_url} 
+                        alt={`Preview of ${selectedSubmission.file_name}`}
+                        layout="fill"
+                        objectFit="contain"
                       />
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-gray-500 mb-2">Preview not available</p>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.file_name)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download File
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600 italic">
+                      Preview not available for this file type ({selectedSubmission.mime_type || 'Unknown'}).
+                    </p>
+                  )}
                 </div>
-              </div>
-              
-              <div className="flex justify-between mt-6 pt-4 border-t">
-                <Button variant="outline" onClick={handleCloseModal}>
-                  Close
-                </Button>
-                <div className="space-x-2">
+
+                <div className="border-t pt-4 mt-6 flex justify-end space-x-3">
+                  <Button variant="outline" onClick={handleCloseModal}>
+                    Close
+                  </Button>
                   <Button
                     variant="destructive"
                     onClick={() => handleUpdateStatus(selectedSubmission.id, 'rejected')}
