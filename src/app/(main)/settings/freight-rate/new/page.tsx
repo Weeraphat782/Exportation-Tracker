@@ -77,15 +77,16 @@ export default function NewFreightRatePage() {
       // Prepare data for DB (Omit<FreightRate, ...>)
       const dataToSave = {
         destination_id: data.destination_id,
-        min_weight: data.min_weight,
-        max_weight: data.max_weight,
+        // Provide null as default for optional numeric fields
+        min_weight: data.min_weight ?? null,
+        max_weight: data.max_weight ?? null,
         base_rate: data.base_rate,
         effective_date: data.effective_date || null, // ส่ง null ถ้าไม่มีค่า
         // user_id จะถูกเพิ่มใน createFreightRate function
       };
 
-      // @ts-ignore - db.ts createFreightRate expects slightly different Omit type now
-      // We should adjust the Omit in db.ts or cast here if necessary, but for now ignore TS error
+      // Remove unused @ts-expect-error (error is gone)
+      // @ts-expect-error - createFreightRate expects Omit<...> but gets slightly different type here.
       const newRate = await createFreightRate(dataToSave);
 
       if (newRate) {
@@ -94,9 +95,10 @@ export default function NewFreightRatePage() {
       } else {
         throw new Error('Failed to save freight rate to database.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving freight rate:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      // Check if err is an Error instance before accessing message
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

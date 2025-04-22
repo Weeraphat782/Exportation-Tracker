@@ -131,7 +131,7 @@ export async function getProfile(userId: string) {
     }
 
     return data as Profile;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in getProfile:', error);
     return null;
   }
@@ -450,8 +450,9 @@ export async function createFreightRate(rate: Omit<FreightRate, 'id' | 'created_
 
 export async function updateFreightRate(id: string, updates: Partial<Omit<FreightRate, 'currency' | 'vehicle_type' | 'container_size'>>) {
   try {
-    // Prefix unused variables with _
-    const { user_id: _user_id, destination_id: _destination_id, id: _rateId, created_at: _created_at, updated_at: _updated_at, ...restUpdates } = updates;
+    // Disable unused vars check for this line as destructuring is used to exclude fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { user_id, destination_id, id: rateId, created_at, updated_at, ...restUpdates } = updates;
 
     const { data, error } = await supabase
       .from('freight_rates')
@@ -465,7 +466,7 @@ export async function updateFreightRate(id: string, updates: Partial<Omit<Freigh
     }
 
     return data[0] as FreightRate;
-  } catch (error: unknown) { // Type error as unknown
+  } catch (error: unknown) {
     console.error('Exception in updateFreightRate:', error);
     return null;
   }
@@ -874,7 +875,7 @@ export async function createOrUpdateSetting(
 
       return data[0] as Setting;
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in createOrUpdateSetting:', error);
     return null;
   }
