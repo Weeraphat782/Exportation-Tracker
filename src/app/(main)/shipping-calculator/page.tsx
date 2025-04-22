@@ -174,8 +174,8 @@ export default function ShippingCalculatorPage() {
             setQuotations([]);
           }
         }
-      } catch (error) {
-        console.error('Error loading quotations from database:', error);
+      } catch {
+        console.error('Error loading quotations from database:', /* error */); // Log the actual error if needed later
         // Removed fallback to mockQuotations as its structure is incorrect
         setQuotations([]); 
       } finally {
@@ -438,8 +438,8 @@ export default function ShippingCalculatorPage() {
                             <FileText className="h-4 w-4" />
                           </Button>
                           
-                          {/* Copy link button - visible for sent and accepted quotations */}
-                          {(quotation.status === 'sent' || quotation.status === 'accepted') && (
+                          {/* Copy link button - visible for sent quotations */}
+                          {quotation.status === 'sent' && (
                             <Button
                               variant="outline" 
                               size="icon"

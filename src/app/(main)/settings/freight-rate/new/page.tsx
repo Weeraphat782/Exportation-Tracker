@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createFreightRate, getDestinations, Destination } from '@/lib/db';
+import { toast } from "sonner";
 
 // Schema สำหรับ Freight Rate form (ไม่มี currency)
 const freightRateFormSchema = z.object({
@@ -27,7 +28,12 @@ const freightRateFormSchema = z.object({
   max_weight: z.coerce.number().positive().optional().nullable(),
   base_rate: z.coerce.number().positive({ message: 'Base rate must be positive' }),
   effective_date: z.string().optional().nullable(), // อาจจะใช้ Date picker หรือ Input type="date"
-}).refine(data => data.min_weight === null || data.max_weight === null || data.min_weight <= data.max_weight, {
+}).refine(data => {
+  // Ensure weights are numbers before comparing, treat null/undefined as valid (or handle as needed)
+  const minW = data.min_weight ?? -Infinity; // Treat null/undefined as no minimum
+  const maxW = data.max_weight ?? Infinity;  // Treat null/undefined as no maximum
+  return minW <= maxW;
+}, {
   message: "Max weight must be greater than or equal to min weight",
   path: ["max_weight"], // แสดง error ที่ช่อง max_weight
 });
@@ -37,7 +43,6 @@ type FreightRateFormValues = z.infer<typeof freightRateFormSchema>;
 export default function NewFreightRatePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<Pick<Destination, 'id' | 'country' | 'port'>[]>([]);
   const [loadingDestinations, setLoadingDestinations] = useState(true);
 
@@ -50,7 +55,7 @@ export default function NewFreightRatePage() {
         setDestinations(data || []);
       } catch (err) {
         console.error("Error loading destinations:", err);
-        setError("Could not load destinations for selection.");
+        toast.error("Could not load destinations for selection.");
       } finally {
         setLoadingDestinations(false);
       }
@@ -71,7 +76,6 @@ export default function NewFreightRatePage() {
 
   const onSubmit = async (data: FreightRateFormValues) => {
     setIsSubmitting(true);
-    setError(null);
 
     try {
       // Prepare data for DB (Omit<FreightRate, ...>)
@@ -84,19 +88,19 @@ export default function NewFreightRatePage() {
         // user_id จะถูกเพิ่มใน createFreightRate function
       };
 
-      // @ts-ignore - db.ts createFreightRate expects slightly different Omit type now
-      // We should adjust the Omit in db.ts or cast here if necessary, but for now ignore TS error
       const newRate = await createFreightRate(dataToSave);
 
       if (newRate) {
         console.log('Saved freight rate to DB:', newRate);
+        toast.success("Freight rate saved successfully!");
         router.push('/settings/freight-rate');
       } else {
         throw new Error('Failed to save freight rate to database.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving freight rate:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      toast.error(`Error saving freight rate: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -204,10 +208,6 @@ export default function NewFreightRatePage() {
                     )}
                   />
               </div>
-
-              {error && (
-                <p className="text-sm font-medium text-red-500 mt-4">Error: {error}</p>
-              )}
 
               <div className="flex justify-end space-x-4">
                 <Link href="/settings/freight-rate">

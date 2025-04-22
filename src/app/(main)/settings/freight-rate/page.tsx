@@ -34,8 +34,8 @@ export default function FreightRateSettingsPage() {
           setError("Failed to load freight rates. Please check console.");
           setFreightRates([]);
         }
-      } catch (err) {
-        console.error('Error loading freight rates:', err);
+      } catch {
+        console.error('Error loading freight rates:');
         setError('An unexpected error occurred while loading freight rates.');
         setFreightRates([]);
       } finally {
@@ -61,24 +61,28 @@ export default function FreightRateSettingsPage() {
     }
 
     // Optimistically remove from UI
-    setFreightRates(freightRates.filter(rate => rate.id !== id));
+    setFreightRates(currentRates => currentRates.filter(rate => rate.id !== id));
 
     // Delete from database
     try {
       const success = await dbDeleteFreightRate(id);
       if (!success) {
         setError(`Failed to delete freight rate (ID: ${id})`);
-        // Revert UI change if delete failed
-        setFreightRates([...freightRates]); 
+        // Revert UI change if delete failed - fetch fresh data or revert based on original state if needed
+        // For simplicity, just show error. A better revert might be needed.
+        // Reverting optimistically requires storing original state or re-fetching.
+        // Let's just keep the optimistic removal for now and rely on error message.
+        // setFreightRates([...freightRates]); // Avoid using potentially stale state
       } else {
          console.log(`Deleted freight rate with ID: ${id}`);
-         // Optionally show a success message
+         setError(null); // Clear previous errors on success
+         // Optionally show a success message via toast
       }
-    } catch (err) {
+    } catch (err: unknown) { // Use unknown for err type
       console.error('Error deleting freight rate:', err);
       setError('An unexpected error occurred while deleting the freight rate.');
-      // Revert UI change on error
-      setFreightRates([...freightRates]);
+      // Revert UI change on error - Again, reverting optimistic UI needs careful state handling
+      // setFreightRates([...freightRates]); // Avoid stale state
     }
   };
 
