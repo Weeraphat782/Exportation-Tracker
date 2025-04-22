@@ -12,11 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/lib/supabase';
 
-interface UserProfileProps {
-  // Remove unused className prop
-  // className?: string;
-}
-
 export function UserProfile(/* { className }: UserProfileProps */) {
   const [userEmail, setUserEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);

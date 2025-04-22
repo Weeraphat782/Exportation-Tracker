@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Subscription } from '@supabase/supabase-js'; // Import User and Subscription types
+import { User /*, Subscription */ } from '@supabase/supabase-js'; // Import User and Subscription types
 
 // Define the shape of the context value
 interface AuthContextType {

@@ -7,7 +7,7 @@ import { ArrowLeft, FileText, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData, Destination, Company } from '@/lib/db';
+import { Quotation, updateQuotation, saveQuotation, NewQuotationData } from '@/lib/db';
 
 // Define AdditionalCharge locally
 interface AdditionalCharge {

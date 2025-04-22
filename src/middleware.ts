@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'; // Keep this one
+import { NextResponse } from 'next/server'; // Keep this one
 // import type { NextRequest } from 'next/server'; // Remove this duplicate type import
 
 // Middleware completely disabled to fix login issues
 // All requests pass through without authentication checks
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function middleware(/* _request: NextRequest */) {
   console.log('Middleware disabled - allowing all requests to pass through');
   return NextResponse.next();
