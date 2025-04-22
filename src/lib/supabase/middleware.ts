@@ -1,5 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 // This is a dummy implementation since the middleware is currently disabled
 export function createClient(request: NextRequest) {

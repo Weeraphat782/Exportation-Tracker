@@ -45,6 +45,22 @@ export interface FreightRate {
   user_id?: string;
 }
 
+// Define types for pallet and additional charge to avoid using any
+export interface Pallet {
+  length: number;
+  width: number;
+  height: number;
+  weight: number;
+  quantity: number;
+  [key: string]: unknown;
+}
+
+export interface AdditionalCharge {
+  name: string;
+  amount: number;
+  [key: string]: unknown;
+}
+
 export interface Quotation {
   id: string;
   created_at: string;
@@ -53,10 +69,10 @@ export interface Quotation {
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
-  pallets: any[];
+  pallets: Pallet[];
   delivery_service_required: boolean;
   delivery_vehicle_type: '4wheel' | '6wheel';
-  additional_charges: any[];
+  additional_charges: AdditionalCharge[];
   notes?: string | null;
   total_cost: number;
   status: 'sent';
@@ -435,7 +451,8 @@ export async function createFreightRate(rate: Omit<FreightRate, 'id' | 'created_
 
 export async function updateFreightRate(id: string, updates: Partial<Omit<FreightRate, 'currency' | 'vehicle_type' | 'container_size'>>) {
   try {
-    const { user_id, destination_id, id: rateId, created_at, updated_at, ...restUpdates } = updates;
+    // Extract unused fields and keep the rest
+    const { ...restUpdates } = updates;
 
     const { data, error } = await supabase
       .from('freight_rates')
@@ -599,10 +616,10 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
     // Cast the returned data to the full Quotation type
     return data as Quotation;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Exception in saveQuotation:', error);
     // Return null to indicate failure, with error message logged
-    if (error.message) {
+    if (error instanceof Error && error.message) {
       console.error('Error message:', error.message);
     }
     throw error; // Throw the error so the calling function can handle it
@@ -813,7 +830,7 @@ export async function getSetting(category: string, key: string) {
 export async function createOrUpdateSetting(
   category: string,
   key: string,
-  value: Record<string, any>,
+  value: Record<string, unknown>,
   userId: string
 ) {
   try {

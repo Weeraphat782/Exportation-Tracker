@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Middleware completely disabled to fix login issues
 // All requests pass through without authentication checks
-export function middleware(request: NextRequest) {
+export function middleware(_request: NextRequest) {
   console.log('Middleware disabled - allowing all requests to pass through');
   return NextResponse.next();
 }
