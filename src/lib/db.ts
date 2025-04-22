@@ -111,7 +111,7 @@ export interface Setting {
   id: string;
   category: string;
   settings_key: string;
-  settings_value?: Record<string, any>;
+  settings_value?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
   user_id?: string;

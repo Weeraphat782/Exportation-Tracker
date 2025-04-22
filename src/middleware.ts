@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Middleware completely disabled to fix login issues
 // All requests pass through without authentication checks
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function middleware(_request: NextRequest) {
   console.log('Middleware disabled - allowing all requests to pass through');
   return NextResponse.next();
