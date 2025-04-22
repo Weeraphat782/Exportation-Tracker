@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { ArrowLeft, Printer, FileText, Save, Edit } from 'lucide-react';
-import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData } from '@/lib/db';
+import Link from 'next/link';
 
 // Currency formatter
 const formatter = new Intl.NumberFormat('th-TH', {
@@ -44,34 +44,26 @@ export default function QuotationPreviewPage() {
         setQuotationData(JSON.parse(storedData));
       } else {
         // Fallback to mock data if no data in sessionStorage
-        const mockQuotation: Quotation = {
-          id: '2025-0001',
-          created_at: new Date().toISOString(),
-          user_id: '123', // This should be the actual user ID in production
-          company_id: '456', // This should be a valid company ID
-          contact_person: 'John Doe',
-          contract_no: 'CNT-2025-123',
-          destination_id: '789', // This should be a valid destination ID
-          company_name: 'Company A',
-          destination: 'Japan',
+        const mockQuotation: Quotation & { quotation_id: string; client: { name: string }, destination: { country: string, port: string | null }, delivery_service: { name: string } | null } = {
+          id: 'mock-id',
+          user_id: 'mock-user',
+          quotation_id: 'QTO-MOCK',
+          client: { name: 'Mock Client Inc.' },
+          destination_id: 'dest-1',
+          freight_cost: 1200,
+          clearance_cost: 150,
+          delivery_cost: 80,
+          currency: 'USD',
+          total_cost: 1430,
           pallets: [
-            { length: 100, width: 100, height: 100, weight: 150 },
-            { length: 120, width: 80, height: 90, weight: 120 },
+            { id: 'p1', quotation_id: 'mock-id', length: 120, width: 100, height: 80, weight: 500, quantity: 1 }, 
+            { id: 'p2', quotation_id: 'mock-id', length: 100, width: 80, height: 60, weight: 300, quantity: 2 }, 
           ],
-          delivery_service_required: true,
-          delivery_vehicle_type: '4wheel',
           additional_charges: [
-            { description: 'Documentation', amount: 1200 },
-            { description: 'Insurance', amount: 3500 },
+            { id: 'ac1', quotation_id: 'mock-id', name: 'Handling', description: 'Special handling fee', amount: 50 },
+            { id: 'ac2', quotation_id: 'mock-id', name: 'Insurance', description: 'Transport insurance', amount: 30 },
           ],
-          notes: 'Please handle with care. Fragile items included.',
-          total_freight_cost: 24500,
-          delivery_cost: 3500,
-          clearance_cost: 5350,
-          total_cost: 38050,
-          total_volume_weight: 217,
-          total_actual_weight: 270,
-          chargeable_weight: 270,
+          notes: 'This is a mock quotation for preview purposes.',
           status: 'sent',
         };
         setQuotationData(mockQuotation);

@@ -123,7 +123,7 @@ export default function EditFreightRatePage() {
          effective_date: data.effective_date || null,
       };
 
-      // @ts-ignore - db.ts updateFreightRate expects slightly different Partial type now
+      // @ts-expect-error - db.ts updateFreightRate expects slightly different Partial type now
       const updatedRate = await updateFreightRate(rateId, updates);
 
       if (updatedRate) {
@@ -133,9 +133,9 @@ export default function EditFreightRatePage() {
         throw new Error('Failed to update freight rate in database.');
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating freight rate:', err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

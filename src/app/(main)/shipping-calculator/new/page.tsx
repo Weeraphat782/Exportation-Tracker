@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,10 +45,12 @@ const palletSchema = z.object({
   width: z.number().min(0, { message: 'Must be 0 or positive' }),
   height: z.number().min(0, { message: 'Must be 0 or positive' }),
   weight: z.number().min(0, { message: 'Must be 0 or positive' }),
+  quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }).default(1),
 });
 
 // --- Additional Charge Schema ---
 const additionalChargeSchema = z.object({
+    name: z.string().min(1, { message: 'Charge name is required' }),
     description: z.string().min(1, { message: 'Description is required' }),
     amount: z.number().min(0, { message: 'Amount must be 0 or greater' }),
 });
@@ -321,6 +323,18 @@ const AdditionalChargeItem = ({
         <div className="flex items-end gap-2 mb-2">
             <FormField
                 control={control}
+                name={`additionalCharges.${index}.name`}
+                render={({ field }) => (
+                    <FormItem className="flex-grow">
+                        <FormLabel className="text-xs">Name</FormLabel>
+                        <FormControl>
+                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9"/>
+                        </FormControl>
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={control}
                 name={`additionalCharges.${index}.description`}
                 render={({ field }) => (
                     <FormItem className="flex-grow">
@@ -497,15 +511,21 @@ export default function ShippingCalculatorPage() {
     const form = useForm<QuotationFormValues>({
         resolver: zodResolver(quotationFormSchema),
         defaultValues: {
-            companyId: '',
-            contactPerson: '',
-            contractNo: '',
-            destinationId: '',
-            pallets: [{ length: 0, width: 0, height: 0, weight: 0 }],
-            deliveryServiceRequired: false, // Explicit default
-            deliveryVehicleType: '4wheel', // Explicit default
-            additionalCharges: [], // Explicit default
+            client_id: '',
+            destination_id: '',
+            // Initialize with one empty pallet that includes quantity
+            pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }], 
+            freight_cost_input_currency: 'THB',
+            freight_cost_input_value: 0,
+            clearance_cost_input_currency: 'THB',
+            clearance_cost_input_value: 0,
+            delivery_service_id: '',
+            delivery_cost_input_currency: 'THB',
+            delivery_cost_input_value: 0,
+            // Initialize with one empty charge that includes name
+            additional_charges: [{ name: '', description: '', amount: 0 }], 
             notes: '',
+            status: 'sent', // Default status
         },
         mode: 'onChange',
     });
@@ -622,19 +642,23 @@ export default function ShippingCalculatorPage() {
                     if (existingQuotation && existingQuotation.user_id === userId) {
                         console.log("Effect 2: Existing quotation found, resetting form.");
                         reset({
-                            companyId: (existingQuotation as any).company_id || '',
-                            contactPerson: (existingQuotation as any).contact_person || '',
-                            contractNo: (existingQuotation as any).contract_no || '',
-                            destinationId: (existingQuotation as any).destination_id || '',
+                            client_id: (existingQuotation as any).company_id || '',
+                            destination_id: (existingQuotation as any).destination_id || '',
                             pallets: Array.isArray((existingQuotation as any).pallets) && (existingQuotation as any).pallets.length > 0 
                                 ? (existingQuotation as any).pallets 
-                                : [{ length: 0, width: 0, height: 0, weight: 0 }],
-                            deliveryServiceRequired: (existingQuotation as any).delivery_service_required ?? false,
-                            deliveryVehicleType: (existingQuotation as any).delivery_vehicle_type || '4wheel',
-                            additionalCharges: Array.isArray((existingQuotation as any).additional_charges) 
+                                : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
+                            freight_cost_input_currency: (existingQuotation as any).currency || 'THB',
+                            freight_cost_input_value: (existingQuotation as any).freight_cost || 0,
+                            clearance_cost_input_currency: (existingQuotation as any).currency || 'THB',
+                            clearance_cost_input_value: (existingQuotation as any).clearance_cost || 0,
+                            delivery_service_id: (existingQuotation as any).delivery_service_id || '',
+                            delivery_cost_input_currency: (existingQuotation as any).currency || 'THB',
+                            delivery_cost_input_value: (existingQuotation as any).delivery_cost || 0,
+                            additional_charges: Array.isArray((existingQuotation as any).additional_charges) 
                                 ? (existingQuotation as any).additional_charges 
-                                : [],
+                                : [{ name: '', description: '', amount: 0 }],
                             notes: (existingQuotation as any).notes || '',
+                            status: (existingQuotation as any).status || 'sent',
                         });
                     } else {
                         console.log("Effect 2: Quotation not found or access denied, redirecting.");
@@ -644,15 +668,19 @@ export default function ShippingCalculatorPage() {
                 } else {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
                     reset({
-                        companyId: '',
-                        contactPerson: '',
-                        contractNo: '',
-                        destinationId: '',
-                        pallets: [{ length: 0, width: 0, height: 0, weight: 0 }],
-                        deliveryServiceRequired: false,
-                        deliveryVehicleType: '4wheel',
-                        additionalCharges: [],
+                        client_id: '',
+                        destination_id: '',
+                        pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
+                        freight_cost_input_currency: 'THB',
+                        freight_cost_input_value: 0,
+                        clearance_cost_input_currency: 'THB',
+                        clearance_cost_input_value: 0,
+                        delivery_service_id: '',
+                        delivery_cost_input_currency: 'THB',
+                        delivery_cost_input_value: 0,
+                        additional_charges: [{ name: '', description: '', amount: 0 }],
                         notes: '',
+                        status: 'sent',
                     });
                 }
             } catch (error: any) {
@@ -1036,7 +1064,7 @@ export default function ShippingCalculatorPage() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => appendPallet({ length: 0, width: 0, height: 0, weight: 0 })}
+                                onClick={() => appendPallet({ length: 0, width: 0, height: 0, weight: 0, quantity: 1 })}
                                 className="mt-3 w-full flex items-center justify-center gap-1"
                             >
                                 <Plus className="h-4 w-4" /> Add Pallet
@@ -1115,7 +1143,7 @@ export default function ShippingCalculatorPage() {
                                         type="button" 
                                         variant="outline" 
                                         size="sm"
-                                        onClick={() => appendCharge({ description: '', amount: 0 })}
+                                        onClick={() => appendCharge({ name: '', description: '', amount: 0 })}
                                         className="mt-2 w-full flex items-center justify-center gap-1 text-xs"
                                     >
                                         <Plus className="h-3 w-3" /> Add Charge
