@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LogOut, User } from 'lucide-react';
+import { LogOut /*, User */ } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -13,10 +13,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from '@/lib/supabase';
 
 interface UserProfileProps {
-  className?: string;
+  // Remove unused className prop
+  // className?: string;
 }
 
-export function UserProfile({ className }: UserProfileProps) {
+export function UserProfile(/* { className }: UserProfileProps */) {
   const [userEmail, setUserEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
 

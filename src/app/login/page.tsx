@@ -75,10 +75,11 @@ export default function LoginPage() {
         setDebugInfo((prev) => prev + `\nNo session returned.\n`);
         setIsLoading(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
       setErrorMessage('An unexpected error occurred');
-      setDebugInfo((prev) => prev + `\nUnexpected error: ${error?.message || JSON.stringify(error)}\n`);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+      setDebugInfo((prev) => prev + `\nUnexpected error: ${message}\n`);
       setIsLoading(false);
     }
   };
@@ -166,7 +167,7 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-2">
             <div className="text-sm text-center">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-blue-600 hover:underline">
                 Register
               </Link>

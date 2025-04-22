@@ -5,9 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, FileText, Edit } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData, Destination, Company, Pallet, AdditionalCharge } from '@/lib/db';
+import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData, Destination, Company } from '@/lib/db';
+
+// Define AdditionalCharge locally
+interface AdditionalCharge {
+  name: string;
+  description: string;
+  amount: number;
+}
 
 // Add a function to format numbers consistently
 const formatNumber = (num: number | string | undefined | null) => {
@@ -18,13 +25,10 @@ const formatNumber = (num: number | string | undefined | null) => {
 };
 
 export default function QuotationPreviewPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [quotationData, setQuotationData] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const quotationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,25 +76,6 @@ export default function QuotationPreviewPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    // Fetch data needed for the quotation
-    const fetchData = async () => {
-      try {
-        // Fetch destinations and companies if needed for the preview
-        const destinationsData = await getDestinations();
-        const companiesData = await getCompanies();
-        
-        // Set destinations and companies with null checks
-        if (destinationsData) setDestinations(destinationsData);
-        if (companiesData) setCompanies(companiesData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    fetchData();
   }, []);
 
   const handleSaveAsPdf = () => {
