@@ -20,7 +20,6 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { createFreightRate, getDestinations, Destination, getFreightRates, FreightRate } from '@/lib/db';
 import { toast } from 'react-hot-toast';
-import { useWatch } from 'react-hook-form';
 
 // Adjusted Schema: Use optional/nullable, refine handles null check
 const freightRateFormSchema = z.object({
@@ -53,7 +52,6 @@ export default function NewFreightRatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
-  const [formValues, setFormValuesState] = useState<Partial<FreightRate>>({});
 
   const form = useForm<FreightRateFormValues>({
     resolver: zodResolver(freightRateFormSchema),
@@ -68,19 +66,6 @@ export default function NewFreightRatePage() {
   });
 
   const { watch } = form;
-
-  // setFormValues to map FreightRate (DB type) to Form Values
-  const setFormValues = useCallback((values: Partial<FreightRate>) => {
-    form.reset({
-      destination_id: values.destination_id || '',
-      // Pass null/undefined directly as form type now handles it
-      min_weight: values.min_weight, 
-      max_weight: values.max_weight, 
-      base_rate: values.base_rate,
-      effective_date: values.effective_date,
-    });
-    setFormValuesState(values);
-  }, [form]);
 
   useEffect(() => {
     async function loadInitialData() {
@@ -108,7 +93,13 @@ export default function NewFreightRatePage() {
       if (data.destination_id) {
         const existingRate = existingRates.find(rate => rate.destination_id === data.destination_id);
         if (existingRate) {
-          setFormValues(existingRate);
+          form.reset({
+            destination_id: data.destination_id, // keep current destination
+            min_weight: existingRate.min_weight,
+            max_weight: existingRate.max_weight,
+            base_rate: existingRate.base_rate,
+            effective_date: existingRate.effective_date,
+          });
           setIsEditingExisting(true);
         } else {
           // Reset fields if destination changes and no matching rate found
@@ -127,8 +118,7 @@ export default function NewFreightRatePage() {
     return () => {
       subscription.unsubscribe();
     };
-  // Ensure setFormValues is stable by wrapping it in useCallback
-  }, [watch, existingRates, form, setFormValues]); 
+  }, [watch, existingRates, form]); 
 
   const onSubmit = async (data: FreightRateFormValues) => {
     setIsSubmitting(true);
@@ -187,8 +177,6 @@ export default function NewFreightRatePage() {
       setIsSubmitting(false);
     }
   };
-
-  const formErrors = form.formState.errors;
 
   return (
     <div className="space-y-6">

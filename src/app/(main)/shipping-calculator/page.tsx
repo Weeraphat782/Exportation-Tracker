@@ -3,14 +3,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Download, Trash, Edit, User, Link2, Copy, ExternalLink } from 'lucide-react';
+import { Plus, FileText, Edit, Trash, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateDocumentUploadLink } from '@/lib/storage';
-import { getQuotations, deleteQuotation as dbDeleteQuotation } from '@/lib/db';
+import { getQuotations, deleteQuotation as dbDeleteQuotation, Quotation } from '@/lib/db';
+import { Input } from '@/components/ui/input';
 
 // In a real application, this would come from an API
 // For now, we'll use some mock data
@@ -46,11 +47,12 @@ interface QuotationRow {
 
 export default function ShippingCalculatorPage() {
   const router = useRouter();
-  const [quotations, setQuotations] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string>('');
-  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // First useEffect - only for auth checking
   useEffect(() => {
@@ -141,7 +143,6 @@ export default function ShippingCalculatorPage() {
       if (userString) {
         const userData = JSON.parse(userString);
         userId = userData.id;
-        setCurrentUser(userData.email || 'Unknown User');
       }
     } catch (error) {
       console.error('Error getting user information:', error);
@@ -219,20 +220,6 @@ export default function ShippingCalculatorPage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      // Handle different date formats
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }).format(date);
-    } catch (e) {
-      return dateString; // Return original string if parsing fails
-    }
-  };
-
   const getStatusBadgeVariant = (status: string) => {
     switch(status) {
       case 'sent':
@@ -259,36 +246,19 @@ export default function ShippingCalculatorPage() {
     }
   };
 
-  const handleCreateNew = () => {
-    // Clear any ongoing edit data
-    sessionStorage.removeItem('editQuotationData');
-    sessionStorage.removeItem('editingQuotationId');
-    router.push('/shipping-calculator/new');
-  };
-
   const handleDeleteQuotation = async (id: string) => {
-    // ขอการยืนยันก่อนลบ
-    const isConfirmed = window.confirm(`คุณต้องการลบใบเสนอราคา ${id} ใช่หรือไม่?`);
+    const originalQuotations = [...quotations];
+    // Optimistically remove from UI
+    setQuotations(quotations.filter(q => q.id !== id)); 
+    setDialogOpen(false); // Close dialog
     
-    if (!isConfirmed) {
-      return; // ยกเลิกการลบถ้าไม่ยืนยัน
-    }
-    
-    // Remove quotation from UI immediately for responsive feel
-    setQuotations(quotations.filter(q => q.id !== id));
-    
-    // Delete from Supabase
     try {
       const success = await dbDeleteQuotation(id);
       
       if (!success) {
         console.error('Failed to delete quotation from database');
         // Restore UI if database delete fails
-        const savedQuotations = localStorage.getItem('quotations');
-        if (savedQuotations) {
-          const parsedQuotations = JSON.parse(savedQuotations);
-          setQuotations(parsedQuotations);
-        }
+        setQuotations(originalQuotations);
       } else {
         console.log('Quotation deleted successfully from database');
         
@@ -329,23 +299,15 @@ export default function ShippingCalculatorPage() {
     }
   };
 
-  const handleCopyLink = (quotation: any) => {
-    try {
-      const path = generateDocumentUploadLink(
-        quotation.id,
-        quotation.companyName || 'Unknown',
-        quotation.destination || 'Unknown'
-      );
-      navigator.clipboard.writeText(path);
-      setCopySuccess(quotation.id);
-      
-      setTimeout(() => {
-        setCopySuccess(null);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy link:', error);
-    }
-  };
+  // Filter quotations based on search term
+  const filteredQuotations = quotations.filter(quotation => {
+    const searchTermLower = searchTerm.toLowerCase();
+    // Check against quotation_id and company_name (ensure fields exist on Quotation type)
+    return (
+      quotation.quotation_id?.toLowerCase().includes(searchTermLower) ||
+      quotation.company_name?.toLowerCase().includes(searchTermLower)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -398,19 +360,19 @@ export default function ShippingCalculatorPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {quotations.map((quotation) => (
+                  {filteredQuotations.map((quotation) => (
                     <TableRow key={quotation.id}>
                       <TableCell>{quotation.date || 'N/A'}</TableCell>
-                      <TableCell>{quotation.id}</TableCell>
-                      <TableCell>{quotation.companyName || 'N/A'}</TableCell>
-                      <TableCell>{quotation.destination}</TableCell>
+                      <TableCell className="font-medium">{quotation.quotation_id || quotation.id}</TableCell>
+                      <TableCell>{quotation.company_name || 'N/A'}</TableCell>
+                      <TableCell>{quotation.destination || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(quotation.status)}>
                           {getStatusText(quotation.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(quotation.totalCost || 0)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right">{formatCurrency(quotation.total_cost || 0)}</TableCell>
+                      <TableCell className="text-right space-x-1">
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="outline" 
