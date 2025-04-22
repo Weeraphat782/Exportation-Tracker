@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/lib/supabase';
-import { cn } from "@/lib/utils";
 
 interface UserProfileProps {
   className?: string;
@@ -75,7 +74,7 @@ export function UserProfile({ className }: UserProfileProps) {
   };
 
   if (loading) {
-    return <div className={cn("h-9 w-9 rounded-full bg-gray-200 animate-pulse", className)} />;
+    return <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse" />;
   }
 
   if (!userEmail) {
@@ -85,7 +84,7 @@ export function UserProfile({ className }: UserProfileProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className={cn("h-9 w-9 rounded-full p-0", className)}>
+        <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
           <span className="sr-only">เมนูผู้ใช้</span>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white">
             {userEmail.charAt(0).toUpperCase()}

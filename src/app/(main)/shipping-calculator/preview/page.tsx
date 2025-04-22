@@ -3,20 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, Printer, FileText, Save, Edit } from 'lucide-react';
+import { ArrowLeft, FileText, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
-import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData } from '@/lib/db';
-
-// Currency formatter
-const formatter = new Intl.NumberFormat('th-TH', {
-  style: 'currency',
-  currency: 'THB',
-  minimumFractionDigits: 2
-});
+import { Quotation, updateQuotation, getCompanies, getDestinations, saveQuotation, NewQuotationData, Destination, Company, Pallet, AdditionalCharge } from '@/lib/db';
 
 // Add a function to format numbers consistently
 const formatNumber = (num: number | string | undefined | null) => {
@@ -32,8 +23,8 @@ export default function QuotationPreviewPage() {
   const [quotationData, setQuotationData] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [destinations, setDestinations] = useState<any[]>([]);
-  const [companies, setCompanies] = useState<any[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const quotationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,10 +92,6 @@ export default function QuotationPreviewPage() {
 
     fetchData();
   }, []);
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const handleSaveAsPdf = () => {
     // ใช้วิธีเดียวกับการพิมพ์ปกติซึ่งจะรักษารูปแบบได้สมบูรณ์
@@ -250,10 +237,11 @@ export default function QuotationPreviewPage() {
           throw new Error('Failed to save new quotation');
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting quotation:', error);
+      const message = error instanceof Error ? error.message : "Database error";
       toast.error('Failed to submit the quotation', { 
-        description: error.message || 'Database error' 
+        description: message 
       });
     } finally {
       setIsSubmitting(false);
@@ -461,7 +449,7 @@ export default function QuotationPreviewPage() {
                     </tr>
                   )}
                   
-                  {quotationData?.additional_charges && quotationData.additional_charges.map((charge: any, index: number) => (
+                  {quotationData?.additional_charges && quotationData.additional_charges.map((charge: AdditionalCharge, index: number) => (
                     <tr key={index} className="border-b">
                       <td className="py-2">Additional: {charge.description as string}</td>
                       <td className="py-2 text-right">{formatNumber(charge.amount)}</td>

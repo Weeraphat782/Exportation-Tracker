@@ -135,8 +135,8 @@ export default function SimpleLoginPage() {
             borderRadius: '4px',
             fontSize: '14px'
           }}>
-            <p><strong>If you&apos;ve registered:</strong> Use the email and password you registered with.</p>
-            <p><strong>If you don&apos;t have an account:</strong> You need to register first. This simple login should work with any account you&apos;ve registered with Supabase.</p>
+            <p><strong>If you've registered:</strong> Use the email and password you registered with.</p>
+            <p><strong>If you don't have an account:</strong> You need to register first. This simple login should work with any account you've registered with Supabase.</p>
             <p style={{ marginTop: '10px', color: '#666' }}>
               Note: This login uses a direct method that should work even if there are issues with the regular login system.
             </p>

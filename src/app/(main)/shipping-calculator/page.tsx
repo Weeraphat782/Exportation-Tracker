@@ -3,15 +3,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Download, Trash, Edit, User, Link2, Copy, ExternalLink, Search } from 'lucide-react';
+import { Plus, FileText, Trash, Edit, User, Copy, ExternalLink, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateDocumentUploadLink } from '@/lib/storage';
-import { getQuotations, deleteQuotation as dbDeleteQuotation } from '@/lib/db';
+import { getQuotations, deleteQuotation as dbDeleteQuotation, Quotation } from '@/lib/db';
 
 // In a real application, this would come from an API
 // For now, we'll use some mock data
@@ -50,23 +50,11 @@ const mockQuotations = [
   },
 ];
 
-// Modify the QuotationRow type to include status
-interface QuotationRow {
-  id: string;
-  date: string;
-  quotationNo: string;
-  client: string;
-  destination: string;
-  status: 'draft' | 'sent' | string;
-  createdBy?: string; // Add creator
-}
-
 export default function ShippingCalculatorPage() {
   const router = useRouter();
-  const [quotations, setQuotations] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -159,7 +147,6 @@ export default function ShippingCalculatorPage() {
       if (userString) {
         const userData = JSON.parse(userString);
         userId = userData.id;
-        setCurrentUser(userData.email || 'Unknown User');
       }
     } catch (error) {
       console.error('Error getting user information:', error);
@@ -189,8 +176,8 @@ export default function ShippingCalculatorPage() {
         }
       } catch (error) {
         console.error('Error loading quotations from database:', error);
-        // Fallback to mock data in case of error
-        setQuotations(mockQuotations);
+        // Removed fallback to mockQuotations as its structure is incorrect
+        setQuotations([]); 
       } finally {
         setLoading(false);
       }
@@ -250,13 +237,6 @@ export default function ShippingCalculatorPage() {
       default:
         return status;
     }
-  };
-
-  const handleCreateNew = () => {
-    // Clear any ongoing edit data
-    sessionStorage.removeItem('editQuotationData');
-    sessionStorage.removeItem('editingQuotationId');
-    router.push('/shipping-calculator/new');
   };
 
   const handleDeleteQuotation = async (id: string) => {
@@ -322,12 +302,12 @@ export default function ShippingCalculatorPage() {
     }
   };
 
-  const handleCopyLink = (quotation: any) => {
+  const handleCopyLink = (quotation: Quotation) => {
     // สร้างลิงก์อัปโหลดเอกสารโดยใช้ฟังก์ชันจาก storage.ts
     const uploadUrl = generateDocumentUploadLink(
       quotation.id,
-      quotation.companyName,
-      quotation.destination
+      quotation.company_name || 'Unknown Company',
+      quotation.destination || 'Unknown Destination'
     );
     
     // คัดลอกลิงก์
@@ -354,8 +334,8 @@ export default function ShippingCalculatorPage() {
   const filteredQuotations = quotations.filter(quotation => {
     const searchTermLower = searchTerm.toLowerCase();
     return (
-      (quotation.id?.toLowerCase().includes(searchTermLower)) || // Use id for searching
-      (quotation.companyName?.toLowerCase().includes(searchTermLower)) // Use companyName
+      (quotation.id?.toLowerCase().includes(searchTermLower)) ||
+      (quotation.company_name?.toLowerCase().includes(searchTermLower))
     );
   });
 
@@ -425,23 +405,23 @@ export default function ShippingCalculatorPage() {
                 <TableBody>
                   {filteredQuotations.map((quotation) => (
                     <TableRow key={quotation.id}>
-                      <TableCell>{formatDate(quotation.date)}</TableCell>
+                      <TableCell>{formatDate(quotation.created_at)}</TableCell>
                       <TableCell>{quotation.id}</TableCell>
-                      <TableCell>{quotation.companyName}</TableCell>
+                      <TableCell>{quotation.company_name}</TableCell>
                       <TableCell>{quotation.destination}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(quotation.status)}>
                           {getStatusText(quotation.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(quotation.totalCost)}</TableCell>
+                      <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
                       <TableCell className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-500" />
-                        {quotation.createdBy || 'Unknown'}
+                        {quotation.user_id || 'Unknown'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {quotation.status === 'draft' && (
+                          {quotation.status === 'sent' && (
                             <Button 
                               variant="outline" 
                               size="icon"

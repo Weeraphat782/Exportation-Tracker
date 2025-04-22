@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getCompanyById, updateCompany } from '@/lib/db';
+import { getCompanyById, updateCompany, Company } from '@/lib/db';
 
 const companyFormSchema = z.object({
   name: z.string().min(1, { message: 'Company name is required' }),
@@ -81,16 +81,12 @@ export default function EditCompanyPage() {
   }, [companyId, form]);
 
   const onSubmit = async (data: CompanyFormValues) => {
-    if (!companyId) return;
     setIsSubmitting(true);
-    setError('');
-
+    setError(null);
+    
     try {
-      // Fetch the current company data again before updating 
-      // to ensure we have the latest version (optional, but good practice)
-      const currentCompany = await getCompanyById(companyId);
-      if (!currentCompany) {
-        throw new Error('Company not found for update.');
+      if (!companyId) {
+        throw new Error("Invalid company ID.");
       }
 
       const updates = { ...data };
@@ -104,9 +100,9 @@ export default function EditCompanyPage() {
         throw new Error('Failed to update company in database.');
       }
 
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error updating company:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

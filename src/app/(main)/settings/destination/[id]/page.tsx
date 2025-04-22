@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getDestinationById, updateDestination } from '@/lib/db'; // Removed unused Destination import
+import { getDestinationById, updateDestination, Destination } from '@/lib/db'; // Import db functions
 
 // ใช้ Schema เดียวกับหน้า New ที่แก้ไขแล้ว
 const destinationFormSchema = z.object({
@@ -71,16 +71,15 @@ export default function EditDestinationPage() {
   }, [destinationId, form]); // Dependencies
 
   const onSubmit = async (data: DestinationFormValues) => {
-    if (!destinationId) return;
     setIsSubmitting(true);
-    setError('');
-
+    setError(null);
+    
     try {
-      const currentDestination = await getDestinationById(destinationId);
-      if (!currentDestination) {
-        throw new Error('Destination not found for update.');
+      if (!destinationId) {
+        throw new Error("Invalid destination ID.");
       }
 
+      // updateDestination รับ Partial<Pick<...>> ซึ่ง data ตรง type พอดี
       const updatedDestination = await updateDestination(destinationId, data);
       
       if (updatedDestination) {
@@ -90,9 +89,9 @@ export default function EditDestinationPage() {
         throw new Error('Failed to update destination in database.');
       }
 
-    } catch (err: unknown) { // Changed any to unknown
+    } catch (err: any) {
       console.error('Error updating destination:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }

@@ -45,22 +45,6 @@ export interface FreightRate {
   user_id?: string;
 }
 
-// Define types for pallet and additional charge to avoid using any
-export interface Pallet {
-  length: number;
-  width: number;
-  height: number;
-  weight: number;
-  quantity: number;
-  [key: string]: unknown;
-}
-
-export interface AdditionalCharge {
-  name: string;
-  amount: number;
-  [key: string]: unknown;
-}
-
 export interface Quotation {
   id: string;
   created_at: string;
@@ -69,13 +53,13 @@ export interface Quotation {
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
-  pallets: Pallet[];
+  pallets: any[];
   delivery_service_required: boolean;
   delivery_vehicle_type: '4wheel' | '6wheel';
-  additional_charges: AdditionalCharge[];
+  additional_charges: any[];
   notes?: string | null;
   total_cost: number;
-  status: 'sent';
+  status: 'draft' | 'sent';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
@@ -111,7 +95,7 @@ export interface Setting {
   id: string;
   category: string;
   settings_key: string;
-  settings_value?: Record<string, unknown>;
+  settings_value?: Record<string, any>;
   created_at?: string;
   updated_at?: string;
   user_id?: string;
@@ -451,8 +435,7 @@ export async function createFreightRate(rate: Omit<FreightRate, 'id' | 'created_
 
 export async function updateFreightRate(id: string, updates: Partial<Omit<FreightRate, 'currency' | 'vehicle_type' | 'container_size'>>) {
   try {
-    // Extract unused fields and keep the rest
-    const { ...restUpdates } = updates;
+    const { user_id, destination_id, id: rateId, created_at, updated_at, ...restUpdates } = updates;
 
     const { data, error } = await supabase
       .from('freight_rates')
@@ -586,7 +569,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       .from('quotations')
       .insert([sanitizedData])
       .select() // Select all columns of the newly created row
-      .single();
+      .single(); // Expecting one row back
 
     if (error) {
       console.error('Error saving quotation:', error);
@@ -616,10 +599,10 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
     // Cast the returned data to the full Quotation type
     return data as Quotation;
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Exception in saveQuotation:', error);
     // Return null to indicate failure, with error message logged
-    if (error instanceof Error && error.message) {
+    if (error.message) {
       console.error('Error message:', error.message);
     }
     throw error; // Throw the error so the calling function can handle it
@@ -830,7 +813,7 @@ export async function getSetting(category: string, key: string) {
 export async function createOrUpdateSetting(
   category: string,
   key: string,
-  value: Record<string, unknown>,
+  value: Record<string, any>,
   userId: string
 ) {
   try {

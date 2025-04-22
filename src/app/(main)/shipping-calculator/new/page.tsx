@@ -13,10 +13,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ArrowLeft, Plus, Trash, Minus } from 'lucide-react';
 import { 
-  calculateVolumeWeight, 
-  getTotalVolumeWeight, 
-  getTotalActualWeight,
-  getChargeableWeight as calculateChargeableWeightForPallet
+    calculateVolumeWeight,
+    // getTotalVolumeWeight, // Removed unused import
+    // getTotalActualWeight, // Removed unused import
+    // getChargeableWeight as calculateChargeableWeightForPallet // Removed unused import
 } from '@/lib/calculators';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from '@/components/ui/separator';
@@ -35,7 +35,7 @@ import {
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import Link from 'next/link';
+// import Link from 'next/link'; // Removed unused import
 
 // --- Pallet Schema ---
 const palletSchema = z.object({
@@ -595,10 +595,12 @@ export default function ShippingCalculatorPage() {
                  console.log("Effect 1: All data fetched, setting isLoading to false.");
                  setIsLoading(false);
 
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error fetching initial data:', error);
-                toast.error("Initialization Error", { description: error.message || "Failed to load required data." });
-                if (error.message === "User not logged in.") {
+                // Type check for error message
+                const message = error instanceof Error ? error.message : "Failed to load required data.";
+                toast.error("Initialization Error", { description: message });
+                if (error instanceof Error && error.message === "User not logged in.") {
                     router.push('/login');
                 }
                 // Keep loading true or set an error state if fetching fails critically
@@ -860,10 +862,10 @@ export default function ShippingCalculatorPage() {
                     if (!savedQuotation) {
                         throw new Error("Failed to save quotation. The database operation returned null.");
                     }
-                } catch (saveError: any) {
+                } catch (saveError: unknown) {
                     // Handle specific save errors
                     console.error("Save quotation error details:", saveError);
-                    throw new Error(saveError.message || "Database save operation failed");
+                    throw new Error(saveError instanceof Error ? saveError.message : "Database save operation failed");
                 }
             }
 
@@ -903,7 +905,7 @@ export default function ShippingCalculatorPage() {
             // Navigate to preview
             router.push(`/shipping-calculator/preview?id=${savedQuotation.id}`);
             
-        } catch (error: unknown) { // Use unknown
+        } catch (error: unknown) {
             console.error('Error saving quotation:', error);
             
             // Get a more descriptive error message if possible

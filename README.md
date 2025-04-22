@@ -1,18 +1,4 @@
-# Exportation Tracker
-
-เว็บแอปพลิเคชันสำหรับจัดการข้อมูลการส่งออกสินค้า พร้อมคำนวณค่าขนส่ง และสร้างเอกสารใบเสนอราคา
-
-## คุณสมบัติ
-- คำนวณค่าขนส่งโดยอัตโนมัติ
-- จัดการข้อมูลบริษัท ลูกค้า
-- บันทึกจุดหมายปลายทางและอัตราค่าขนส่ง
-- พิมพ์และบันทึกใบเสนอราคาในรูปแบบ PDF
-
-## เทคโนโลยี
-- Next.js 14
-- Supabase
-- TypeScript
-- Tailwind CSS
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 

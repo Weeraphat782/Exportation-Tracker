@@ -46,9 +46,9 @@ export default function NewDestinationPage() {
       } else {
         throw new Error('Failed to save destination to database.');
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error saving destination:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err.message || 'An unexpected error occurred.');
     } finally {
       setIsSubmitting(false);
     }
