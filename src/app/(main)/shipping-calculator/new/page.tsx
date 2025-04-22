@@ -35,6 +35,7 @@ import {
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 // --- Pallet Schema ---
 const palletSchema = z.object({
@@ -600,6 +601,7 @@ export default function ShippingCalculatorPage() {
                  console.log("Effect 1: All data fetched, setting isLoading to false.");
                  setIsLoading(false);
 
+            } catch (error: unknown) {
             } catch (error: any) {
                 console.error('Error fetching initial data:', error);
                 toast.error("Initialization Error", { description: error.message || "Failed to load required data." });

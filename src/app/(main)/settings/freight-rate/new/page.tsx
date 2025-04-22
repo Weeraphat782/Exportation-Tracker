@@ -17,7 +17,7 @@ import * as z from 'zod';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createFreightRate, getDestinations, Destination, getFreightRates, FreightRate } from '@/lib/db';
 import { toast } from 'react-hot-toast';
 

@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getQuotationById } from '@/lib/db';
+import { getQuotationById, Quotation } from '@/lib/db';
 import { useParams } from 'next/navigation';
+import { calculateVolumeWeight } from '@/lib/calculators';
 
 export default function PrintQuotationPage() {
   const params = useParams();
   const id = params.id as string;
-  const [data, setData] = useState<any>(null);
+  const [quotationData, setQuotationData] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchQuotation() {
@@ -17,12 +19,13 @@ export default function PrintQuotationPage() {
         const quotation = await getQuotationById(id);
         if (quotation) {
           console.log("Loaded quotation data:", JSON.stringify(quotation, null, 2)); // Detailed logging
-          setData(quotation);
+          setQuotationData(quotation);
         } else {
           console.error('Quotation not found');
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching quotation:', error);
+        setError("Error fetching quotation. Please try again later.");
       } finally {
         setLoading(false);
         // Auto-trigger print when data is loaded
@@ -45,95 +48,52 @@ export default function PrintQuotationPage() {
     return volumeCm3 / 6000;
   };
 
-  // Calculate actual weight
-  const getTotalActualWeight = (): number => {
-    if (!data?.pallets?.length) return 0;
-    
-    // Check if we already have the value in the data
-    if (typeof data.total_actual_weight === 'number' && data.total_actual_weight > 0) 
-      return data.total_actual_weight;
-    if (typeof data.totalActualWeight === 'number' && data.totalActualWeight > 0) 
-      return data.totalActualWeight;
-    
-    // Otherwise calculate from pallets
-    return data.pallets.reduce((total: number, pallet: any) => {
-      const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
-      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-      return total + (weight * quantity);
-    }, 0);
+  // Calculate total actual weight - Use type from Quotation.pallets
+  const getTotalActualWeight = (pallets: Quotation['pallets'] | null | undefined): number => { 
+    if (!pallets) return 0;
+    // Ensure pallet has weight and quantity before using
+    return pallets.reduce((sum, p) => sum + ((p?.weight || 0) * (p?.quantity || 1)), 0);
   };
 
-  // Calculate volume weight
-  const getTotalVolumeWeight = (): number => {
-    if (!data?.pallets?.length) return 0;
-    
-    // Check if we already have the value in the data
-    if (typeof data.total_volume_weight === 'number' && data.total_volume_weight > 0) 
-      return data.total_volume_weight;
-    if (typeof data.totalVolumeWeight === 'number' && data.totalVolumeWeight > 0) 
-      return data.totalVolumeWeight;
-    
-    // Otherwise calculate from pallets
-    return data.pallets.reduce((total: number, pallet: any) => {
-      const length = typeof pallet.length === 'number' ? pallet.length : parseFloat(pallet.length) || 0;
-      const width = typeof pallet.width === 'number' ? pallet.width : parseFloat(pallet.width) || 0;
-      const height = typeof pallet.height === 'number' ? pallet.height : parseFloat(pallet.height) || 0;
-      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-      
-      return total + calculateVolumeWeight(width, length, height, quantity);
-    }, 0);
+  // Calculate total volume weight - Use type from Quotation.pallets
+  const getTotalVolumeWeight = (pallets: Quotation['pallets'] | null | undefined): number => { 
+    if (!pallets) return 0;
+    // Ensure pallet has dimensions and quantity
+    const totalVolumeCm3 = pallets.reduce((sum, p) => sum + ((p?.length || 0) * (p?.width || 0) * (p?.height || 0) * (p?.quantity || 1)), 0);
+    return totalVolumeCm3 / 6000; // Assuming standard divisor
   };
 
-  // Calculate chargeable weight (max of volume weight and actual weight)
-  const getChargeableWeight = (): number => {
-    // Check if we already have the value in the data
-    if (typeof data?.chargeable_weight === 'number' && data?.chargeable_weight > 0) 
-      return data.chargeable_weight;
-    if (typeof data?.chargeableWeight === 'number' && data?.chargeableWeight > 0) 
-      return data.chargeableWeight;
-    
-    // Otherwise calculate it
-    const totalActualWeight = getTotalActualWeight();
-    const totalVolumeWeight = getTotalVolumeWeight();
-    return Math.max(totalActualWeight, totalVolumeWeight);
+  // Calculate chargeable weight - Use type from Quotation.pallets
+  const getChargeableWeight = (pallets: Quotation['pallets'] | null | undefined): number => { 
+    const actual = getTotalActualWeight(pallets);
+    const volume = getTotalVolumeWeight(pallets);
+    return Math.max(actual, volume);
   };
 
   // Format number with commas
-  const formatNumber = (num: number | string | undefined | null) => {
-    if (num === undefined || num === null) return "0.00";
-    const parsedNum = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(parsedNum)) return "0.00";
-    return parsedNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return '0.00';
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Calculate total cost
-  const calculateTotalCost = (): number => {
-    // First check if total cost is directly stored in data
-    if (typeof data?.total_cost === 'number' && data.total_cost > 0) {
-      return data.total_cost;
-    }
-    if (typeof data?.totalCost === 'number' && data.totalCost > 0) {
-      return data.totalCost;
-    }
-    
-    // If not available, calculate from components
-    const fc: number = calculateFreightCost();
-    const cc: number = calculateClearanceCost();
-    const dc: number = calculateDeliveryCost();
-    const ac: number = calculateAdditionalCharges();
-    
-    return fc + cc + dc + ac;
+  const calculateTotalCost = (data: Quotation | null): number => {
+    if (!data) return 0;
+    const freight = data.total_freight_cost || 0;
+    const clearance = data.clearance_cost || 0;
+    const delivery = data.delivery_cost || 0;
+    // Calculate sum of additional charges if the field exists
+    const additional = data.additional_charges?.reduce((sum: number, charge: { amount: number }) => sum + charge.amount, 0) || 0;
+    return freight + clearance + delivery + additional;
   };
 
   // Calculate the freight cost
   const calculateFreightCost = (): number => {
     // If freight cost is directly available, use it
-    if (typeof data?.total_freight_cost === 'number' && data.total_freight_cost > 0) return data.total_freight_cost;
-    if (typeof data?.totalFreightCost === 'number' && data.totalFreightCost > 0) return data.totalFreightCost;
+    if (quotationData?.total_freight_cost && quotationData.total_freight_cost > 0) return quotationData.total_freight_cost;
     
     // If we have the total cost, distribute it appropriately
-    const total = typeof data?.total_cost === 'number' ? data.total_cost : 
-                  typeof data?.totalCost === 'number' ? data.totalCost : 0;
+    const total = quotationData?.total_cost && quotationData.total_cost > 0 ? quotationData.total_cost : 0;
     
     if (total > 0) {
       // If we have a total cost but no freight cost, estimate freight as 75% of total
@@ -142,19 +102,17 @@ export default function PrintQuotationPage() {
     }
     
     // Otherwise estimate based on weight
-    const chargeableWt = data?.chargeable_weight || data?.chargeableWeight || getChargeableWeight();
+    const chargeableWt = quotationData?.chargeable_weight || getChargeableWeight(quotationData?.pallets);
     return Math.round(chargeableWt * 150); // Default rate of 150 THB per kg if nothing else works
   };
 
-  // Calculate the clearance cost 
+  // Calculate the clearance cost
   const calculateClearanceCost = (): number => {
     // If clearance cost is directly available, use it
-    if (typeof data?.clearance_cost === 'number' && data.clearance_cost > 0) return data.clearance_cost;
-    if (typeof data?.clearanceCost === 'number' && data.clearanceCost > 0) return data.clearanceCost;
+    if (quotationData?.clearance_cost && quotationData.clearance_cost > 0) return quotationData.clearance_cost;
     
     // If we have the total cost, distribute it appropriately
-    const total = typeof data?.total_cost === 'number' ? data.total_cost : 
-                  typeof data?.totalCost === 'number' ? data.totalCost : 0;
+    const total = quotationData?.total_cost && quotationData.total_cost > 0 ? quotationData.total_cost : 0;
                   
     if (total > 0) {
       // Estimate clearance as roughly 10% of total if we have total but no breakdown
@@ -168,15 +126,13 @@ export default function PrintQuotationPage() {
   // Calculate the delivery cost
   const calculateDeliveryCost = (): number => {
     // If delivery is not required, return 0
-    if (!data?.delivery_service_required && !data?.deliveryServiceRequired) return 0;
+    if (!quotationData?.delivery_service_required) return 0;
     
     // If delivery cost is directly available, use it
-    if (typeof data?.delivery_cost === 'number' && data.delivery_cost > 0) return data.delivery_cost;
-    if (typeof data?.deliveryCost === 'number' && data.deliveryCost > 0) return data.deliveryCost;
+    if (quotationData?.delivery_cost && quotationData.delivery_cost > 0) return quotationData.delivery_cost;
     
     // If we have the total cost, distribute it appropriately
-    const total = typeof data?.total_cost === 'number' ? data.total_cost : 
-                  typeof data?.totalCost === 'number' ? data.totalCost : 0;
+    const total = quotationData?.total_cost && quotationData.total_cost > 0 ? quotationData.total_cost : 0;
                   
     if (total > 0) {
       // Estimate delivery as roughly 15% of total if we have total but no breakdown
@@ -184,13 +140,13 @@ export default function PrintQuotationPage() {
     }
     
     // Otherwise calculate based on vehicle type
-    const vehicleType = data?.delivery_vehicle_type || data?.deliveryVehicleType || '4wheel';
+    const vehicleType = quotationData?.delivery_vehicle_type || '4wheel';
     return vehicleType === '4wheel' ? 3500 : 9500;
   };
 
   // Calculate total additional charges
   const calculateAdditionalCharges = (): number => {
-    const charges = data?.additional_charges || data?.additionalCharges || [];
+    const charges = quotationData?.additional_charges || [];
     return charges.reduce((total: number, charge: any) => {
       return total + (typeof charge.amount === 'number' ? charge.amount : parseFloat(charge.amount) || 0);
     }, 0);
@@ -198,10 +154,9 @@ export default function PrintQuotationPage() {
   
   // Get current date for quotation if not provided
   const getQuotationDate = () => {
-    // Use existing date if available
-    if (data?.date) return data.date;
-    if (data?.created_at) {
-      const date = new Date(data.created_at);
+    // Use created_at if available, as there's no separate 'date' field in Quotation
+    if (quotationData?.created_at) {
+      const date = new Date(quotationData.created_at);
       return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
     }
     
@@ -214,27 +169,27 @@ export default function PrintQuotationPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-pulse text-lg">Loading quotation data...</div>
-        </div>
+      </div>
     );
   }
 
-  if (!data) {
+  if (!quotationData) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-red-500">Quotation not found</div>
+        <div className="text-red-500">{error || 'Quotation not found'}</div>
       </div>
     );
   }
   
   // Get all the calculated values
-  const actualWeight = getTotalActualWeight();
-  const volumeWeight = getTotalVolumeWeight();
-  const chargeableWeight = data?.chargeable_weight || data?.chargeableWeight || getChargeableWeight();
+  const actualWeight = getTotalActualWeight(quotationData?.pallets);
+  const volumeWeight = getTotalVolumeWeight(quotationData?.pallets);
+  const chargeableWeight = quotationData?.chargeable_weight || getChargeableWeight(quotationData?.pallets);
   const freightCost = calculateFreightCost();
   const clearanceCost = calculateClearanceCost();
   const deliveryCost = calculateDeliveryCost();
   const additionalCharges = calculateAdditionalCharges();
-  const totalCost = calculateTotalCost();
+  const totalCost = calculateTotalCost(quotationData);
 
   return (
     <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen print:shadow-none print:border-none">
@@ -242,7 +197,7 @@ export default function PrintQuotationPage() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">QUOTATION</h1>
-          <p className="text-sm text-slate-500">Ref: {data?.id || 'N/A'}</p>
+          <p className="text-sm text-slate-500">Ref: {quotationData?.id || 'N/A'}</p>
         </div>
         <div className="text-right">
           <div className="text-xl font-bold text-slate-900">OMG Experiences</div>
@@ -261,21 +216,21 @@ export default function PrintQuotationPage() {
             <tbody>
               <tr>
                 <td className="py-1 font-medium">Company:</td>
-                <td className="py-1">{data?.company_name || 'N/A'}</td>
+                <td className="py-1">{quotationData?.company_name || 'N/A'}</td>
               </tr>
               <tr>
                 <td className="py-1 font-medium">Contact Person:</td>
-                <td className="py-1">{data?.contact_person || 'N/A'}</td>
+                <td className="py-1">{quotationData?.contact_person || 'N/A'}</td>
               </tr>
               <tr>
                 <td className="py-1 font-medium">Contract No:</td>
-                <td className="py-1">{data?.contract_no || 'N/A'}</td>
+                <td className="py-1">{quotationData?.contract_no || 'N/A'}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div>
-          <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">SHIPPING DETAILS</h3>
+          <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">SHIPMENT DETAILS</h3>
           <table className="w-full text-sm">
             <tbody>
               <tr>
@@ -284,7 +239,7 @@ export default function PrintQuotationPage() {
               </tr>
               <tr>
                 <td className="py-1 font-medium">Destination:</td>
-                <td className="py-1">{data?.destination || 'N/A'}</td>
+                <td className="py-1">{quotationData?.destination || 'N/A'}</td>
               </tr>
             </tbody>
           </table>
@@ -304,8 +259,8 @@ export default function PrintQuotationPage() {
             </tr>
           </thead>
           <tbody>
-            {data?.pallets && data.pallets.length > 0 ? (
-              data.pallets.map((pallet: any, index: number) => {
+            {quotationData?.pallets && quotationData.pallets.length > 0 ? (
+              quotationData.pallets.map((pallet: any, index: number) => {
                 const volumeWeight = calculateVolumeWeight(
                   parseFloat(pallet.width) || 0, 
                   parseFloat(pallet.length) || 0, 
@@ -358,15 +313,15 @@ export default function PrintQuotationPage() {
               <td className="py-2">Clearance Cost</td>
               <td className="py-2 text-right">{formatNumber(clearanceCost)}</td>
             </tr>
-            {(data?.delivery_service_required || data?.deliveryServiceRequired) && (
+            {(quotationData?.delivery_service_required) && (
               <tr className="border-b">
-                <td className="py-2">Delivery Service ({data?.delivery_vehicle_type || data?.deliveryVehicleType || 'N/A'})</td>
+                <td className="py-2">Delivery Service ({quotationData?.delivery_vehicle_type || 'N/A'})</td>
                 <td className="py-2 text-right">{formatNumber(deliveryCost)}</td>
               </tr>
             )}
             
-            {(data?.additional_charges || data?.additionalCharges) && (data?.additional_charges?.length > 0 || data?.additionalCharges?.length > 0) ? (
-              (data?.additional_charges || data?.additionalCharges).map((charge: any, index: number) => (
+            {(quotationData?.additional_charges) && (quotationData?.additional_charges?.length > 0) ? (
+              (quotationData?.additional_charges).map((charge: any, index: number) => (
                 <tr key={index} className="border-b">
                   <td className="py-2">Additional: {charge.description || 'Additional Charge'}</td>
                   <td className="py-2 text-right">{formatNumber(charge.amount || 0)}</td>
@@ -383,10 +338,10 @@ export default function PrintQuotationPage() {
       </div>
 
       {/* Notes - simplified to match the image */}
-      {data?.notes && (
+      {quotationData?.notes && (
         <div className="mb-8">
           <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">NOTES</h3>
-          <div className="text-sm">{data.notes}</div>
+          <div className="text-sm">{quotationData.notes}</div>
         </div>
       )}
     </div>
