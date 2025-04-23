@@ -27,7 +27,13 @@ const freightRateFormSchema = z.object({
   max_weight: z.coerce.number().positive().optional().nullable(),
   base_rate: z.coerce.number().positive({ message: 'Base rate must be positive' }),
   effective_date: z.string().optional().nullable(), // อาจจะใช้ Date picker หรือ Input type="date"
-}).refine(data => data.min_weight === null || data.max_weight === null || data.min_weight <= data.max_weight, {
+}).refine(data => {
+  // Only compare when both values are defined and not null
+  if (data.min_weight == null || data.max_weight == null) {
+    return true;
+  }
+  return data.min_weight <= data.max_weight;
+}, {
   message: "Max weight must be greater than or equal to min weight",
   path: ["max_weight"], // แสดง error ที่ช่อง max_weight
 });
@@ -86,7 +92,6 @@ export default function NewFreightRatePage() {
       };
 
       // Remove unused @ts-expect-error (error is gone)
-      // @ts-expect-error - createFreightRate expects Omit<...> but gets slightly different type here.
       const newRate = await createFreightRate(dataToSave);
 
       if (newRate) {

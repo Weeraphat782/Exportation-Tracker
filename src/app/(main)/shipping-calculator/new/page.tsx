@@ -640,7 +640,13 @@ export default function ShippingCalculatorPage() {
                             contractNo: typedExistingQuotation.contract_no || '',
                             destinationId: typedExistingQuotation.destination_id || '',
                             pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
-                                ? typedExistingQuotation.pallets.map(p => ({ ...p, quantity: p.quantity ?? 1 }))
+                                ? typedExistingQuotation.pallets.map(p => ({ 
+                                    length: Number(p.length), 
+                                    width: Number(p.width), 
+                                    height: Number(p.height), 
+                                    weight: Number(p.weight), 
+                                    quantity: Number(p.quantity ?? 1) 
+                                }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',

@@ -8,7 +8,7 @@ export default function SimpleLoginPage() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
 
-  async function handleLogin(e) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage('Attempting to log in...');
 
@@ -37,9 +37,9 @@ export default function SimpleLoginPage() {
       } else {
         setMessage('No session returned. Something went wrong.');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Login error:", err);
-      setMessage(`Error: ${err.message}`);
+      setMessage(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
 

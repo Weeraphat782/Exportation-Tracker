@@ -1,8 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getQuotationById, Quotation, Pallet, AdditionalCharge } from '@/lib/db';
+import { getQuotationById, Quotation } from '@/lib/db';
 import { useParams } from 'next/navigation';
+
+// Define interfaces locally instead of importing from db.ts
+interface Pallet {
+  length: number | string;
+  width: number | string;
+  height: number | string;
+  weight: number | string;
+  quantity: number | string;
+}
+
+interface AdditionalCharge {
+  name: string;
+  description: string;
+  amount: number | string;
+}
 
 export default function PrintQuotationPage() {
   const params = useParams();

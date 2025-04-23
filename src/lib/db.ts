@@ -110,6 +110,7 @@ export interface Setting {
   id: string;
   category: string;
   settings_key: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   settings_value?: Record<string, any>;
   created_at?: string;
   updated_at?: string;
@@ -131,8 +132,10 @@ export async function getProfile(userId: string) {
     }
 
     return data as Profile;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: unknown) {
+  } catch (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    error: any
+  ) {
     console.error('Error in getProfile:', error);
     return null;
   }
@@ -831,6 +834,7 @@ export async function getSetting(category: string, key: string) {
 export async function createOrUpdateSetting(
   category: string,
   key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value: Record<string, any>,
   userId: string
 ) {
@@ -876,8 +880,10 @@ export async function createOrUpdateSetting(
 
       return data[0] as Setting;
     }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: unknown) {
+  } catch (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    error: any
+  ) {
     console.error('Error in createOrUpdateSetting:', error);
     return null;
   }

@@ -386,7 +386,7 @@ export default function QuotationPreviewPage() {
                 </thead>
                 <tbody>
                   {quotationData?.pallets && quotationData.pallets.map((pallet, index) => {
-                    const volumeWeight = ((pallet.length * pallet.width * pallet.height) / 6000);
+                    const volumeWeight = ((Number(pallet.length) * Number(pallet.width) * Number(pallet.height)) / 6000);
                     return (
                       <tr key={index} className="border-b">
                         <td className="py-2">{index + 1}</td>
