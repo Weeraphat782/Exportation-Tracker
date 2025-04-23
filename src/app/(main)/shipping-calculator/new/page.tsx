@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -480,7 +480,7 @@ function calculateTotalFreightCost(
 }
 
 // --- Main Page Component ---
-export default function ShippingCalculatorPage() {
+function ShippingCalculatorPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const quotationId = searchParams.get('id');
@@ -1206,4 +1206,17 @@ export default function ShippingCalculatorPage() {
             </form>
         </FormProvider>
     );
+}
+
+// --- Suspense Wrapper ---
+export default function ShippingCalculatorPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-pulse text-lg">Loading calculator...</div>
+      </div>
+    }>
+      <ShippingCalculatorPage />
+    </Suspense>
+  );
 }
