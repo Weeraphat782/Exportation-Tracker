@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
+import { UserProfile } from '@/components/ui/user-profile';
 
 // Define props for Sidebar
 interface SidebarProps {
@@ -128,11 +129,20 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         
       </nav>
       
-      {!isCollapsed && (
-        <div className="text-base text-slate-400 mt-auto p-2">
+      <div className="mt-auto">
+        {isCollapsed ? (
+          <div className="flex justify-center mb-4">
+            <UserProfile />
+          </div>
+        ) : (
+          <div className="mb-4">
+            <UserProfile />
+          </div>
+        )}
+        <div className="text-base text-slate-400 p-2">
           v1.0.0
         </div>
-      )}
+      </div>
     </div>
   );
 };

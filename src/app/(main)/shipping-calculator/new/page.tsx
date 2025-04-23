@@ -1073,9 +1073,9 @@ function ShippingCalculatorPage() {
                             {/* Display Total Weights */}
                             {calculationResult && (
                                 <div className="mt-4 p-3 bg-gray-100 rounded text-sm space-y-1 border">
-                                    <p>Total Volume Weight: <span className="font-semibold">{formatNumber(calculationResult.totalVolumeWeight)} kg</span></p>
+                                    <p>Total Volume Weight: <span className="font-semibold">{formatNumber(Math.ceil(calculationResult.totalVolumeWeight))} kg</span></p>
                                     <p>Total Actual Weight: <span className="font-semibold">{formatNumber(calculationResult.totalActualWeight)} kg</span></p>
-                                    <p className="font-bold">Aggregate Chargeable Wt: <span className="font-semibold">{formatNumber(calculationResult.totalChargeableWeight)} kg</span></p>
+                                    <p className="font-bold">Aggregate Chargeable Wt: <span className="font-semibold">{formatNumber(Math.ceil(calculationResult.totalChargeableWeight))} kg</span></p>
                                 </div>
                             )}
                         </CardContent>

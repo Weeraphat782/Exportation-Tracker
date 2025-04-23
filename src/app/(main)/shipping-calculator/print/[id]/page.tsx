@@ -90,7 +90,7 @@ export default function PrintQuotationPage() {
     if (typeof data?.chargeable_weight === 'number') return data.chargeable_weight;
     const totalActualWeight = getTotalActualWeight();
     const totalVolumeWeight = getTotalVolumeWeight();
-    return Math.max(totalActualWeight, totalVolumeWeight);
+    return Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
   };
 
   // Format number with commas
@@ -303,11 +303,11 @@ export default function PrintQuotationPage() {
             <tr className="bg-gray-50">
               <td colSpan={2} className="py-2 px-4 font-medium border">Total</td>
               <td className="py-2 px-4 border">{formatNumber(actualWeight)} kg</td>
-              <td className="py-2 px-4 border">{formatNumber(volumeWeight)} kg</td>
+              <td className="py-2 px-4 border">{formatNumber(Math.ceil(volumeWeight))} kg</td>
             </tr>
             <tr className="bg-gray-100 font-semibold">
               <td colSpan={2} className="py-2 px-4 border">Chargeable Weight</td>
-              <td colSpan={2} className="py-2 px-4 border">{formatNumber(chargeableWeight)} kg</td>
+              <td colSpan={2} className="py-2 px-4 border">{formatNumber(Math.ceil(chargeableWeight))} kg</td>
             </tr>
           </tbody>
         </table>

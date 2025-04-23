@@ -130,7 +130,7 @@ export default function QuotationPreviewPage() {
 
       const totalActualWeight = quotationData.total_actual_weight || calculateTotalActualWeight();
       const totalVolumeWeight = quotationData.total_volume_weight || calculateTotalVolumeWeight();
-      const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, totalVolumeWeight);
+      const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
       
       if (quotationData.id) {
         // Create a clean update object (removing fields that shouldn't be updated)
@@ -289,7 +289,7 @@ export default function QuotationPreviewPage() {
 
   const totalActualWeight = quotationData.total_actual_weight || calculateTotalActualWeight();
   const totalVolumeWeight = quotationData.total_volume_weight || calculateTotalVolumeWeight();
-  const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, totalVolumeWeight);
+  const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
 
   return (
     <div className="space-y-6">
@@ -399,11 +399,11 @@ export default function QuotationPreviewPage() {
                   <tr className="border-b">
                     <td colSpan={2} className="py-2 font-medium">Total</td>
                     <td className="py-2">{totalActualWeight} kg</td>
-                    <td className="py-2">{totalVolumeWeight} kg</td>
+                    <td className="py-2">{Math.ceil(totalVolumeWeight)} kg</td>
                   </tr>
                   <tr>
                     <td colSpan={2} className="py-2 font-medium">Chargeable Weight</td>
-                    <td colSpan={2} className="py-2">{chargeableWeight} kg</td>
+                    <td colSpan={2} className="py-2">{Math.ceil(chargeableWeight)} kg</td>
                   </tr>
                 </tbody>
               </table>
