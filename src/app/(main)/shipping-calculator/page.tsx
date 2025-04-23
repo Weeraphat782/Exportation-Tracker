@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Edit, User, Copy, ExternalLink, Search } from 'lucide-react';
+import { Plus, FileText, Trash, Edit, Copy, ExternalLink, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateDocumentUploadLink } from '@/lib/storage';
