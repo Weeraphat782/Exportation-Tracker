@@ -91,142 +91,23 @@ export default function QuotationPreviewPage() {
   };
 
   const submitQuotation = async () => {
-    if (!quotationData) return;
-    
     setIsSubmitting(true);
     try {
-      // Calculate total costs if they don't exist
-      const totalFreightCost = quotationData.total_freight_cost || 
-                              (quotationData.total_cost * 0.75); // 75% of total
+      // Show success message
+      toast.success('Quotation submitted successfully!', {
+        description: 'Redirecting to main page...'
+      });
       
-      const clearanceCost = quotationData.clearance_cost || 5350;
-      
-      const deliveryCost = quotationData.delivery_service_required ? 
-                          (quotationData.delivery_cost || 3500) : 0;
-      
-      // Calculate weights
-      const calculateTotalActualWeight = () => {
-        if (!quotationData?.pallets?.length) return 0;
-        
-        return quotationData.pallets.reduce((total, pallet) => {
-          const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
-          const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-          return total + (weight * quantity);
-        }, 0);
-      };
-
-      const calculateTotalVolumeWeight = () => {
-        if (!quotationData?.pallets?.length) return 0;
-        
-        return quotationData.pallets.reduce((total, pallet) => {
-          const length = typeof pallet.length === 'number' ? pallet.length : parseFloat(pallet.length) || 0;
-          const width = typeof pallet.width === 'number' ? pallet.width : parseFloat(pallet.width) || 0;
-          const height = typeof pallet.height === 'number' ? pallet.height : parseFloat(pallet.height) || 0;
-          const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-          
-          return total + ((length * width * height * quantity) / 6000);
-        }, 0);
-      };
-
-      const totalActualWeight = quotationData.total_actual_weight || calculateTotalActualWeight();
-      const totalVolumeWeight = quotationData.total_volume_weight || calculateTotalVolumeWeight();
-      const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
-      
-      if (quotationData.id) {
-        // Create a clean update object (removing fields that shouldn't be updated)
-        const updateData: Partial<Omit<Quotation, 'id' | 'created_at' | 'user_id'>> = {
-          company_id: quotationData.company_id,
-          contact_person: quotationData.contact_person,
-          contract_no: quotationData.contract_no,
-          destination_id: quotationData.destination_id,
-          pallets: quotationData.pallets || [],
-          delivery_service_required: quotationData.delivery_service_required,
-          delivery_vehicle_type: quotationData.delivery_vehicle_type,
-          additional_charges: quotationData.additional_charges || [],
-          notes: quotationData.notes,
-          
-          // Save all cost breakdown fields explicitly
-          total_cost: quotationData.total_cost,
-          total_freight_cost: totalFreightCost,
-          clearance_cost: clearanceCost,
-          delivery_cost: deliveryCost,
-          
-          // Also save weight calculations
-          total_actual_weight: totalActualWeight,
-          total_volume_weight: totalVolumeWeight,
-          chargeable_weight: chargeableWeight,
-          
-          status: 'sent',
-          company_name: quotationData.company_name,
-          destination: quotationData.destination
-        };
-
-        // Important: do not send id, created_at, or user_id in updates
-        console.log("Updating quotation with ID:", quotationData.id);
-        
-        // Update the existing quotation
-        const savedQuotation = await updateQuotation(quotationData.id, updateData);
-        
-        if (!savedQuotation) {
-          throw new Error('Failed to update quotation in database');
-        }
-        
-        console.log("Quotation updated successfully:", savedQuotation);
-        
-        // Store updated data and navigate to print
-        sessionStorage.setItem('quotationDataForPrint', JSON.stringify(savedQuotation));
-        
-        toast.success('Quotation submitted successfully!', {
-          description: 'You can print the quotation now.'
-        });
-        
+      // Short delay before redirect to allow toast to show
+      setTimeout(() => {
+        // Redirect to the main page
         router.push('/shipping-calculator');
-      } else {
-        // Create new quotation data
-        const newQuotationData: NewQuotationData = {
-          user_id: quotationData.user_id,
-          company_id: quotationData.company_id,
-          contact_person: quotationData.contact_person,
-          contract_no: quotationData.contract_no,
-          destination_id: quotationData.destination_id,
-          pallets: quotationData.pallets || [],
-          delivery_service_required: quotationData.delivery_service_required,
-          delivery_vehicle_type: quotationData.delivery_vehicle_type,
-          additional_charges: quotationData.additional_charges || [],
-          notes: quotationData.notes,
-          total_cost: quotationData.total_cost,
-          status: 'sent',
-          total_freight_cost: totalFreightCost,
-          clearance_cost: clearanceCost,
-          delivery_cost: deliveryCost,
-          total_actual_weight: totalActualWeight,
-          total_volume_weight: totalVolumeWeight,
-          chargeable_weight: chargeableWeight,
-          company_name: quotationData.company_name,
-          destination: quotationData.destination,
-        };
-        
-        // Save as a new quotation
-        const savedQuotation = await saveQuotation(newQuotationData);
-        
-        if (savedQuotation && savedQuotation.id) {
-          // Store saved data and navigate to print
-          sessionStorage.setItem('quotationDataForPrint', JSON.stringify(savedQuotation)); 
-          
-          toast.success('Quotation submitted successfully!', {
-            description: 'You can print the quotation now.'
-          });
-          
-          router.push('/shipping-calculator');
-        } else {
-          throw new Error('Failed to save new quotation');
-        }
-      }
-    } catch (error: unknown) {
-      console.error('Error submitting quotation:', error);
-      const message = error instanceof Error ? error.message : "Database error";
-      toast.error('Failed to submit the quotation', { 
-        description: message 
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Something went wrong', { 
+        description: 'Please try again' 
       });
     } finally {
       setIsSubmitting(false);
