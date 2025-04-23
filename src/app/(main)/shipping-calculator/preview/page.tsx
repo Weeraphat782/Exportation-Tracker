@@ -342,25 +342,14 @@ export default function QuotationPreviewPage() {
       
       <div className="flex justify-end mt-6 print:hidden">
         <div className="flex gap-2">
-          {/* Removed isSubmitted check for Edit button */}
-          {/* {!isSubmitted && ( */}
-            <>
-              <Button 
-                onClick={editQuotation}
-                variant="outline"
-                className="h-9"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            </>
-          {/* )} */}
+          {/* Only keep the Edit button */}
           <Button 
-            onClick={submitQuotation}
-            className="h-9 bg-green-600 hover:bg-green-700"
-            disabled={isSubmitting /* Removed isSubmitted check */}
+            onClick={editQuotation}
+            variant="outline"
+            className="h-9"
           >
-            {isSubmitting ? 'Submitting...' : /* Removed isSubmitted ? 'Submitted' : */ 'Submit'}
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
           </Button>
         </div>
       </div>
