@@ -378,7 +378,6 @@ export default function ShippingCalculatorPage() {
                     <TableHead>Destination</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Total Cost</TableHead>
-                    <TableHead>Created By</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -395,10 +394,6 @@ export default function ShippingCalculatorPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
-                      <TableCell className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-gray-500" />
-                        {quotation.user_id || 'Unknown'}
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           {quotation.status === 'sent' && (
