@@ -131,6 +131,7 @@ export async function getProfile(userId: string) {
     }
 
     return data as Profile;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: unknown) {
     console.error('Error in getProfile:', error);
     return null;
@@ -875,6 +876,7 @@ export async function createOrUpdateSetting(
 
       return data[0] as Setting;
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: unknown) {
     console.error('Error in createOrUpdateSetting:', error);
     return null;
