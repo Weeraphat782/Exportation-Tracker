@@ -6,8 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, FileText, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { Quotation, updateQuotation, saveQuotation, NewQuotationData } from '@/lib/db';
+import { Quotation } from '@/lib/db';
 
 // Define AdditionalCharge locally
 interface AdditionalCharge {
@@ -28,7 +27,6 @@ export default function QuotationPreviewPage() {
   const router = useRouter();
   const [quotationData, setQuotationData] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const quotationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,30 +86,6 @@ export default function QuotationPreviewPage() {
     // Store data in sessionStorage before navigating to edit page
     sessionStorage.setItem('quotationDataForEdit', JSON.stringify(quotationData));
     router.push(`/shipping-calculator/new?id=${quotationData.id}`);
-  };
-
-  const submitQuotation = async () => {
-    setIsSubmitting(true);
-    try {
-      // Show success message
-      toast.success('Quotation submitted successfully!', {
-        description: 'Redirecting to main page...'
-      });
-      
-      // Short delay before redirect to allow toast to show
-      setTimeout(() => {
-        // Redirect to the main page
-        router.push('/shipping-calculator');
-      }, 500);
-      
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Something went wrong', { 
-        description: 'Please try again' 
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   if (loading) {
