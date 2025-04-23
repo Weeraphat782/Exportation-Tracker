@@ -45,6 +45,21 @@ export interface FreightRate {
   user_id?: string;
 }
 
+// Define specific types for complex array fields
+interface Pallet {
+  length: number | string;
+  width: number | string;
+  height: number | string;
+  weight: number | string;
+  quantity: number | string;
+}
+
+interface AdditionalCharge {
+  name: string;
+  description: string;
+  amount: number;
+}
+
 export interface Quotation {
   id: string;
   created_at: string;
@@ -53,10 +68,10 @@ export interface Quotation {
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
-  pallets: any[];
+  pallets: Pallet[]; // Use specific type
   delivery_service_required: boolean;
   delivery_vehicle_type: '4wheel' | '6wheel';
-  additional_charges: any[];
+  additional_charges: AdditionalCharge[]; // Use specific type
   notes?: string | null;
   total_cost: number;
   status: 'draft' | 'sent';
@@ -435,6 +450,8 @@ export async function createFreightRate(rate: Omit<FreightRate, 'id' | 'created_
 
 export async function updateFreightRate(id: string, updates: Partial<Omit<FreightRate, 'currency' | 'vehicle_type' | 'container_size'>>) {
   try {
+    // Disable unused vars check for this line as destructuring is used to exclude fields
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { user_id, destination_id, id: rateId, created_at, updated_at, ...restUpdates } = updates;
 
     const { data, error } = await supabase
@@ -449,8 +466,8 @@ export async function updateFreightRate(id: string, updates: Partial<Omit<Freigh
     }
 
     return data[0] as FreightRate;
-  } catch (error) {
-    console.error('Error in updateFreightRate:', error);
+  } catch (error: unknown) {
+    console.error('Exception in updateFreightRate:', error);
     return null;
   }
 }
@@ -599,10 +616,10 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
     // Cast the returned data to the full Quotation type
     return data as Quotation;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Exception in saveQuotation:', error);
     // Return null to indicate failure, with error message logged
-    if (error.message) {
+    if (error instanceof Error && error.message) {
       console.error('Error message:', error.message);
     }
     throw error; // Throw the error so the calling function can handle it
