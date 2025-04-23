@@ -180,7 +180,7 @@ export default function QuotationPreviewPage() {
           description: 'You can print the quotation now.'
         });
         
-        router.push(`/shipping-calculator/print/${quotationData.id}`);
+        router.push('/shipping-calculator');
       } else {
         // Create new quotation data
         const newQuotationData: NewQuotationData = {
@@ -217,7 +217,7 @@ export default function QuotationPreviewPage() {
             description: 'You can print the quotation now.'
           });
           
-          router.push(`/shipping-calculator/print/${savedQuotation.id}`);
+          router.push('/shipping-calculator');
         } else {
           throw new Error('Failed to save new quotation');
         }
