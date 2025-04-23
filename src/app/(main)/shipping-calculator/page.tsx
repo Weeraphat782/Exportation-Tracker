@@ -7,10 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Edit, Copy, ExternalLink, Search } from 'lucide-react';
+import { Plus, FileText, Trash, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { generateDocumentUploadLink } from '@/lib/storage';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, Quotation } from '@/lib/db';
 
 // Remove unused mockQuotations
@@ -35,7 +34,6 @@ export default function ShippingCalculatorPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-  const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // First useEffect - only for auth checking
@@ -262,16 +260,59 @@ export default function ShippingCalculatorPage() {
     }
   };
 
-  const handleViewQuotation = (id: string) => {
+  const handleViewQuotation = async (id: string) => {
     // Find quotation in our list
     const quotation = quotations.find(q => q.id === id);
     if (quotation) {
+      // คำนวณ freight cost ใหม่ตามน้ำหนักที่มี
+      const chargeableWeight = quotation.chargeable_weight || 0;
+      
+      // ถ้ามี total_cost แต่ไม่มี freight cost ให้ประมาณค่า
+      // โดยอ้างอิงจากค่า total_cost หักลบค่าอื่นๆ
+      let totalFreightCost = quotation.total_freight_cost || 0;
+      
+      if (totalFreightCost === 0 && chargeableWeight > 0) {
+        // ประมาณฟรีทคอสต์จาก total_cost
+        // ลบค่า clearance_cost และ delivery_cost (ถ้ามี)
+        const clearanceCost = quotation.clearance_cost || 5350;
+        const deliveryCost = quotation.delivery_service_required ? 
+          (quotation.delivery_vehicle_type === '4wheel' ? 3500 : 9500) : 0;
+        
+        // คำนวณผลรวมของ additional charges
+        let additionalChargesTotal = 0;
+        if (Array.isArray(quotation.additional_charges)) {
+          additionalChargesTotal = quotation.additional_charges.reduce((sum, charge) => {
+            const amount = typeof charge.amount === 'number' ? charge.amount : parseFloat(charge.amount) || 0;
+            return sum + amount;
+          }, 0);
+        }
+        
+        // ประมาณฟรีทคอสต์
+        totalFreightCost = quotation.total_cost - clearanceCost - deliveryCost - additionalChargesTotal;
+        
+        // กรณีคำนวณแล้วติดลบ ให้กำหนดเป็น 0
+        totalFreightCost = Math.max(0, totalFreightCost);
+      }
+      
+      // เพิ่มค่า freight cost และข้อมูลอื่นๆ ที่จำเป็น
+      const enhancedQuotation = {
+        ...quotation,
+        totalFreightCost: totalFreightCost,
+        totalVolumeWeight: quotation.total_volume_weight || 0,
+        totalActualWeight: quotation.total_actual_weight || 0,
+        chargeableWeight: chargeableWeight,
+        clearanceCost: quotation.clearance_cost || 5350,
+        deliveryCost: quotation.delivery_service_required ? 
+          (quotation.delivery_vehicle_type === '4wheel' ? 3500 : 9500) : 0
+      };
+      
       // Set the quotation data in sessionStorage for the preview page
-      sessionStorage.setItem('quotationData', JSON.stringify(quotation));
+      sessionStorage.setItem('quotationData', JSON.stringify(enhancedQuotation));
       router.push(`/shipping-calculator/preview?id=${id}`);
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleEditQuotation = (id: string) => {
     // Find quotation in our list
     const quotation = quotations.find(q => q.id === id);
@@ -280,34 +321,6 @@ export default function ShippingCalculatorPage() {
       sessionStorage.setItem('editQuotationData', JSON.stringify(quotation));
       router.push(`/shipping-calculator/new?edit=${id}`);
     }
-  };
-
-  const handleCopyLink = (quotation: Quotation) => {
-    // สร้างลิงก์อัปโหลดเอกสารโดยใช้ฟังก์ชันจาก storage.ts
-    const uploadUrl = generateDocumentUploadLink(
-      quotation.id,
-      quotation.company_name || 'Unknown Company',
-      quotation.destination || 'Unknown Destination'
-    );
-    
-    // คัดลอกลิงก์
-    navigator.clipboard.writeText(uploadUrl)
-      .then(() => {
-        // Show alert instead of toast
-        alert(`Document upload link for ${quotation.id} copied successfully.`);
-        
-        // เก็บบันทึกว่าเพิ่งคัดลอกลิงก์ quotation ใด
-        setCopySuccess(quotation.id);
-        
-        // ล้างสถานะการคัดลอกหลังจาก 3 วินาที
-        setTimeout(() => {
-          setCopySuccess(null);
-        }, 3000);
-      })
-      .catch(err => {
-        console.error('Error copying to clipboard:', err);
-        alert("Failed to copy link to clipboard");
-      });
   };
 
   // Filter quotations based on search term (use fields available in the data)
@@ -396,15 +409,6 @@ export default function ShippingCalculatorPage() {
                       <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {quotation.status === 'sent' && (
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              onClick={() => handleEditQuotation(quotation.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
                           <Button 
                             variant="outline" 
                             size="icon"
@@ -412,23 +416,6 @@ export default function ShippingCalculatorPage() {
                           >
                             <FileText className="h-4 w-4" />
                           </Button>
-                          
-                          {/* Copy link button - visible for sent quotations */}
-                          {quotation.status === 'sent' && (
-                            <Button
-                              variant="outline" 
-                              size="icon"
-                              onClick={() => handleCopyLink(quotation)}
-                              title="Copy document upload link for customer"
-                              className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                            >
-                              {copySuccess === quotation.id ? (
-                                <Copy className="h-4 w-4" />
-                              ) : (
-                                <ExternalLink className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
                           
                           <Button
                             variant="outline"

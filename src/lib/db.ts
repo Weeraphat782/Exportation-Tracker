@@ -45,7 +45,7 @@ export interface FreightRate {
   user_id?: string;
 }
 
-// Define specific types for complex array fields
+// Define Pallet and AdditionalCharge interfaces locally if they are not exported from db.ts
 interface Pallet {
   length: number | string;
   width: number | string;
@@ -57,7 +57,7 @@ interface Pallet {
 interface AdditionalCharge {
   name: string;
   description: string;
-  amount: number;
+  amount: number | string; // Allow string as well for form input
 }
 
 export interface Quotation {
@@ -68,10 +68,10 @@ export interface Quotation {
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
-  pallets: Pallet[]; // Use specific type
+  pallets: Pallet[]; // Use defined type
   delivery_service_required: boolean;
   delivery_vehicle_type: '4wheel' | '6wheel';
-  additional_charges: AdditionalCharge[]; // Use specific type
+  additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
   status: 'draft' | 'sent';
@@ -80,14 +80,14 @@ export interface Quotation {
   updated_at?: string;
   
   // Additional cost breakdown fields
-  total_freight_cost?: number;
-  clearance_cost?: number; 
-  delivery_cost?: number;
+  total_freight_cost?: number | null; // Allow null
+  clearance_cost?: number | null; // Allow null
+  delivery_cost?: number | null; // Allow null
   
   // Weight calculation fields
-  total_actual_weight?: number;
-  total_volume_weight?: number;
-  chargeable_weight?: number;
+  total_actual_weight?: number | null; // Allow null
+  total_volume_weight?: number | null; // Allow null
+  chargeable_weight?: number | null; // Allow null
 }
 
 export interface DocumentSubmission {

@@ -480,7 +480,7 @@ function calculateTotalFreightCost(
 }
 
 // --- Main Page Component ---
-function ShippingCalculatorPage() {
+function ShippingCalculatorPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const quotationId = searchParams.get('id');
@@ -640,18 +640,22 @@ function ShippingCalculatorPage() {
                             contractNo: typedExistingQuotation.contract_no || '',
                             destinationId: typedExistingQuotation.destination_id || '',
                             pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
-                                ? typedExistingQuotation.pallets.map(p => ({ 
-                                    length: Number(p.length), 
-                                    width: Number(p.width), 
-                                    height: Number(p.height), 
-                                    weight: Number(p.weight), 
-                                    quantity: Number(p.quantity ?? 1) 
-                                }))
+                                ? typedExistingQuotation.pallets.map(p => ({
+                                    length: Number(p.length) || 0,
+                                    width: Number(p.width) || 0,
+                                    height: Number(p.height) || 0,
+                                    weight: Number(p.weight) || 0,
+                                    quantity: Number(p.quantity) || 1
+                                  }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
                             additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
-                                ? typedExistingQuotation.additional_charges
+                                ? typedExistingQuotation.additional_charges.map(c => ({
+                                    name: c.name || '',
+                                    description: c.description || '',
+                                    amount: Number(c.amount) || 0
+                                  }))
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
                         });
@@ -692,8 +696,8 @@ function ShippingCalculatorPage() {
     // Wrap deliveryRates in useMemo
     const deliveryRates = React.useMemo(() => ({
         '4wheel': 3500,
-        '6wheel': 6500
-    }), []);
+        '6wheel': 9500
+    }), []); 
     const clearanceCost = 5350;
 
     // --- Recalculate Costs ---
@@ -774,6 +778,10 @@ function ShippingCalculatorPage() {
         const selectedCompany = companies.find(c => c.id === formData.companyId);
         const selectedDestination = destinations.find(d => d.id === formData.destinationId);
 
+        // Remove explicit type definitions and conversion
+        const convertedPallets = formData.pallets;
+        const convertedAdditionalCharges = formData.additionalCharges;
+
         // Construct the full data object matching NewQuotationData with snake_case field names
         const dataForDB: NewQuotationData = {
             user_id: userId,
@@ -781,11 +789,12 @@ function ShippingCalculatorPage() {
             contact_person: formData.contactPerson,
             contract_no: formData.contractNo || null,
             destination_id: formData.destinationId,
-            pallets: formData.pallets,
+            pallets: convertedPallets,
             delivery_service_required: formData.deliveryServiceRequired,
             delivery_vehicle_type: formData.deliveryVehicleType,
-            additional_charges: formData.additionalCharges,
+            additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
+            // --- ลบส่วน Cost Breakdown ที่เพิ่มเข้ามา --- 
             total_cost: calculationResult.finalTotalCost,
             status: 'sent',
             company_name: selectedCompany?.name || formData.companyId,
@@ -1073,9 +1082,9 @@ function ShippingCalculatorPage() {
                             {/* Display Total Weights */}
                             {calculationResult && (
                                 <div className="mt-4 p-3 bg-gray-100 rounded text-sm space-y-1 border">
-                                    <p>Total Volume Weight: <span className="font-semibold">{formatNumber(Math.ceil(calculationResult.totalVolumeWeight))} kg</span></p>
+                                    <p>Total Volume Weight: <span className="font-semibold">{formatNumber(calculationResult.totalVolumeWeight)} kg</span></p>
                                     <p>Total Actual Weight: <span className="font-semibold">{formatNumber(calculationResult.totalActualWeight)} kg</span></p>
-                                    <p className="font-bold">Aggregate Chargeable Wt: <span className="font-semibold">{formatNumber(Math.ceil(calculationResult.totalChargeableWeight))} kg</span></p>
+                                    <p className="font-bold">Aggregate Chargeable Wt: <span className="font-semibold">{formatNumber(calculationResult.totalChargeableWeight)} kg</span></p>
                                 </div>
                             )}
                         </CardContent>
@@ -1208,15 +1217,16 @@ function ShippingCalculatorPage() {
     );
 }
 
-// --- Suspense Wrapper ---
-export default function ShippingCalculatorPageWrapper() {
-  return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-pulse text-lg">Loading calculator...</div>
-      </div>
-    }>
-      <ShippingCalculatorPage />
-    </Suspense>
-  );
+// Wrapper with Suspense boundary
+export default function ShippingCalculatorPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <p className="ml-3 text-gray-600">Loading Calculator...</p>
+            </div>
+        }>
+            <ShippingCalculatorPageContent />
+        </Suspense>
+    );
 }

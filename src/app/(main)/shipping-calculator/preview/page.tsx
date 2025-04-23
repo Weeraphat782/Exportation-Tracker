@@ -8,11 +8,30 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Quotation } from '@/lib/db';
 
-// Define AdditionalCharge locally
-interface AdditionalCharge {
+// Define interfaces for data coming from sessionStorage
+interface EnhancedQuotation extends Quotation {
+  // Additional fields that might be added by handleViewQuotation
+  totalFreightCost?: number;
+  totalVolumeWeight?: number;
+  totalActualWeight?: number;
+  chargeableWeight?: number;
+  clearanceCost?: number;
+  deliveryCost?: number;
+  freightRate?: number;
+}
+
+interface PalletWithQuantity {
+  length: number | string;
+  width: number | string;
+  height: number | string;
+  weight: number | string;
+  quantity?: number | string;
+}
+
+interface ChargeItem {
   name: string;
   description: string;
-  amount: number;
+  amount: number | string;
 }
 
 // Add a function to format numbers consistently
@@ -25,7 +44,7 @@ const formatNumber = (num: number | string | undefined | null) => {
 
 export default function QuotationPreviewPage() {
   const router = useRouter();
-  const [quotationData, setQuotationData] = useState<Quotation | null>(null);
+  const [quotationData, setQuotationData] = useState<EnhancedQuotation | null>(null);
   const [loading, setLoading] = useState(true);
   const quotationRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +56,7 @@ export default function QuotationPreviewPage() {
         setQuotationData(JSON.parse(storedData));
       } else {
         // Fallback to mock data if no data in sessionStorage
-        const mockQuotation: Quotation = {
+        const mockQuotation: EnhancedQuotation = {
           id: '2025-0001',
           created_at: new Date().toISOString(),
           user_id: '123', // This should be the actual user ID in production
@@ -109,22 +128,13 @@ export default function QuotationPreviewPage() {
     );
   }
 
-  // Calculate values before rendering
-  const totalFreightCost = quotationData.total_freight_cost || 
-                          (quotationData.total_cost * 0.75); // 75% of total
-  
-  const clearanceCost = quotationData.clearance_cost || 5350;
-  
-  const deliveryCost = quotationData.delivery_service_required ? 
-                      (quotationData.delivery_cost || 3500) : 0;
-
   // Calculate weights
   const calculateTotalActualWeight = () => {
     if (!quotationData?.pallets?.length) return 0;
     
-    return quotationData.pallets.reduce((total, pallet) => {
+    return quotationData.pallets.reduce((total: number, pallet: PalletWithQuantity) => {
       const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
-      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
+      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(String(pallet.quantity)) || 1;
       return total + (weight * quantity);
     }, 0);
   };
@@ -132,11 +142,11 @@ export default function QuotationPreviewPage() {
   const calculateTotalVolumeWeight = () => {
     if (!quotationData?.pallets?.length) return 0;
     
-    return quotationData.pallets.reduce((total, pallet) => {
+    return quotationData.pallets.reduce((total: number, pallet: PalletWithQuantity) => {
       const length = typeof pallet.length === 'number' ? pallet.length : parseFloat(pallet.length) || 0;
       const width = typeof pallet.width === 'number' ? pallet.width : parseFloat(pallet.width) || 0;
       const height = typeof pallet.height === 'number' ? pallet.height : parseFloat(pallet.height) || 0;
-      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
+      const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(String(pallet.quantity)) || 1;
       
       return total + ((length * width * height * quantity) / 6000);
     }, 0);
@@ -145,6 +155,17 @@ export default function QuotationPreviewPage() {
   const totalActualWeight = quotationData.total_actual_weight || calculateTotalActualWeight();
   const totalVolumeWeight = quotationData.total_volume_weight || calculateTotalVolumeWeight();
   const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
+
+  // ใช้ค่าจาก quotationData แบบ camelCase (จากหน้าคำนวณ) หรือ snake_case (จากฐานข้อมูล)
+  const totalFreightCost = quotationData.totalFreightCost !== undefined ? quotationData.totalFreightCost : 
+                          (quotationData.total_freight_cost !== undefined ? quotationData.total_freight_cost : 0);
+                          
+  const clearanceCost = quotationData.clearanceCost !== undefined ? quotationData.clearanceCost : 
+                        (quotationData.clearance_cost !== undefined ? quotationData.clearance_cost : 5350);
+                        
+  const deliveryCost = quotationData.delivery_service_required ? 
+                      (quotationData.deliveryCost !== undefined ? quotationData.deliveryCost : 
+                      (quotationData.delivery_cost !== undefined ? quotationData.delivery_cost : 3500)) : 0;
 
   return (
     <div className="space-y-6">
@@ -240,7 +261,7 @@ export default function QuotationPreviewPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {quotationData?.pallets && quotationData.pallets.map((pallet, index) => {
+                  {quotationData?.pallets && quotationData.pallets.map((pallet: PalletWithQuantity, index: number) => {
                     const volumeWeight = ((Number(pallet.length) * Number(pallet.width) * Number(pallet.height)) / 6000);
                     return (
                       <tr key={index} className="border-b">
@@ -289,9 +310,9 @@ export default function QuotationPreviewPage() {
                     </tr>
                   )}
                   
-                  {quotationData?.additional_charges && quotationData.additional_charges.map((charge: AdditionalCharge, index: number) => (
+                  {quotationData?.additional_charges && quotationData.additional_charges.map((charge: ChargeItem, index: number) => (
                     <tr key={index} className="border-b">
-                      <td className="py-2">Additional: {charge.description as string}</td>
+                      <td className="py-2">Additional: {charge.description}</td>
                       <td className="py-2 text-right">{formatNumber(charge.amount)}</td>
                     </tr>
                   ))}
