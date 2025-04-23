@@ -692,8 +692,8 @@ function ShippingCalculatorPage() {
     // Wrap deliveryRates in useMemo
     const deliveryRates = React.useMemo(() => ({
         '4wheel': 3500,
-        '6wheel': 9500
-    }), []); 
+        '6wheel': 6500
+    }), []);
     const clearanceCost = 5350;
 
     // --- Recalculate Costs ---
