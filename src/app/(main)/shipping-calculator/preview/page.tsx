@@ -203,12 +203,8 @@ export default function QuotationPreviewPage() {
                 <div className="text-sm text-slate-500 mt-1">Ref: {quotationData?.id || 'N/A'}</div>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-slate-900">OMG Experiences</div>
-                <div className="text-sm text-slate-500 mt-1">
-                  10/12-13 Convent Road, Silom, Bangrak,
-                  <br />
-                  Bangkok 10500
-                </div>
+                {/* <div className="text-sm text-slate-500">Prepared by</div> */}
+                <div className="text-xl font-bold text-slate-900">OMG Experience</div>
               </div>
             </div>
 

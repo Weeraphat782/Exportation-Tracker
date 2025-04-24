@@ -208,22 +208,22 @@ export default function PrintQuotationPage() {
     <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen border rounded-lg shadow-sm print:shadow-none print:border-none">
       {/* Header with company and reference info */}
       <div className="flex justify-between items-start mb-8">
-      <div>
+        <div>
           <h1 className="text-2xl font-bold text-slate-900">QUOTATION</h1>
           <p className="text-sm text-slate-500">Ref: {data?.id || 'N/A'}</p>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold text-slate-900">OMG Experiences</div>
+          <div className="text-xl font-bold text-slate-900">OMG Experience</div>
           <div className="text-sm text-slate-500">
             10/12-13 Convent Road, Silom, Bangrak,<br />
             Bangkok 10500
-    </div>
+          </div>
         </div>
       </div>
 
       {/* Client and Shipping Information */}
       <div className="grid grid-cols-2 gap-8 mb-8">
-      <div>
+        <div>
           <h3 className="font-semibold border-b border-gray-300 pb-1 mb-3">CLIENT INFORMATION</h3>
           <table className="w-full text-sm">
             <tbody>
@@ -242,7 +242,7 @@ export default function PrintQuotationPage() {
             </tbody>
           </table>
         </div>
-      <div>
+        <div>
           <h3 className="font-semibold border-b border-gray-300 pb-1 mb-3">SHIPPING DETAILS</h3>
           <table className="w-full text-sm">
             <tbody>
@@ -311,7 +311,7 @@ export default function PrintQuotationPage() {
             </tr>
           </tbody>
         </table>
-        </div>
+      </div>
 
       {/* Services & Charges */}
       <div className="mb-8">
@@ -365,7 +365,7 @@ export default function PrintQuotationPage() {
         <div className="mb-8">
           <h3 className="font-semibold border-b border-gray-300 pb-1 mb-3">NOTES</h3>
           <div className="p-4 bg-gray-50 rounded-md text-sm">{data.notes}</div>
-    </div>
+        </div>
       )}
 
       <div className="flex flex-row justify-between mb-4">
