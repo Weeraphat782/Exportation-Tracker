@@ -696,7 +696,7 @@ function ShippingCalculatorPageContent() {
     // Wrap deliveryRates in useMemo
     const deliveryRates = React.useMemo(() => ({
         '4wheel': 3500,
-        '6wheel': 9500
+        '6wheel': 6500
     }), []); 
     const clearanceCost = 5350;
 
@@ -794,8 +794,13 @@ function ShippingCalculatorPageContent() {
             delivery_vehicle_type: formData.deliveryVehicleType,
             additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
-            // --- ลบส่วน Cost Breakdown ที่เพิ่มเข้ามา --- 
             total_cost: calculationResult.finalTotalCost,
+            total_freight_cost: calculationResult.totalFreightCost,
+            clearance_cost: calculationResult.clearanceCost,
+            delivery_cost: calculationResult.deliveryCost,
+            total_volume_weight: calculationResult.totalVolumeWeight,
+            total_actual_weight: calculationResult.totalActualWeight,
+            chargeable_weight: calculationResult.totalChargeableWeight,
             status: 'sent',
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination 

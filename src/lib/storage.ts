@@ -13,11 +13,33 @@ export async function uploadFile(
   file: File
 ): Promise<string | null> {
   try {
+    // แก้ไขปัญหาชื่อไฟล์ภาษาไทย โดยการสร้างชื่อไฟล์ใหม่ที่ปลอดภัย
+    // สร้าง path ใหม่โดยเปลี่ยนชื่อไฟล์เป็น timestamp และนามสกุลเดิม
+    const fileExtension = file.name.split('.').pop() || '';
+    const timestamp = Date.now();
+    const sanitizedFileName = `file_${timestamp}.${fileExtension}`;
+    
+    // แยก path เป็นส่วนของโฟลเดอร์และชื่อไฟล์
+    const lastSlashIndex = path.lastIndexOf('/');
+    const folderPath = lastSlashIndex !== -1 ? path.substring(0, lastSlashIndex) : '';
+    
+    // สร้าง path ใหม่
+    const safePath = lastSlashIndex !== -1 
+      ? `${folderPath}/${sanitizedFileName}` 
+      : sanitizedFileName;
+    
+    // เก็บชื่อไฟล์ดั้งเดิมไว้ใน metadata
+    const metadata = {
+      originalFileName: file.name
+    };
+
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(safePath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        contentType: file.type,
+        metadata
       });
 
     if (error) {

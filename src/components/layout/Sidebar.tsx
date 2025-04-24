@@ -10,7 +10,8 @@ import {
   Globe, 
   DollarSign,
   Calculator,
-  Menu
+  Menu,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         >
           <Calculator className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Shipping Calculator</span>}
+        </Link>
+        
+        <Link 
+          href="/document-submissions" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/document-submissions") ? "bg-slate-800" : ""
+          )}
+          title="Document Submissions"
+        >
+          <FileText className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Document Submissions</span>}
         </Link>
         
         <div className="space-y-1">

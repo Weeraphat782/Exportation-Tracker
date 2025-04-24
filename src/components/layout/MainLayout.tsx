@@ -3,6 +3,7 @@
 import { ReactNode, useState } from 'react';
 import Sidebar from './Sidebar';
 import { cn } from '@/lib/utils';
+import { Toaster } from 'sonner';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -32,6 +33,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       >
         {children}
       </main>
+      <Toaster position="top-right" expand={true} richColors />
     </div>
   );
 };

@@ -74,10 +74,11 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
+  completed_at?: string | null;
   
   // Additional cost breakdown fields
   total_freight_cost?: number | null; // Allow null
@@ -95,6 +96,8 @@ export interface DocumentSubmission {
   quotation_id: string;
   company_name: string;
   document_type: string;
+  document_type_id?: string;
+  category?: string;
   file_name: string;
   file_url: string;
   file_size?: number;
@@ -905,5 +908,26 @@ export async function deleteSetting(id: string) {
   } catch (error) {
     console.error('Error in deleteSetting:', error);
     return false;
+  }
+}
+
+// Function to get document template by document type ID
+export async function getDocumentTemplate(documentTypeId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('document_templates')
+      .select('*')
+      .eq('document_type_id', documentTypeId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching document template:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Failed to fetch document template:', err);
+    return null;
   }
 } 

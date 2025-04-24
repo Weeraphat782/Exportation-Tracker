@@ -1,21 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, CheckCircle, XCircle } from 'lucide-react';
-import { getDocumentSubmissions, updateDocumentSubmission } from '@/lib/db';
+import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 
-// นิยามประเภทข้อมูลสำหรับ Document Submission
+// Define types to match db.ts definitions
 interface DocumentSubmission {
   id: string;
   quotation_id: string;
   company_name: string;
   document_type: string;
+  document_type_id?: string;
+  category?: string;
   file_name: string;
   file_url: string;
   file_size?: number;
@@ -27,42 +41,139 @@ interface DocumentSubmission {
   reviewed_by?: string;
 }
 
+// Define a type for partial updates
+type DocumentSubmissionUpdate = {
+  status: 'pending' | 'approved' | 'rejected';
+  feedback?: string;
+};
+
+interface Quotation {
+  id: string;
+  user_id: string;
+  company_name: string;
+  destination: string;
+  total_cost: number;
+  created_at: string;
+  status: string;
+}
+
+// Document categories
+const DOCUMENT_CATEGORIES = [
+  { id: 'company-info', name: 'Company Information' },
+  { id: 'permits-forms', name: 'Permit and TK Forms' },
+  { id: 'shipping-docs', name: 'Shipping Documents' },
+  { id: 'additional', name: 'Additional Documents' }
+];
+
 export default function DocumentSubmissionsPage() {
   const [submissions, setSubmissions] = useState<DocumentSubmission[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<DocumentSubmission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedQuotation, setSelectedQuotation] = useState<string>('all');
+  const [selectedCategory] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [expandedQuotations, setExpandedQuotations] = useState<Record<string, boolean>>({});
 
-  // โหลดข้อมูลเอกสารเมื่อโหลดหน้า
+  // Check URL parameters for quotation ID when component mounts
   useEffect(() => {
-    async function loadSubmissions() {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const quotationParam = urlParams.get('quotation');
+      
+      if (quotationParam) {
+        // Auto-select the quotation from URL parameter
+        setSelectedQuotation(quotationParam);
+        
+        // Auto-expand this quotation
+        setExpandedQuotations(prev => ({
+          ...prev,
+          [quotationParam]: true
+        }));
+      }
+    }
+  }, []);
+
+  // Load data when page loads
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
       try {
-        setLoading(true);
-        const data = await getDocumentSubmissions();
-        setSubmissions(data);
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.error('User not authenticated');
+          setSubmissions([]);
+          setQuotations([]);
+          setLoading(false);
+          return;
+        }
+        
+        const userId = user.id;
+        const [submissionsData, quotationsData] = await Promise.all([
+          getDocumentSubmissions(),
+          getQuotations(userId)
+        ]);
+        
+        // Type cast to ensure compatibility with our local interface
+        setSubmissions(submissionsData as unknown as DocumentSubmission[]);
+        setQuotations(quotationsData || []);
       } catch (error) {
-        console.error('Error loading document submissions:', error);
+        console.error('Error loading data:', error);
+        setSubmissions([]);
+        setQuotations([]);
       } finally {
         setLoading(false);
       }
     }
 
-    loadSubmissions();
+    loadData();
   }, []);
 
-  // ฟังก์ชันสำหรับเปิดโมดัลดูรายละเอียด
-  const handleViewDetails = (submission: DocumentSubmission) => {
-    setSelectedSubmission(submission);
-    setIsModalOpen(true);
-  };
+  // Filter submissions based on search, quotation, and category
+  const filteredSubmissions = useMemo(() => {
+    if (!submissions) return [];
+    
+    return submissions.filter((submission) => {
+      // Filter by search term if present
+      if (searchTerm && !submission.file_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by selected quotation if any
+      if (selectedQuotation !== 'all' && submission.quotation_id !== selectedQuotation) {
+        return false;
+      }
+      
+      // Filter by document type if selected
+      if (selectedCategory !== 'all' && submission.document_type !== selectedCategory) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [submissions, searchTerm, selectedQuotation, selectedCategory]);
 
-  // ฟังก์ชันสำหรับปิดโมดัล
+  // Group submissions by quotation for display
+  const submissionsByQuotation = filteredSubmissions.reduce((acc, submission) => {
+    if (!acc[submission.quotation_id]) {
+      acc[submission.quotation_id] = [];
+    }
+    acc[submission.quotation_id].push(submission);
+    return acc;
+  }, {} as Record<string, DocumentSubmission[]>);
+
+  // Close modal
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedSubmission(null);
   };
 
-  // ฟังก์ชันสำหรับดาวน์โหลดไฟล์
+  // Download file
   const handleDownload = (url: string, fileName: string) => {
     const a = document.createElement('a');
     a.href = url;
@@ -72,50 +183,123 @@ export default function DocumentSubmissionsPage() {
     document.body.removeChild(a);
   };
 
-  // ฟังก์ชันสำหรับอัปเดตสถานะ
-  const handleUpdateStatus = async (id: string, status: string) => {
+  // Update document status
+  const handleStatusChange = async (id: string, status: 'pending' | 'approved' | 'rejected') => {
     try {
-      const result = await updateDocumentSubmission(id, {
+      const update: DocumentSubmissionUpdate = {
         status,
-        reviewed_at: new Date().toISOString(),
-        // ในสถานการณ์จริง คุณจะใช้ ID ผู้ใช้ปัจจุบันที่นี่
-        reviewed_by: 'current-user-id'
-      });
+      };
+      
+      const result = await updateDocumentSubmission(id, update);
 
       if (result) {
-        // อัปเดตรายการ submissions
-        setSubmissions(submissions.map(sub => 
-          sub.id === id ? { ...sub, status, reviewed_at: new Date().toISOString() } : sub
-        ));
+        // Update submissions list with proper typing
+        setSubmissions(prevSubmissions => 
+          prevSubmissions.map(sub => 
+            sub.id === id ? { ...sub, status } : sub
+          )
+        );
         
         if (selectedSubmission && selectedSubmission.id === id) {
-          setSelectedSubmission({ ...selectedSubmission, status, reviewed_at: new Date().toISOString() });
+          setSelectedSubmission({ ...selectedSubmission, status });
         }
+
+        setIsModalOpen(false);
       }
     } catch (error) {
-      console.error('Error updating document status:', error);
+      console.error('Error updating status:', error);
     }
   };
 
-  // ฟังก์ชันสำหรับสร้าง badge สถานะ
-  const getStatusBadge = (status: string | undefined) => {
-    switch (status) {
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
       case 'approved':
-        return <Badge variant="success">Approved</Badge>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Approved</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Rejected</Badge>;
-      case 'reviewed':
-        return <Badge variant="secondary">Reviewed</Badge>;
-      case 'submitted':
       default:
-        return <Badge variant="outline">Submitted</Badge>;
+        return <Badge variant="secondary">Pending</Badge>;
     }
   };
 
-  // ฟังก์ชันสำหรับฟอร์แมตเวลา
+  // Format date
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString();
+  };
+
+  // Get quotation info
+  const getQuotationInfo = (quotationId: string) => {
+    const quotation = quotations?.find(q => q.id === quotationId);
+    return quotation || { 
+      id: quotationId, 
+      company_name: 'Unknown', 
+      destination: 'Unknown', 
+      total_cost: 0,
+      created_at: '',
+      status: 'unknown'
+    };
+  };
+
+  // Count documents by category for a quotation
+  const countDocumentsByCategory = (quotationId: string, categoryId: string) => {
+    return submissions.filter(s => 
+      s.quotation_id === quotationId && 
+      s.document_type === categoryId
+    ).length;
+  };
+
+  // Get unique quotation IDs from submissions
+  const quotationOptions = useMemo(() => {
+    if (!quotations || !Array.isArray(quotations)) return [];
+    
+    return quotations.map((quotation) => ({
+      value: quotation.id,
+      label: `${quotation.company_name} - ${quotation.id.slice(0, 8)}`
+    }));
+  }, [quotations]);
+
+  // Handle opening document in new tab
+  const handlePreview = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  // Handle delete document
+  const handleDeleteClick = (submission: DocumentSubmission) => {
+    setDeletingId(submission.id);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Confirm delete document
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+    
+    setDeleteLoading(true);
+    try {
+      const success = await deleteDocumentSubmission(deletingId);
+      
+      if (success) {
+        // Update UI by removing the deleted document
+        setSubmissions(prevSubmissions => 
+          prevSubmissions.filter(sub => sub.id !== deletingId)
+        );
+        setIsDeleteModalOpen(false);
+        setDeletingId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Toggle expand/collapse for a quotation
+  const toggleExpand = (quotationId: string) => {
+    setExpandedQuotations(prev => ({
+      ...prev,
+      [quotationId]: !prev[quotationId]
+    }));
   };
 
   return (
@@ -124,173 +308,381 @@ export default function DocumentSubmissionsPage() {
         <h1 className="text-3xl font-bold">Document Submissions</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Customer Documents</CardTitle>
-          <CardDescription>Review and manage documents submitted by customers</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-pulse">Loading submissions...</div>
+      {/* Filters - Modified to remove category filter */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Search</label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search document name or type"
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-          ) : submissions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <h3 className="text-lg font-medium">No document submissions yet</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Documents submitted by customers will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Quotation ID</TableHead>
-                    <TableHead>Document Type</TableHead>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {submissions.map((submission) => (
-                    <TableRow key={submission.id}>
-                      <TableCell>{formatDate(submission.submitted_at)}</TableCell>
-                      <TableCell>{submission.company_name}</TableCell>
-                      <TableCell>{submission.quotation_id}</TableCell>
-                      <TableCell>{submission.document_type}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={submission.file_name}>
-                        {submission.file_name}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(submission.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleViewDetails(submission)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDownload(submission.file_url, submission.file_name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Filter by Quotation</label>
+              <Select value={selectedQuotation} onValueChange={setSelectedQuotation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Quotations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Quotations</SelectItem>
+                  {quotationOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Modal for document details */}
-      {isModalOpen && selectedSubmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-xl font-semibold">Document Details</h2>
-                <button
-                  className="text-gray-500 hover:text-gray-700"
-                  onClick={handleCloseModal}
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Company</h3>
-                    <p>{selectedSubmission.company_name}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Quotation ID</h3>
-                    <p>{selectedSubmission.quotation_id}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Document Type</h3>
-                    <p>{selectedSubmission.document_type}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Submitted At</h3>
-                    <p>{formatDate(selectedSubmission.submitted_at)}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                    <p>{getStatusBadge(selectedSubmission.status)}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">File Size</h3>
-                    <p>{selectedSubmission.file_size ? formatFileSize(selectedSubmission.file_size) : 'Unknown'}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">File Name</h3>
-                  <p>{selectedSubmission.file_name}</p>
-                </div>
-                
-                {selectedSubmission.notes && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500">Notes</h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedSubmission.notes}</p>
-                  </div>
-                )}
-
-                <div className="border-t pt-4 mt-4">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Document Preview</h3>
-                  {selectedSubmission.mime_type?.startsWith('image/') ? (
-                    <div className="relative max-w-full overflow-hidden rounded border" style={{ width: '500px', height: '500px' }}>
-                      <Image 
-                        src={selectedSubmission.file_url} 
-                        alt={`Preview of ${selectedSubmission.file_name}`}
-                        layout="fill"
-                        objectFit="contain"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600 italic">
-                      Preview not available for this file type ({selectedSubmission.mime_type || 'Unknown'}).
-                    </p>
-                  )}
-                </div>
-
-                <div className="border-t pt-4 mt-6 flex justify-end space-x-3">
-                  <Button variant="outline" onClick={handleCloseModal}>
-                    Close
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleUpdateStatus(selectedSubmission.id, 'rejected')}
-                    disabled={selectedSubmission.status === 'rejected'}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => handleUpdateStatus(selectedSubmission.id, 'approved')}
-                    disabled={selectedSubmission.status === 'approved'}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve
-                  </Button>
-                </div>
-              </div>
+      {/* Documents by Quotation */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="animate-pulse">Loading submissions...</div>
+        </div>
+      ) : Object.keys(submissionsByQuotation).length === 0 ? (
+        <Card>
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center text-center">
+              <FileText className="h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium">No document submissions found</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Try adjusting your filters or check back later for new submissions.
+              </p>
             </div>
-          </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(submissionsByQuotation).map(([quotationId, quotationSubmissions]) => {
+            const quotation = getQuotationInfo(quotationId);
+            const isExpanded = expandedQuotations[quotationId] || false;
+            
+            return (
+              <Card key={quotationId} className="overflow-hidden">
+                <CardHeader className="bg-muted/50 py-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-xl">
+                        {quotation.company_name} - {quotation.destination}
+                      </CardTitle>
+                      <CardDescription>
+                        Quotation: {quotationId.substring(0, 8)}... • Created: {formatDate(quotation.created_at)} • Documents: {quotationSubmissions.length}
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => toggleExpand(quotationId)}
+                      className="ml-4"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="h-4 w-4 mr-2" />
+                          Collapse
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-2" />
+                          Expand
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                
+                {isExpanded && (
+                  <CardContent className="p-0">
+                    <Tabs defaultValue="all" className="w-full">
+                      <TabsList className="w-full rounded-none px-6 pt-2">
+                        <TabsTrigger value="all">
+                          All Documents ({quotationSubmissions.length})
+                        </TabsTrigger>
+                        {DOCUMENT_CATEGORIES.map(category => {
+                          const count = countDocumentsByCategory(quotationId, category.id);
+                          return count > 0 ? (
+                            <TabsTrigger key={category.id} value={category.id}>
+                              {category.name} ({count})
+                            </TabsTrigger>
+                          ) : null;
+                        })}
+                      </TabsList>
+                      
+                      <TabsContent value="all" className="p-0">
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Document Type</TableHead>
+                                <TableHead>File Name</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {quotationSubmissions.map((submission) => (
+                                <TableRow key={submission.id}>
+                                  <TableCell>{formatDate(submission.submitted_at)}</TableCell>
+                                  <TableCell>{submission.document_type}</TableCell>
+                                  <TableCell className="max-w-xs truncate" title={submission.file_name}>
+                                    {submission.file_name}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handlePreview(submission.file_url)}
+                                        title="View Document"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleDownload(submission.file_url, submission.file_name)}
+                                        title="Download"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="text-red-500 hover:bg-red-50"
+                                        onClick={() => handleDeleteClick(submission)}
+                                        title="Delete"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </TabsContent>
+                      
+                      {DOCUMENT_CATEGORIES.map(category => (
+                        <TabsContent key={category.id} value={category.id} className="p-0">
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Document Type</TableHead>
+                                  <TableHead>File Name</TableHead>
+                                  <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {quotationSubmissions
+                                  .filter(submission => submission.document_type === category.id)
+                                  .map((submission) => (
+                                    <TableRow key={submission.id}>
+                                      <TableCell>{formatDate(submission.submitted_at)}</TableCell>
+                                      <TableCell>{submission.document_type}</TableCell>
+                                      <TableCell className="max-w-xs truncate" title={submission.file_name}>
+                                        {submission.file_name}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => handlePreview(submission.file_url)}
+                                            title="View Document"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => handleDownload(submission.file_url, submission.file_name)}
+                                            title="Download"
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="text-red-500 hover:bg-red-50"
+                                            onClick={() => handleDeleteClick(submission)}
+                                            title="Delete"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </TabsContent>
+                      ))}
+                    </Tabs>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Document Details Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        {selectedSubmission && (
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Document Details</DialogTitle>
+              <DialogDescription>
+                Submitted on {formatDate(selectedSubmission.submitted_at)}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Company</h3>
+                <p>{selectedSubmission.company_name || 'Unknown'}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Quotation ID</h3>
+                <p>{selectedSubmission.quotation_id}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Category</h3>
+                <p>{selectedSubmission.category || 'Other'}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Document Type</h3>
+                <p>{selectedSubmission.document_type}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                <p>{getStatusBadge(selectedSubmission.status || 'pending')}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">File Size</h3>
+                <p>{selectedSubmission.file_size ? formatFileSize(selectedSubmission.file_size) : 'Unknown'}</p>
+              </div>
+              <div className="col-span-2">
+                <h3 className="text-sm font-medium text-gray-500">File Name</h3>
+                <p className="truncate">{selectedSubmission.file_name}</p>
+              </div>
+              
+              {selectedSubmission.notes && (
+                <div className="col-span-2">
+                  <h3 className="text-sm font-medium text-gray-500">Notes</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedSubmission.notes}</p>
+                </div>
+              )}
+              
+              {selectedSubmission.file_url.endsWith('.pdf') ? (
+                <div className="col-span-2 mt-2">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
+                  <div className="border rounded-md p-2">
+                    <iframe 
+                      src={`${selectedSubmission.file_url}#view=FitH`}
+                      className="w-full h-64" 
+                      title={selectedSubmission.file_name}
+                    />
+                  </div>
+                </div>
+              ) : selectedSubmission.file_url.endsWith('.jpg') || selectedSubmission.file_url.endsWith('.png') || selectedSubmission.file_url.endsWith('.jpeg') ? (
+                <div className="col-span-2 mt-2">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
+                  <div className="border rounded-md p-2 relative w-full h-64">
+                    <Image 
+                      src={selectedSubmission.file_url} 
+                      alt={selectedSubmission.file_name}
+                      layout="fill"
+                      objectFit="contain"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              
+              <div className="col-span-2 flex justify-center gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.file_name)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download File
+                </Button>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 flex-wrap sm:justify-between">
+              <div className="space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={handleCloseModal}
+                >
+                  Close
+                </Button>
+              </div>
+              <div className="space-x-2">
+                <Button 
+                  variant="destructive" 
+                  onClick={() => handleStatusChange(selectedSubmission.id, 'rejected')}
+                  disabled={selectedSubmission.status === 'rejected'}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button 
+                  variant="default"
+                  onClick={() => handleStatusChange(selectedSubmission.id, 'approved')}
+                  disabled={selectedSubmission.status === 'approved'}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Document</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)} disabled={deleteLoading}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteLoading}>
+              {deleteLoading ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

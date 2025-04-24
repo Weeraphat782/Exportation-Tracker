@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Quotation } from '@/lib/db';
@@ -337,7 +337,15 @@ export default function QuotationPreviewPage() {
       
       <div className="flex justify-end mt-6 print:hidden">
         <div className="flex gap-2">
-          {/* Only keep the Edit button */}
+          {/* Add Document Upload button */}
+          <Button 
+            onClick={() => router.push(`/documents-upload/${quotationData?.id}?company=${encodeURIComponent(quotationData?.company_name || '')}&destination=${encodeURIComponent(quotationData?.destination || '')}`)}
+            variant="outline"
+            className="h-9"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Documents
+          </Button>
           <Button 
             onClick={editQuotation}
             variant="outline"
