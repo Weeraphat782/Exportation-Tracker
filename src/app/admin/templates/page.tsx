@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { uploadFile, deleteFile } from '@/lib/storage';
-import { createOrUpdateSetting, getSettings, deleteSetting as dbDeleteSetting } from '@/lib/db';
-import { ArrowUpCircle, FileText, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { uploadFile } from '@/lib/storage';
+import { ArrowUpCircle, FileText, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -51,7 +50,6 @@ interface Template {
 export default function TemplatesAdminPage() {
   const [templates, setTemplates] = useState<Record<string, Template>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
-  const [userId, setUserId] = useState<string | null>(null);
 
   // Fetch existing templates on page load
   useEffect(() => {
@@ -131,15 +129,18 @@ export default function TemplatesAdminPage() {
               [docType.id]: data[0] as Template
             });
           }
+          // Return data for the toast success message
+          return data;
         },
         {
           loading: 'Uploading...',
-          success: (data) => `Template for ${docType.name} uploaded successfully`,
+          // Use the returned data (or default message if data is null/undefined)
+          success: (data) => data ? `Template for ${docType.name} uploaded successfully` : `Template updated for ${docType.name}`, 
           error: (error) => error instanceof Error ? error.message : 'Failed to upload template'
         }
       );
     } catch (err) {
-      console.error('Error uploading template:', err);
+      console.error('Uploading template:', err);
       toast.error(err instanceof Error ? err.message : 'Failed to upload template');
     } finally {
       setUploading({ ...uploading, [docType.id]: false });
@@ -163,7 +164,7 @@ export default function TemplatesAdminPage() {
       toast.promise(
         async () => {
           // Delete from database first
-          const { error } = await supabase
+          const { /* data, */ error } = await supabase
             .from('document_templates')
             .delete()
             .eq('document_type_id', docTypeId);
@@ -176,10 +177,13 @@ export default function TemplatesAdminPage() {
           const newTemplates = { ...templates };
           delete newTemplates[docTypeId];
           setTemplates(newTemplates);
+          // Return success for the toast promise
+          return true;
         },
         {
           loading: 'Deleting...',
-          success: (data) => `Template for ${docName} deleted successfully`,
+          // Use the result from the async function for the success message
+          success: (result) => result ? `Template for ${docName} deleted successfully` : 'Deletion successful',
           error: (error) => error instanceof Error ? error.message : 'Failed to delete template'
         }
       );

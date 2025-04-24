@@ -60,7 +60,7 @@ async function uploadTemplates() {
       console.log(`Uploaded ${docType.name} template to ${fileUrl}`);
       
       // Insert or update in document_templates table
-      const { data: templateData, error: templateError } = await supabase
+      const { error: templateError } = await supabase
         .from('document_templates')
         .upsert({
           document_type_id: docType.id,
