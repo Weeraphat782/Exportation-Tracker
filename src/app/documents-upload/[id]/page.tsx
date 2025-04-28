@@ -224,6 +224,7 @@ export default function DocumentUploadPage() {
       formData.append('documentType', queuedFile.documentType);
       formData.append('documentTypeName', queuedFile.documentTypeName);
       formData.append('notes', queuedFile.notes);
+      formData.append('companyName', companyName);
 
       try {
         const response = await fetch('/api/upload-document', {

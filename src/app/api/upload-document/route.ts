@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const documentType = formData.get('documentType') as string | null
     const documentTypeName = formData.get('documentTypeName') as string | null
     const notes = formData.get('notes') as string | null
+    const companyName = formData.get('companyName') as string | null
 
     if (!file || !quotationId || !documentType || !documentTypeName) {
       return NextResponse.json(
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Log the received company name before DB insert for debugging
+    console.log(`Attempting to insert with companyName: ${companyName}`);
+
     // 2. Record the submission in the database using server client
     const { error: dbError } = await supabase
       .from('document_submissions') // Replace with your actual table name
@@ -70,6 +74,7 @@ export async function POST(request: NextRequest) {
         original_file_name: file.name,
         file_path: uploadData.path,
         notes: notes,
+        company_name: companyName,
         // submitted_by_customer: true, // Optional flag
         // Add any other relevant fields
       })
