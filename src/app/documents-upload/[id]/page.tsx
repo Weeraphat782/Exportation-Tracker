@@ -206,7 +206,7 @@ export default function DocumentUploadPage() {
     }
   };
 
-  // Upload all files from queue
+  // Upload all files from queue via API route
   const handleSubmitAll = async () => {
     if (uploadQueue.length === 0) {
       setError('Please add at least one file to upload.');
@@ -215,77 +215,79 @@ export default function DocumentUploadPage() {
 
     setIsSubmitting(true);
     setError(null);
+    setSuccess(false); // Reset success message
 
-    const results = [];
+    const uploadPromises = uploadQueue.map(async (queuedFile) => {
+      const formData = new FormData();
+      formData.append('file', queuedFile.file);
+      formData.append('quotationId', quotationId);
+      formData.append('documentType', queuedFile.documentType);
+      formData.append('documentTypeName', queuedFile.documentTypeName);
+      formData.append('notes', queuedFile.notes);
 
-    for (const queuedFile of uploadQueue) {
       try {
-        // Create path for file
-        const filePath = `${quotationId}/${queuedFile.documentType}/${queuedFile.file.name}`;
-        
-        // Upload to Supabase Storage
-        const fileUrl = await uploadFile('documents', filePath, queuedFile.file);
+        const response = await fetch('/api/upload-document', {
+          method: 'POST',
+          body: formData,
+        });
 
-        if (!fileUrl) {
-          console.error(`Failed to upload file: ${queuedFile.file.name}`);
-          continue;
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || `HTTP error! status: ${response.status}`);
         }
 
-        // Save submission record to database
-        const submission = {
-          quotation_id: quotationId,
-          company_name: companyName,
-          document_type: queuedFile.documentTypeName,
-          category: ALL_DOCUMENT_TYPES.find(type => type.id === queuedFile.documentType)?.category || '',
-          document_type_id: queuedFile.documentType,
-          file_name: queuedFile.file.name,
-          file_url: fileUrl,
-          file_size: queuedFile.file.size,
-          mime_type: queuedFile.file.type,
-          notes: queuedFile.notes,
-          status: 'submitted'
-        };
-
-        const result = await createDocumentSubmission(submission);
-
-        if (result) {
-          results.push(result);
-          
-          // Add to uploaded files list
-          setUploadedFiles(prev => [
+        // Add to successfully uploaded files list for UI update
+         setUploadedFiles(prev => [
             ...prev,
             {
-              id: result.id,
+              // Assuming the API returns the DB record ID, otherwise generate a client-side one
+              id: result.dbId || queuedFile.id, // Use API response ID if available
               name: queuedFile.file.name,
               type: queuedFile.documentTypeName,
               documentType: queuedFile.documentType,
               uploadTime: new Date().toLocaleString()
             }
           ]);
-        }
-      } catch (err) {
-        console.error('Error uploading document:', err);
+
+        return { success: true, fileName: queuedFile.file.name };
+      } catch (err: any) {
+        console.error(`Error uploading ${queuedFile.file.name}:`, err);
+        return { success: false, fileName: queuedFile.file.name, error: err.message };
       }
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    const failedUploads = results.filter(r => !r.success);
+
+    if (failedUploads.length > 0) {
+      setError(`Failed to upload ${failedUploads.length} file(s). ${failedUploads.map(f => f.fileName).join(', ')}. Check console for details.`);
+    } else {
+      setSuccess(true); // Show success only if all uploads succeeded
+       // Hide success message after 5 seconds
+       setTimeout(() => {
+         setSuccess(false);
+       }, 5000);
     }
 
-    // Update quotation status to indicate documents have been uploaded
-    try {
-      await updateQuotation(quotationId, { status: 'docs_uploaded' });
-      console.log('Quotation status updated to: docs_uploaded');
-    } catch (err) {
-      console.error('Error updating quotation status:', err);
-    }
-
-    // Clear the queue after uploading
+    // Clear the queue regardless of success/failure
     setUploadQueue([]);
     setSelectedFiles({});
     setIsSubmitting(false);
-    setSuccess(true);
 
-    // Hide success message after 5 seconds
-    setTimeout(() => {
-      setSuccess(false);
-    }, 5000);
+    // Optionally, update quotation status if all uploads were successful
+    if (failedUploads.length === 0) {
+        try {
+          // TODO: Consider moving this to the backend (API route) after successful DB insert
+          // Or create a separate API route for updating status
+          await updateQuotation(quotationId, { status: 'docs_uploaded' });
+          console.log('Quotation status updated to: docs_uploaded');
+        } catch (err) {
+          console.error('Error updating quotation status (client-side):', err);
+          // Consider notifying user or logging this more formally
+        }
+    }
   };
 
   // Simplified preview function that opens the file directly in a new tab
