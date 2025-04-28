@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // import { uploadFile } from '@/lib/storage'; // Removed as unused
-import { /* createDocumentSubmission, */ getDocumentTemplate, updateQuotation } from '@/lib/db'; // Removed createDocumentSubmission as unused
+import { /* createDocumentSubmission, */ getDocumentTemplate, /* updateQuotation */ } from '@/lib/db'; // Removed updateQuotation as unused
 import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -321,19 +321,6 @@ export default function DocumentUploadPage() {
     setUploadQueue([]);
     setSelectedFiles({});
     setIsSubmitting(false);
-
-    // Optionally, update quotation status if all uploads were successful
-    if (failedUploads.length === 0) {
-        try {
-          // TODO: Consider moving this to the backend (API route) after successful DB insert
-          // Or create a separate API route for updating status
-          await updateQuotation(quotationId, { status: 'docs_uploaded' });
-          console.log('Quotation status updated to: docs_uploaded');
-        } catch (err) {
-          console.error('Error updating quotation status (client-side):', err);
-          // Consider notifying user or logging this more formally
-        }
-    }
   };
 
   // Simplified preview function that opens the file directly in a new tab

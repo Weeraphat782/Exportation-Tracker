@@ -76,6 +76,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ---> START: Update Quotation Status
+    // Optionally, update the related quotation status after successful submission
+    // (Check if this should happen on every submission or only the first/last one based on your logic)
+    if (dbData?.id) { // Check if DB insert was successful
+      const { error: updateError } = await supabase
+        .from('quotations') // Replace with your actual quotations table name
+        .update({ status: 'docs_uploaded' }) // Replace with your desired status
+        .eq('id', quotationId); // Match the quotation ID
+
+      if (updateError) {
+        // Log the error, but don't fail the whole request as the doc submission was saved
+        console.error(`Failed to update quotation ${quotationId} status:`, updateError);
+      } else {
+        console.log(`Successfully updated quotation ${quotationId} status to docs_uploaded`);
+      }
+    }
+    // ---> END: Update Quotation Status
+
     // Success
     return NextResponse.json({ 
       success: true, 
