@@ -71,7 +71,8 @@ const ALLOWED_FILE_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Increase limit significantly, Supabase default is 5GB, but set a practical browser limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 // Define type for files in the upload queue
 interface QueuedFile {
@@ -129,7 +130,7 @@ export default function DocumentUploadPage() {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError('File is too large. Maximum size is 10MB.');
+      setError(`File is too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`);
       return false;
     }
 
@@ -206,7 +207,7 @@ export default function DocumentUploadPage() {
     }
   };
 
-  // Upload all files from queue via API route
+  // Upload all files from queue using Signed URLs
   const handleSubmitAll = async () => {
     if (uploadQueue.length === 0) {
       setError('Please add at least one file to upload.');
@@ -218,32 +219,75 @@ export default function DocumentUploadPage() {
     setSuccess(false); // Reset success message
 
     const uploadPromises = uploadQueue.map(async (queuedFile) => {
-      const formData = new FormData();
-      formData.append('file', queuedFile.file);
-      formData.append('quotationId', quotationId);
-      formData.append('documentType', queuedFile.documentType);
-      formData.append('documentTypeName', queuedFile.documentTypeName);
-      formData.append('notes', queuedFile.notes);
-      formData.append('companyName', companyName);
-
       try {
-        const response = await fetch('/api/upload-document', {
+        // 1. Get Signed URL from our backend
+        const generateUrlResponse = await fetch('/api/generate-upload-url', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileName: queuedFile.file.name,
+            contentType: queuedFile.file.type,
+            quotationId: quotationId,
+            documentType: queuedFile.documentType,
+          }),
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || `HTTP error! status: ${response.status}`);
+        if (!generateUrlResponse.ok) {
+            const errorResult = await generateUrlResponse.json();
+            throw new Error(errorResult.error || `Failed to get upload URL: ${generateUrlResponse.statusText}`);
         }
+
+        const { signedUrl, path: filePath } = await generateUrlResponse.json();
+
+        // 2. Upload file directly to Supabase Storage using the Signed URL
+        const storageResponse = await fetch(signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': queuedFile.file.type, // Important for Supabase
+            // Supabase signed URLs might implicitly handle other headers
+            // Add 'x-upsert': 'true' if you want to allow overwrites, but usually not needed with unique names
+          },
+          body: queuedFile.file,
+        });
+
+        if (!storageResponse.ok) {
+          // Try to get error details from Supabase response (might be XML)
+          const errorText = await storageResponse.text();
+          console.error('Direct Supabase Upload Error:', errorText);
+          throw new Error(`Storage upload failed: ${storageResponse.statusText}`);
+        }
+
+        // 3. Confirm successful upload with our backend to save DB record
+        const confirmResponse = await fetch('/api/confirm-upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filePath: filePath, // Use the path returned by generate-upload-url
+                quotationId: quotationId,
+                documentType: queuedFile.documentType,
+                documentTypeName: queuedFile.documentTypeName,
+                originalFileName: queuedFile.file.name,
+                notes: queuedFile.notes,
+                companyName: companyName, 
+            }),
+        });
+
+        if (!confirmResponse.ok) {
+            const errorResult = await confirmResponse.json();
+            throw new Error(errorResult.error || `Failed to confirm upload: ${confirmResponse.statusText}`);
+        }
+        
+        const confirmResult = await confirmResponse.json();
 
         // Add to successfully uploaded files list for UI update
          setUploadedFiles(prev => [
             ...prev,
             {
-              // Assuming the API returns the DB record ID, otherwise generate a client-side one
-              id: result.dbId || queuedFile.id, // Use API response ID if available
+              id: confirmResult.dbId || queuedFile.id, // Use DB ID from confirmation
               name: queuedFile.file.name,
               type: queuedFile.documentTypeName,
               documentType: queuedFile.documentType,
@@ -252,9 +296,8 @@ export default function DocumentUploadPage() {
           ]);
 
         return { success: true, fileName: queuedFile.file.name };
-      } catch (err: unknown) {
-        console.error(`Error uploading ${queuedFile.file.name}:`, err);
-        // Provide a more specific error message if possible
+      } catch (err: unknown) { // Catch errors from any step
+        console.error(`Error processing ${queuedFile.file.name}:`, err);
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         return { success: false, fileName: queuedFile.file.name, error: errorMessage };
       }
