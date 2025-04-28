@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import supabaseServerClient from '@/lib/supabase/server'
+import { getSupabaseServerClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic' // Ensure env vars are read at runtime
 
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return NextResponse.json(
+      { error: 'Server configuration error: Supabase client not initialized.' },
+      { status: 500 }
+    )
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -22,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Define the storage bucket and path
     const bucket = 'documents' // Replace if you use a different bucket
     // Sanitize filename and create a path (e.g., quotationId/documentType/timestamp_filename)
-    const fileExtension = file.name.split('.').pop() || ''
+    // const fileExtension = file.name.split('.').pop() || '' // Removed as unused
     const timestamp = Date.now()
     // Simple sanitization: replace non-alphanumeric with underscore
     const safeOriginalName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
@@ -30,7 +38,7 @@ export async function POST(request: NextRequest) {
     const filePath = `${quotationId}/${documentType}/${fileName}`
 
     // 1. Upload to Supabase Storage using server client
-    const { data: uploadData, error: uploadError } = await supabaseServerClient.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
         contentType: file.type,
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Record the submission in the database using server client
-    const { error: dbError } = await supabaseServerClient
+    const { error: dbError } = await supabase
       .from('document_submissions') // Replace with your actual table name
       .insert({
         quotation_id: quotationId,
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       console.error('Supabase DB Insert Error:', dbError)
       // Attempt to delete the already uploaded file if DB insert fails
-      await supabaseServerClient.storage.from(bucket).remove([filePath])
+      await supabase.storage.from(bucket).remove([filePath])
       return NextResponse.json(
         { error: `Database record failed: ${dbError.message}` },
         { status: 500 }

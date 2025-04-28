@@ -1,24 +1,36 @@
-import { createClient } from '@supabase/supabase-js'
+import { SupabaseClient, createClient } from '@supabase/supabase-js'
 
-// Ensure you have SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your environment variables
-// DO NOT expose the service role key publicly
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+let supabaseServerClient: SupabaseClient | null = null;
 
-if (!supabaseUrl) {
-  throw new Error('Missing environment variable SUPABASE_URL')
-}
-if (!supabaseServiceRoleKey) {
-  throw new Error('Missing environment variable SUPABASE_SERVICE_ROLE_KEY')
-}
-
-// Create a Supabase client configured for server-side use (e.g., in API routes)
-const supabaseServerClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    // Server-side client typically doesn't need to persist session or auto-refresh
-    autoRefreshToken: false,
-    persistSession: false,
+/**
+ * Creates and returns a Supabase client instance for server-side use.
+ * Ensures environment variables are checked only when the client is requested.
+ * Returns null if environment variables are missing.
+ */
+export function getSupabaseServerClient(): SupabaseClient | null {
+  if (supabaseServerClient) {
+    return supabaseServerClient;
   }
-})
 
-export default supabaseServerClient 
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl) {
+    console.error('Missing environment variable: SUPABASE_URL')
+    return null;
+  }
+  if (!supabaseServiceRoleKey) {
+    console.error('Missing environment variable: SUPABASE_SERVICE_ROLE_KEY')
+    return null;
+  }
+
+  // Create a Supabase client configured for server-side use
+  supabaseServerClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    }
+  })
+
+  return supabaseServerClient;
+} 
