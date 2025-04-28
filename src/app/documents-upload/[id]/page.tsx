@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { uploadFile } from '@/lib/storage';
-import { createDocumentSubmission, getDocumentTemplate, updateQuotation } from '@/lib/db';
+// import { uploadFile } from '@/lib/storage'; // Removed as unused
+import { /* createDocumentSubmission, */ getDocumentTemplate, updateQuotation } from '@/lib/db'; // Removed createDocumentSubmission as unused
 import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -251,9 +251,11 @@ export default function DocumentUploadPage() {
           ]);
 
         return { success: true, fileName: queuedFile.file.name };
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error uploading ${queuedFile.file.name}:`, err);
-        return { success: false, fileName: queuedFile.file.name, error: err.message };
+        // Provide a more specific error message if possible
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+        return { success: false, fileName: queuedFile.file.name, error: errorMessage };
       }
     });
 
