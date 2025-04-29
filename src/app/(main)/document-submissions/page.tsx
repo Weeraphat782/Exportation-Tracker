@@ -39,6 +39,7 @@ interface DocumentSubmission {
   submitted_at?: string;
   reviewed_at?: string;
   reviewed_by?: string;
+  original_file_name: string;
 }
 
 // Define a type for partial updates
@@ -458,8 +459,8 @@ export default function DocumentSubmissionsPage() {
                                 <TableRow key={submission.id}>
                                   <TableCell>{formatDate(submission.submitted_at)}</TableCell>
                                   <TableCell>{submission.document_type}</TableCell>
-                                  <TableCell className="max-w-xs truncate" title={submission.file_name}>
-                                    {submission.file_name}
+                                  <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
+                                    {submission.original_file_name}
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
@@ -474,7 +475,7 @@ export default function DocumentSubmissionsPage() {
                                       <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => handleDownload(submission.file_url, submission.file_name)}
+                                        onClick={() => handleDownload(submission.file_url, submission.original_file_name)}
                                         title="Download Document"
                                       >
                                         <Download className="h-4 w-4" />
@@ -516,8 +517,8 @@ export default function DocumentSubmissionsPage() {
                                     <TableRow key={submission.id}>
                                       <TableCell>{formatDate(submission.submitted_at)}</TableCell>
                                       <TableCell>{submission.document_type}</TableCell>
-                                      <TableCell className="max-w-xs truncate" title={submission.file_name}>
-                                        {submission.file_name}
+                                      <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
+                                        {submission.original_file_name}
                                       </TableCell>
                                       <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
@@ -532,7 +533,7 @@ export default function DocumentSubmissionsPage() {
                                           <Button
                                             variant="outline"
                                             size="icon"
-                                            onClick={() => handleDownload(submission.file_url, submission.file_name)}
+                                            onClick={() => handleDownload(submission.file_url, submission.original_file_name)}
                                             title="Download Document"
                                           >
                                             <Download className="h-4 w-4" />
@@ -639,7 +640,7 @@ export default function DocumentSubmissionsPage() {
               <div className="col-span-2 flex justify-center gap-2 mt-4">
                 <Button 
                   variant="outline" 
-                  onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.file_name)}
+                  onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.original_file_name)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download File

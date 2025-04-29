@@ -28,11 +28,14 @@ export async function POST(request: NextRequest) {
 
     // Create a unique path (e.g., quotationId/documentType/uuid_filename)
     // Using UUID to prevent potential filename clashes more robustly
-    const uniqueId = randomUUID();
+    // const uniqueId = randomUUID(); // Removed UUID
     // Simple sanitization: replace non-alphanumeric with underscore
-    const safeOriginalName = fileName.replace(/[^a-zA-Z0-9.]/g, '_');
-    const uniqueFileName = `${uniqueId}_${safeOriginalName}`
-    const filePath = `${quotationId}/${documentType}/${uniqueFileName}`
+    // const safeOriginalName = fileName.replace(/[^a-zA-Z0-9.]/g, '_'); // Removed simple sanitization
+    // const uniqueFileName = `${uniqueId}_${safeOriginalName}` // Removed UUID prefix
+    
+    // Use original filename directly, relying on Supabase/client encoding
+    // WARNING: This increases risk of filename collisions if not handled elsewhere.
+    const filePath = `${quotationId}/${documentType}/${fileName}`;
 
     // Generate a signed URL for uploading
     const { data, error } = await supabase.storage
