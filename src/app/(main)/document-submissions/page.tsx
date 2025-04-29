@@ -173,14 +173,39 @@ export default function DocumentSubmissionsPage() {
     setSelectedSubmission(null);
   };
 
-  // Download file
-  const handleDownload = (url: string, fileName: string) => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // Download file using fetch + blob URL to handle cross-origin
+  const handleDownload = async (url: string, fileName: string) => {
+    try {
+      // Add loading state indication here if desired (e.g., set button state)
+      console.log(`Fetching file from: ${url}`);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Clean up the object URL
+      URL.revokeObjectURL(blobUrl);
+
+      console.log(`Download triggered for: ${fileName}`);
+      // Remove loading state indication here if added
+
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Display error message to the user here (e.g., using a state variable and toast/alert)
+      // Remove loading state indication here if added
+    }
   };
 
   // Update document status
@@ -450,7 +475,7 @@ export default function DocumentSubmissionsPage() {
                                         variant="outline"
                                         size="icon"
                                         onClick={() => handleDownload(submission.file_url, submission.file_name)}
-                                        title="Download"
+                                        title="Download Document"
                                       >
                                         <Download className="h-4 w-4" />
                                       </Button>
@@ -508,7 +533,7 @@ export default function DocumentSubmissionsPage() {
                                             variant="outline"
                                             size="icon"
                                             onClick={() => handleDownload(submission.file_url, submission.file_name)}
-                                            title="Download"
+                                            title="Download Document"
                                           >
                                             <Download className="h-4 w-4" />
                                           </Button>
