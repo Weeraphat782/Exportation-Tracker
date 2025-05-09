@@ -74,11 +74,13 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
   completed_at?: string | null;
+  shipment_photo_url?: string[] | null;
+  shipment_photo_uploaded_at?: string | null;
   
   // Additional cost breakdown fields
   total_freight_cost?: number | null; // Allow null
@@ -503,54 +505,66 @@ export async function getQuotations(userId: string) {
   try {
     const { data, error } = await supabase
       .from('quotations')
-      .select('*')
+      .select(`
+        *,
+        company:companies(name),
+        destination_country:destinations(country, port)
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching quotations:', error);
-      return null;
+      return []; // Return empty array on error
     }
-    
-    return data;
-  } catch (error) {
-    console.error('Error in getQuotations:', error);
-    return null;
+
+    // Transform data to match Quotation interface, especially for nested objects
+    const transformedData = data.map(q => ({
+      ...q,
+      company_name: q.company?.name,
+      destination: q.destination_country ? `${q.destination_country.country} ${q.destination_country.port ? '- ' + q.destination_country.port : ''}` : 'N/A',
+      // shipment_photo_url should already be an array if the DB column type is TEXT[]
+      // shipment_photo_uploaded_at should be a string for timestamp
+    }));
+
+    return transformedData as Quotation[];
+  } catch (err) {
+    console.error('Error in getQuotations:', err);
+    return [];
   }
 }
 
-// Fetches a single quotation by its ID, selecting all columns
 export async function getQuotationById(id: string): Promise<Quotation | null> {
   try {
-    console.log('Fetching quotation by ID:', id);
     const { data, error } = await supabase
       .from('quotations')
-      .select('*') // Select all columns to match the full Quotation interface
+      .select(`
+        *,
+        company:companies(name, address, tax_id, contact_person, contact_email, contact_phone),
+        destination_country:destinations(country, port)
+      `)
       .eq('id', id)
       .single();
 
     if (error) {
-      // Log specific error if it's a "not found" error
-      if (error.code === 'PGRST116') { // PostgREST: Row not found
-        console.warn(`Quotation with ID ${id} not found.`);
-      } else {
-        console.error('Error fetching quotation by ID:', error);
-      }
+      console.error('Error fetching quotation by ID:', error);
       return null;
     }
+    if (!data) return null;
 
-    if (!data) {
-        console.warn(`No data returned for quotation ID ${id}, though no error reported.`);
-        return null;
-    }
+    // Transform data to match Quotation interface
+    const quotation: Quotation = {
+      ...data,
+      company_name: data.company?.name,
+      destination: data.destination_country ? `${data.destination_country.country} ${data.destination_country.port ? '- ' + data.destination_country.port : ''}` : 'N/A',
+      // Ensure shipment_photo_url and shipment_photo_uploaded_at are correctly typed here if needed
+      // If the database returns shipment_photo_url as a string that looks like an array (e.g., "{\"url1\",\"url2\"}"),
+      // you might need to parse it here. However, Supabase usually handles TEXT[] as JS arrays directly.
+    };
 
-    console.log('Quotation data fetched:', data);
-    // Cast the result to the full Quotation type
-    // Supabase should handle JSONB parsing automatically
-    return data as Quotation;
-
-  } catch (error) {
-    console.error('Exception in getQuotationById:', error);
+    return quotation;
+  } catch (err) {
+    console.error('Error in getQuotationById:', err);
     return null;
   }
 }

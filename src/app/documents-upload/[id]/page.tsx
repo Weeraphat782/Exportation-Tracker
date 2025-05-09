@@ -240,7 +240,7 @@ export default function DocumentUploadPage() {
         }
 
         const { signedUrl, path: filePath } = await generateUrlResponse.json();
-
+        
         // 2. Upload file directly to Supabase Storage using the Signed URL
         const storageResponse = await fetch(signedUrl, {
           method: 'PUT',
@@ -271,7 +271,7 @@ export default function DocumentUploadPage() {
                 documentType: queuedFile.documentType,
                 documentTypeName: queuedFile.documentTypeName,
                 originalFileName: queuedFile.file.name,
-                notes: queuedFile.notes,
+          notes: queuedFile.notes,
                 companyName: companyName, 
             }),
         });
@@ -280,11 +280,11 @@ export default function DocumentUploadPage() {
             const errorResult = await confirmResponse.json();
             throw new Error(errorResult.error || `Failed to confirm upload: ${confirmResponse.statusText}`);
         }
-        
-        const confirmResult = await confirmResponse.json();
 
+        const confirmResult = await confirmResponse.json();
+          
         // Add to successfully uploaded files list for UI update
-         setUploadedFiles(prev => [
+          setUploadedFiles(prev => [
             ...prev,
             {
               id: confirmResult.dbId || queuedFile.id, // Use DB ID from confirmation

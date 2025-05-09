@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission } from '@/lib/db';
+import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,8 +21,17 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
+import { QRCodeCanvas } from 'qrcode.react';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"
 
-// Define types to match db.ts definitions
+// Use DbQuotation type from db.ts or extend it if needed locally
+// For now, we assume DbQuotation from lib/db is sufficient and includes shipment_photo_url as string[] | null
 interface DocumentSubmission {
   id: string;
   quotation_id: string;
@@ -48,17 +57,6 @@ type DocumentSubmissionUpdate = {
   feedback?: string;
 };
 
-interface Quotation {
-  id: string;
-  user_id: string;
-  company_name: string;
-  destination: string;
-  total_cost: number;
-  created_at: string;
-  status: string;
-}
-
-// Document categories
 const DOCUMENT_CATEGORIES = [
   { id: 'company-info', name: 'Company Information' },
   { id: 'permits-forms', name: 'Permit and TK Forms' },
@@ -68,13 +66,14 @@ const DOCUMENT_CATEGORIES = [
 
 export default function DocumentSubmissionsPage() {
   const [submissions, setSubmissions] = useState<DocumentSubmission[]>([]);
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [quotations, setQuotations] = useState<DbQuotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<DocumentSubmission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImagePreviewModalOpen, setIsImagePreviewModalOpen] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuotation, setSelectedQuotation] = useState<string>('all');
-  const [selectedCategory] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -141,7 +140,7 @@ export default function DocumentSubmissionsPage() {
     
     return submissions.filter((submission) => {
       // Filter by search term if present
-      if (searchTerm && !submission.file_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (searchTerm && !submission.original_file_name.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
       
@@ -150,14 +149,9 @@ export default function DocumentSubmissionsPage() {
         return false;
       }
       
-      // Filter by document type if selected
-      if (selectedCategory !== 'all' && submission.document_type !== selectedCategory) {
-        return false;
-      }
-      
       return true;
     });
-  }, [submissions, searchTerm, selectedQuotation, selectedCategory]);
+  }, [submissions, searchTerm, selectedQuotation]);
 
   // Group submissions by quotation for display
   const submissionsByQuotation = filteredSubmissions.reduce((acc, submission) => {
@@ -172,6 +166,16 @@ export default function DocumentSubmissionsPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedSubmission(null);
+  };
+
+  const handleOpenImagePreview = (url: string) => {
+    setPreviewImageUrl(url);
+    setIsImagePreviewModalOpen(true);
+  };
+
+  const handleCloseImagePreview = () => {
+    setIsImagePreviewModalOpen(false);
+    setPreviewImageUrl(null);
   };
 
   // Download file using fetch + blob URL to handle cross-origin
@@ -238,34 +242,33 @@ export default function DocumentSubmissionsPage() {
   };
 
   // Get status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
+    if (!status) return <Badge variant="outline">Unknown</Badge>;
     switch (status.toLowerCase()) {
-      case 'approved':
-        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">Pending</Badge>;
+      case 'approved': return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Approved</Badge>;
+      case 'rejected': return <Badge variant="destructive">Rejected</Badge>;
+      case 'pending': return <Badge variant="secondary" className="bg-yellow-400 hover:bg-yellow-500 text-black">Pending</Badge>;
+      default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   // Format date
-  const formatDate = (dateString: string | undefined) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      });
+    } catch {
+      // If an error occurs during formatting, return the original string.
+      // The error variable _e is intentionally unused here.
+      return dateString; 
+    }
   };
 
   // Get quotation info
-  const getQuotationInfo = (quotationId: string) => {
-    const quotation = quotations?.find(q => q.id === quotationId);
-    return quotation || { 
-      id: quotationId, 
-      company_name: 'Unknown', 
-      destination: 'Unknown', 
-      total_cost: 0,
-      created_at: '',
-      status: 'unknown'
-    };
+  const getQuotationInfo = (quotationId: string): DbQuotation | undefined => {
+    return quotations.find(q => q.id === quotationId);
   };
 
   // Count documents by category for a quotation
@@ -285,11 +288,6 @@ export default function DocumentSubmissionsPage() {
       label: `${quotation.company_name} - ${quotation.id.slice(0, 8)}`
     }));
   }, [quotations]);
-
-  // Handle opening document in new tab
-  const handlePreview = (url: string) => {
-    window.open(url, '_blank');
-  };
 
   // Handle delete document
   const handleDeleteClick = (submission: DocumentSubmission) => {
@@ -326,6 +324,11 @@ export default function DocumentSubmissionsPage() {
       ...prev,
       [quotationId]: !prev[quotationId]
     }));
+  };
+
+  const openSubmissionModal = (submission: DocumentSubmission) => {
+    setSelectedSubmission(submission);
+    setIsModalOpen(true);
   };
 
   return (
@@ -390,7 +393,9 @@ export default function DocumentSubmissionsPage() {
       ) : (
         <div className="space-y-6">
           {Object.entries(submissionsByQuotation).map(([quotationId, quotationSubmissions]) => {
-            const quotation = getQuotationInfo(quotationId);
+            const quotationInfo = getQuotationInfo(quotationId);
+            if (!quotationInfo) return null;
+
             const isExpanded = expandedQuotations[quotationId] || false;
             
             return (
@@ -399,10 +404,10 @@ export default function DocumentSubmissionsPage() {
                   <div className="flex justify-between items-center">
                     <div>
                       <CardTitle className="text-xl">
-                        {quotation.company_name} - {quotation.destination}
+                        {quotationInfo.company_name} - {quotationInfo.destination}
                       </CardTitle>
                       <CardDescription>
-                        Quotation: {quotationId.substring(0, 8)}... • Created: {formatDate(quotation.created_at)} • Documents: {quotationSubmissions.length}
+                        Quotation: {quotationId.substring(0, 8)}... • Created: {formatDate(quotationInfo.created_at)} • Documents: {quotationSubmissions.length}
                       </CardDescription>
                     </div>
                     <Button 
@@ -429,7 +434,7 @@ export default function DocumentSubmissionsPage() {
                 {isExpanded && (
                   <CardContent className="p-0">
                     <Tabs defaultValue="all" className="w-full">
-                      <TabsList className="w-full rounded-none px-6 pt-2">
+                      <TabsList className="w-full rounded-none px-6 pt-2 flex flex-wrap h-auto">
                         <TabsTrigger value="all">
                           All Documents ({quotationSubmissions.length})
                         </TabsTrigger>
@@ -441,6 +446,9 @@ export default function DocumentSubmissionsPage() {
                             </TabsTrigger>
                           ) : null;
                         })}
+                        <TabsTrigger value="shipment-qr-photo">
+                          Shipment QR & Photo
+                        </TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="all" className="p-0">
@@ -467,7 +475,7 @@ export default function DocumentSubmissionsPage() {
                                       <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => handlePreview(submission.file_url)}
+                                        onClick={() => openSubmissionModal(submission)}
                                         title="View Document"
                                       >
                                         <Eye className="h-4 w-4" />
@@ -525,7 +533,7 @@ export default function DocumentSubmissionsPage() {
                                           <Button
                                             variant="outline"
                                             size="icon"
-                                            onClick={() => handlePreview(submission.file_url)}
+                                            onClick={() => openSubmissionModal(submission)}
                                             title="View Document"
                                           >
                                             <Eye className="h-4 w-4" />
@@ -556,6 +564,68 @@ export default function DocumentSubmissionsPage() {
                           </div>
                         </TabsContent>
                       ))}
+
+                      <TabsContent value="shipment-qr-photo" className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                          <div>
+                            <h3 className="text-lg font-semibold mb-2">Shipment QR Code</h3>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Scan this QR code with a mobile device to access the shipment photo upload page for this quotation.
+                            </p>
+                            {typeof window !== 'undefined' && (
+                              <div className="p-4 border rounded-md inline-block bg-white">
+                                <QRCodeCanvas
+                                  value={`${window.location.origin}/shipment-photo/${quotationId}`}
+                                  size={192}
+                                  bgColor={"#ffffff"}
+                                  fgColor={"#000000"}
+                                  level={"H"}
+                                  includeMargin={true}
+                                />
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              URL: {typeof window !== 'undefined' ? `${window.location.origin}/shipment-photo/${quotationId}` : 'Loading...'}
+                            </p>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold mb-2">Uploaded Shipment Photos</h3>
+                            {quotationInfo.shipment_photo_url && Array.isArray(quotationInfo.shipment_photo_url) && quotationInfo.shipment_photo_url.length > 0 && (
+                              <div className="mb-6 p-4 border rounded-md bg-slate-50">
+                                <h4 className="text-md font-semibold mb-3 text-gray-700">Shipment Photos:</h4>
+                                <Carousel className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg mx-auto">
+                                  <CarouselContent>
+                                    {quotationInfo.shipment_photo_url.map((url, index) => (
+                                      <CarouselItem key={index}>
+                                        <div className="p-1">
+                                          <Card className="overflow-hidden">
+                                            <CardContent className="flex aspect-square items-center justify-center p-0 relative">
+                                              <Image 
+                                                src={url} 
+                                                alt={`Shipment Photo ${index + 1}`}
+                                                layout="fill"
+                                                objectFit="contain"
+                                                className="rounded-md"
+                                                onClick={() => handleOpenImagePreview(url)}
+                                              />
+                                            </CardContent>
+                                          </Card>
+                                        </div>
+                                      </CarouselItem>
+                                    ))}
+                                  </CarouselContent>
+                                  {quotationInfo.shipment_photo_url.length > 1 && (
+                                    <>
+                                      <CarouselPrevious className="absolute left-[-50px] top-1/2 -translate-y-1/2 fill-black" />
+                                      <CarouselNext className="absolute right-[-50px] top-1/2 -translate-y-1/2 fill-black" />
+                                    </>
+                                  )}
+                                </Carousel>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TabsContent>
                     </Tabs>
                   </CardContent>
                 )}
@@ -594,7 +664,7 @@ export default function DocumentSubmissionsPage() {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                <p>{getStatusBadge(selectedSubmission.status || 'pending')}</p>
+                <p>{getStatusBadge(selectedSubmission.status)}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">File Size</h3>
@@ -709,6 +779,28 @@ export default function DocumentSubmissionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Preview Modal */}
+      <Dialog open={isImagePreviewModalOpen} onOpenChange={handleCloseImagePreview}>
+        <DialogContent className="max-w-3xl p-0">
+          {previewImageUrl && (
+            <Image 
+                src={previewImageUrl} 
+                alt="Shipment Photo Preview" 
+                width={1200} 
+                height={800} 
+                objectFit="contain" 
+                className="rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="text-white text-xl">Loading data...</div>
+        </div>
+      )}
     </div>
   );
 } 
