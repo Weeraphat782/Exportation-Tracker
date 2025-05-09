@@ -108,7 +108,6 @@ export default function ShipmentPhotoPage() {
               id="shipment-photo-input"
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handleFileChange}
               className="cursor-pointer"
               disabled={isSubmitting}
