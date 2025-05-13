@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
@@ -476,9 +476,18 @@ export default function DocumentSubmissionsPage() {
                                         variant="outline"
                                         size="icon"
                                         onClick={() => openSubmissionModal(submission)}
-                                        title="View Document"
+                                        title="View Details"
                                       >
                                         <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => window.open(submission.file_url, '_blank', 'noopener,noreferrer')}
+                                        title="Open in new tab"
+                                        disabled={!submission.file_url}
+                                      >
+                                        <ExternalLink className="h-4 w-4" />
                                       </Button>
                                       <Button
                                         variant="outline"
@@ -534,9 +543,18 @@ export default function DocumentSubmissionsPage() {
                                             variant="outline"
                                             size="icon"
                                             onClick={() => openSubmissionModal(submission)}
-                                            title="View Document"
+                                            title="View Details"
                                           >
                                             <Eye className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => window.open(submission.file_url, '_blank', 'noopener,noreferrer')}
+                                            title="Open in new tab"
+                                            disabled={!submission.file_url}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
                                           </Button>
                                           <Button
                                             variant="outline"
