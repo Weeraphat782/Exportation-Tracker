@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3000",
-    "build": "next build --legacy-peer-deps",
+    "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint"
   },
