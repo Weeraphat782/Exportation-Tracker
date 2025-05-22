@@ -11,7 +11,8 @@ import {
   DollarSign,
   Calculator,
   Menu,
-  FileText
+  FileText,
+  LayoutDashboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -59,6 +60,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
       </div>
       
       <nav className="space-y-3 flex-1 overflow-y-auto">
+        <Link 
+          href="/dashboard" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/dashboard") ? "bg-slate-800" : ""
+          )}
+          title="Dashboard"
+        >
+          <LayoutDashboard className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Dashboard</span>}
+        </Link>
+
         <Link 
           href="/shipping-calculator" 
           className={cn(

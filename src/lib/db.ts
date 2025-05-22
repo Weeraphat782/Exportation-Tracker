@@ -512,7 +512,7 @@ export async function getQuotations(userId: string) {
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-
+    
     if (error) {
       console.error('Error fetching quotations:', error);
       return []; // Return empty array on error
@@ -547,7 +547,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
       .single();
 
     if (error) {
-      console.error('Error fetching quotation by ID:', error);
+        console.error('Error fetching quotation by ID:', error);
       return null;
     }
     if (!data) return null;

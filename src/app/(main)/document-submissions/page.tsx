@@ -193,12 +193,12 @@ export default function DocumentSubmissionsPage() {
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
 
-      const a = document.createElement('a');
+    const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
       // Clean up the object URL
       URL.revokeObjectURL(blobUrl);
