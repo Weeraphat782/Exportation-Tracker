@@ -12,6 +12,7 @@ import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import Image from 'next/image';
 
 // Document categories and types
 const DOCUMENT_CATEGORIES = [
@@ -348,6 +349,17 @@ export default function DocumentUploadPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <Card className="shadow-lg">
+        <div className="flex justify-center pt-3">
+          <div className="relative w-[212px] h-[50px]">
+            <Image 
+              src="/logo.png" 
+              alt="Company Logo" 
+              fill
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+          </div>
+        </div>
         <CardHeader className="bg-primary/5">
           <CardTitle className="text-2xl">Document Upload</CardTitle>
           <CardDescription>

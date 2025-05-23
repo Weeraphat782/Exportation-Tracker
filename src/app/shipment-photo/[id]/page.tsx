@@ -93,6 +93,17 @@ export default function ShipmentPhotoPage() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl">
+        <div className="flex justify-center pt-6">
+          <div className="relative w-[212px] h-[50px]">
+            <Image 
+              src="/logo.png" 
+              alt="Company Logo" 
+              fill
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+          </div>
+        </div>
         <CardHeader>
           <CardTitle className="text-2xl text-center font-bold">Shipment Photo Upload</CardTitle>
           <CardDescription className="text-center">
