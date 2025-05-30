@@ -182,11 +182,17 @@ function getDocumentTypeContext(documentType: string): string {
 
 async function extractTextFromImage(imageUrl: string, fileName: string): Promise<string> {
   try {
-    console.log('🖼️ Processing image with OCR:', fileName);
+    console.log('🖼️ Processing image from Supabase Storage:', fileName);
     console.log('🔗 Image URL:', imageUrl);
     
+    // Validate that this is a Supabase URL
+    if (!imageUrl.includes('supabase') && !imageUrl.startsWith('http')) {
+      console.error('❌ Invalid URL - not a Supabase storage URL:', imageUrl);
+      return `รูปภาพ ${fileName} - URL ไม่ถูกต้อง (ต้องเป็น URL จาก Supabase Storage)`;
+    }
+    
     // Download the image with timeout
-    console.log('📥 Downloading image...');
+    console.log('📥 Downloading image from Supabase...');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
     
@@ -200,11 +206,11 @@ async function extractTextFromImage(imageUrl: string, fileName: string): Promise
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.error(`❌ Failed to fetch image: ${response.status} ${response.statusText}`);
-      return `ไม่สามารถดาวน์โหลดรูปภาพ ${fileName} ได้ (HTTP ${response.status})`;
+      console.error(`❌ Failed to fetch image from Supabase: ${response.status} ${response.statusText}`);
+      return `ไม่สามารถดาวน์โหลดรูปภาพ ${fileName} จาก Supabase Storage ได้ (HTTP ${response.status})`;
     }
     
-    console.log('✅ Image downloaded successfully');
+    console.log('✅ Image downloaded successfully from Supabase');
     console.log('📏 Content length:', response.headers.get('content-length'));
     console.log('📝 Content type:', response.headers.get('content-type'));
     
@@ -231,7 +237,7 @@ async function extractTextFromImage(imageUrl: string, fileName: string): Promise
       await worker.loadLanguage('eng+tha');
       await worker.initialize('eng+tha');
       
-      console.log('🔍 Recognizing text...');
+      console.log('🔍 Recognizing text from Supabase image...');
       const { data: { text, confidence } } = await worker.recognize(Buffer.from(imageBuffer));
       await worker.terminate();
       
@@ -261,35 +267,41 @@ async function extractTextFromImage(imageUrl: string, fileName: string): Promise
       } else if (ocrErrorMessage.includes('memory')) {
         return `รูปภาพ ${fileName} - หน่วยความจำไม่เพียงพอสำหรับการประมวลผล OCR`;
       } else {
-        return `รูปภาพ ${fileName} - เกิดข้อผิดพลาดในการประมวลผล OCR: ${ocrErrorMessage}`;
+        return `รูปภาพ ${fileName} - เกิดข้อผิดพลาดในการประมวลผล OCR จาก Supabase: ${ocrErrorMessage}`;
       }
     }
   } catch (error: unknown) {
-    console.error('❌ Error processing image:', error);
+    console.error('❌ Error processing image from Supabase:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorName = error instanceof Error ? error.name : 'Unknown';
     
     // Provide specific error messages based on error type
     if (errorName === 'AbortError') {
-      return `รูปภาพ ${fileName} - การดาวน์โหลดหมดเวลา (เกิน 30 วินาที)`;
+      return `รูปภาพ ${fileName} - การดาวน์โหลดจาก Supabase หมดเวลา (เกิน 30 วินาที)`;
     } else if (errorMessage.includes('fetch')) {
       return `รูปภาพ ${fileName} - ไม่สามารถเชื่อมต่อกับ Supabase Storage ได้`;
     } else if (errorMessage.includes('network')) {
-      return `รูปภาพ ${fileName} - ปัญหาการเชื่อมต่อเครือข่าย`;
+      return `รูปภาพ ${fileName} - ปัญหาการเชื่อมต่อเครือข่ายกับ Supabase`;
     } else {
-      return `รูปภาพ ${fileName} - เกิดข้อผิดพลาดในการประมวลผล: ${errorMessage}`;
+      return `รูปภาพ ${fileName} - เกิดข้อผิดพลาดในการประมวลผลจาก Supabase: ${errorMessage}`;
     }
   }
 }
 
 async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<string> {
   try {
-    console.log('📄 Processing PDF:', fileName);
+    console.log('📄 Processing PDF from Supabase Storage:', fileName);
     console.log('🔗 PDF URL:', pdfUrl);
     
+    // Validate that this is a Supabase URL
+    if (!pdfUrl.includes('supabase') && !pdfUrl.startsWith('http')) {
+      console.error('❌ Invalid URL - not a Supabase storage URL:', pdfUrl);
+      return `PDF ${fileName} - URL ไม่ถูกต้อง (ต้องเป็น URL จาก Supabase Storage)`;
+    }
+    
     // Download PDF file with timeout
-    console.log('📥 Downloading PDF...');
+    console.log('📥 Downloading PDF from Supabase...');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for PDFs
     
@@ -303,11 +315,11 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.error(`❌ Failed to fetch PDF: ${response.status} ${response.statusText}`);
-      return `ไม่สามารถดาวน์โหลด PDF ${fileName} ได้ (HTTP ${response.status})`;
+      console.error(`❌ Failed to fetch PDF from Supabase: ${response.status} ${response.statusText}`);
+      return `ไม่สามารถดาวน์โหลด PDF ${fileName} จาก Supabase Storage ได้ (HTTP ${response.status})`;
     }
     
-    console.log('✅ PDF downloaded successfully');
+    console.log('✅ PDF downloaded successfully from Supabase');
     console.log('📏 Content length:', response.headers.get('content-length'));
     console.log('📝 Content type:', response.headers.get('content-type'));
     
@@ -333,34 +345,20 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
     }
     
     try {
-      // Use pdf-parse for server-side PDF processing (works directly with buffer)
-      console.log('🔍 Extracting text from PDF...');
+      // Use pdf-parse with direct buffer processing (no file system operations)
+      console.log('🔍 Extracting text from PDF buffer...');
       const pdfParse = await import('pdf-parse');
       
-      const extractedText = await new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('PDF extraction timeout after 60 seconds'));
-        }, 60000);
-        
-        // Use the existing pdfBuffer from earlier in the function
-        const buffer = Buffer.from(pdfBuffer);
-        
-        pdfParse.default(buffer)
-          .then((data: { text: string }) => {
-            clearTimeout(timeout);
-            const fullText = data.text;
-            console.log(`📄 Extracted ${fullText.length} characters from ${fileName}`);
-            console.log(`🔤 First 200 chars: ${fullText.substring(0, 200)}`);
-            resolve(fullText);
-          })
-          .catch((err: Error) => {
-            clearTimeout(timeout);
-            console.error('❌ PDF extraction error:', err);
-            reject(err);
-          });
-      });
+      // Convert ArrayBuffer to Buffer for pdf-parse
+      const buffer = Buffer.from(pdfBuffer);
+      console.log('📦 Buffer prepared for pdf-parse processing');
       
-      console.log(`✅ PDF extraction completed: ${extractedText.length} characters`);
+      // Parse PDF directly from buffer
+      const data = await pdfParse.default(buffer);
+      const extractedText = data.text;
+      
+      console.log(`📄 Extracted ${extractedText.length} characters from ${fileName}`);
+      console.log(`🔤 First 200 chars: ${extractedText.substring(0, 200)}`);
       
       if (extractedText && extractedText.trim().length > 10) {
         // Check if the extracted text seems to contain meaningful content
@@ -391,45 +389,53 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
       } else if (extractErrorMessage.includes('corrupted') || extractErrorMessage.includes('invalid')) {
         return `PDF ${fileName} - ไฟล์เสียหายหรือไม่ถูกต้อง`;
       } else {
-        return `PDF ${fileName} - เกิดข้อผิดพลาดในการสกัดข้อความ: ${extractErrorMessage}`;
+        return `PDF ${fileName} - เกิดข้อผิดพลาดในการสกัดข้อความจาก Supabase: ${extractErrorMessage}`;
       }
     }
   } catch (error: unknown) {
-    console.error('❌ Error extracting PDF text:', error);
+    console.error('❌ Error extracting PDF text from Supabase:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorName = error instanceof Error ? error.name : 'Unknown';
     
     // Provide specific error messages based on error type
     if (errorName === 'AbortError') {
-      return `PDF ${fileName} - การดาวน์โหลดหมดเวลา (เกิน 45 วินาที)`;
+      return `PDF ${fileName} - การดาวน์โหลดจาก Supabase หมดเวลา (เกิน 45 วินาที)`;
     } else if (errorMessage.includes('fetch')) {
       return `PDF ${fileName} - ไม่สามารถเชื่อมต่อกับ Supabase Storage ได้`;
     } else if (errorMessage.includes('network')) {
-      return `PDF ${fileName} - ปัญหาการเชื่อมต่อเครือข่าย`;
+      return `PDF ${fileName} - ปัญหาการเชื่อมต่อเครือข่ายกับ Supabase`;
     } else {
-      return `PDF ${fileName} - เกิดข้อผิดพลาดในการประมวลผล: ${errorMessage}`;
+      return `PDF ${fileName} - เกิดข้อผิดพลาดในการประมวลผลจาก Supabase: ${errorMessage}`;
     }
   }
 }
 
 async function extractTextFromDocument(fileUrl: string, fileName: string): Promise<string> {
   try {
-    console.log('Processing text document:', fileName);
+    console.log('📝 Processing text document from Supabase Storage:', fileName);
+    console.log('🔗 Document URL:', fileUrl);
+    
+    // Validate that this is a Supabase URL
+    if (!fileUrl.includes('supabase') && !fileUrl.startsWith('http')) {
+      console.error('❌ Invalid URL - not a Supabase storage URL:', fileUrl);
+      return `เอกสาร ${fileName} - URL ไม่ถูกต้อง (ต้องเป็น URL จาก Supabase Storage)`;
+    }
     
     // Download document
     const response = await fetch(fileUrl);
     if (!response.ok) {
-      throw new Error(`Failed to fetch document: ${response.statusText}`);
+      throw new Error(`Failed to fetch document from Supabase: ${response.statusText}`);
     }
     
     const text = await response.text();
-    console.log(`Text document extracted ${text.length} characters from ${fileName}`);
+    console.log(`📄 Text document extracted ${text.length} characters from ${fileName}`);
     
     return text || `เอกสารข้อความ ${fileName} - ไม่พบเนื้อหา`;
-  } catch (error) {
-    console.error('Error processing text document:', error);
-    return `เอกสาร ${fileName} - ไม่สามารถอ่านเนื้อหาได้`;
+  } catch (error: unknown) {
+    console.error('❌ Error processing text document from Supabase:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return `เอกสาร ${fileName} - ไม่สามารถอ่านเนื้อหาจาก Supabase ได้: ${errorMessage}`;
   }
 }
 
