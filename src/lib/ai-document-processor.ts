@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -333,51 +332,33 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
       return `ไฟล์ ${fileName} ไม่ใช่ PDF ที่ถูกต้อง (ไฟล์เสียหายหรือประเภทไฟล์ไม่ถูกต้อง)`;
     }
     
-    // Save to temporary file for processing
-    const tempFilePath = join(tmpdir(), `temp_${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
-    console.log('💾 Saving to temp file:', tempFilePath);
-    
     try {
-      writeFileSync(tempFilePath, Buffer.from(pdfBuffer));
-      console.log('✅ Temp file created successfully');
-    } catch (writeError: unknown) {
-      const writeErrorMessage = writeError instanceof Error ? writeError.message : 'Unknown write error';
-      console.error('❌ Failed to write temp file:', writeError);
-      return `ไม่สามารถสร้างไฟล์ชั่วคราวสำหรับ PDF ${fileName} ได้: ${writeErrorMessage}`;
-    }
-    
-    try {
-      // Use pdf-text-extract for server-side PDF processing
+      // Use pdf-parse for server-side PDF processing (works directly with buffer)
       console.log('🔍 Extracting text from PDF...');
-      const pdfExtract = await import('pdf-text-extract');
+      const pdfParse = await import('pdf-parse');
       
       const extractedText = await new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('PDF extraction timeout after 60 seconds'));
         }, 60000);
         
-        pdfExtract.default(tempFilePath, (err: Error | null, pages: string[]) => {
-          clearTimeout(timeout);
-          
-          if (err) {
-            console.error('❌ PDF extraction error:', err);
-            reject(err);
-          } else {
-            const fullText = pages.join('\n');
-            console.log(`📄 Extracted ${fullText.length} characters from ${pages.length} pages`);
+        // Use the existing pdfBuffer from earlier in the function
+        const buffer = Buffer.from(pdfBuffer);
+        
+        pdfParse.default(buffer)
+          .then((data: { text: string }) => {
+            clearTimeout(timeout);
+            const fullText = data.text;
+            console.log(`📄 Extracted ${fullText.length} characters from ${fileName}`);
             console.log(`🔤 First 200 chars: ${fullText.substring(0, 200)}`);
             resolve(fullText);
-          }
-        });
+          })
+          .catch((err: Error) => {
+            clearTimeout(timeout);
+            console.error('❌ PDF extraction error:', err);
+            reject(err);
+          });
       });
-      
-      // Clean up temp file
-      try {
-        unlinkSync(tempFilePath);
-        console.log('🗑️ Temp file cleaned up');
-      } catch (cleanupError) {
-        console.error('⚠️ Failed to clean up temp file:', cleanupError);
-      }
       
       console.log(`✅ PDF extraction completed: ${extractedText.length} characters`);
       
@@ -398,14 +379,6 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
         return `PDF ${fileName} - เป็นเอกสารแบบรูปภาพ (ไม่มีข้อความที่อ่านได้) ต้องการการแปลงเป็นข้อความด้วย OCR`;
       }
     } catch (extractError: unknown) {
-      // Clean up temp file in case of error
-      try {
-        unlinkSync(tempFilePath);
-        console.log('🗑️ Temp file cleaned up after error');
-      } catch (cleanupError) {
-        console.error('⚠️ Error cleaning up temp file:', cleanupError);
-      }
-      
       console.error('❌ PDF text extraction failed:', extractError);
       
       const extractErrorMessage = extractError instanceof Error ? extractError.message : 'Unknown extraction error';
