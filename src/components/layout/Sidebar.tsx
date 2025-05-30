@@ -112,64 +112,64 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
           <Calendar className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Booking</span>}
         </Link>
-        
-        <div className="space-y-1">
-          <button
-            onClick={() => !isCollapsed && setSettingsOpen(!settingsOpen)}
-            className={cn(
-              "flex items-center w-full px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
-              isCollapsed ? "justify-center" : "",
-              pathname?.startsWith("/settings") ? "bg-slate-800" : ""
-            )}
-            title="Settings"
-            disabled={isCollapsed}
-          >
-            <Settings className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
-            {!isCollapsed && <span className="text-base">Settings</span>}
-            {!isCollapsed && (settingsOpen ? (
-              <ChevronDown className="h-5 w-5 ml-auto" />
-            ) : (
-              <ChevronRight className="h-5 w-5 ml-auto" />
-            ))}
-          </button>
-          
-          {!isCollapsed && settingsOpen && (
-            <div className="pl-8 space-y-2 mt-2">
-              <Link 
-                href="/settings/company" 
-                className={cn(
-                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
-                  pathname?.startsWith("/settings/company") ? "bg-slate-700" : ""
-                )}
-              >
-                <Building className="h-5 w-5 mr-3" />
-                <span className="text-base">Company</span>
-              </Link>
-              <Link 
-                href="/settings/destination" 
-                className={cn(
-                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
-                  pathname?.startsWith("/settings/destination") ? "bg-slate-700" : ""
-                )}
-              >
-                <Globe className="h-5 w-5 mr-3" />
-                <span className="text-base">Destination</span>
-              </Link>
-              <Link 
-                href="/settings/freight-rate" 
-                className={cn(
-                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
-                  pathname?.startsWith("/settings/freight-rate") ? "bg-slate-700" : ""
-                )}
-              >
-                <DollarSign className="h-5 w-5 mr-3" />
-                <span className="text-base">Freight Rate</span>
-              </Link>
-            </div>
-          )}
-        </div>
-        
       </nav>
+      
+      {/* Settings Section - Moved to bottom */}
+      <div className="space-y-1 mb-4">
+        <button
+          onClick={() => !isCollapsed && setSettingsOpen(!settingsOpen)}
+          className={cn(
+            "flex items-center w-full px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/settings") ? "bg-slate-800" : ""
+          )}
+          title="Settings"
+          disabled={isCollapsed}
+        >
+          <Settings className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Settings</span>}
+          {!isCollapsed && (settingsOpen ? (
+            <ChevronDown className="h-5 w-5 ml-auto" />
+          ) : (
+            <ChevronRight className="h-5 w-5 ml-auto" />
+          ))}
+        </button>
+        
+        {!isCollapsed && settingsOpen && (
+          <div className="pl-8 space-y-2 mt-2">
+            <Link 
+              href="/settings/company" 
+              className={cn(
+                "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                pathname?.startsWith("/settings/company") ? "bg-slate-700" : ""
+              )}
+            >
+              <Building className="h-5 w-5 mr-3" />
+              <span className="text-base">Company</span>
+            </Link>
+            <Link 
+              href="/settings/destination" 
+              className={cn(
+                "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                pathname?.startsWith("/settings/destination") ? "bg-slate-700" : ""
+              )}
+            >
+              <Globe className="h-5 w-5 mr-3" />
+              <span className="text-base">Destination</span>
+            </Link>
+            <Link 
+              href="/settings/freight-rate" 
+              className={cn(
+                "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                pathname?.startsWith("/settings/freight-rate") ? "bg-slate-700" : ""
+              )}
+            >
+              <DollarSign className="h-5 w-5 mr-3" />
+              <span className="text-base">Freight Rate</span>
+            </Link>
+          </div>
+        )}
+      </div>
       
       <div className="mt-auto">
         {isCollapsed ? (

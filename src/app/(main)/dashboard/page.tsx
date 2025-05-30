@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, FileCheck, Building, Globe, Clock, DollarSign, ZoomIn, ZoomOut } from 'lucide-react';
+import { Package, FileCheck, Building, Globe, Clock, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -185,17 +185,6 @@ export default function DashboardPage() {
   const [tooltipContent, setTooltipContent] = useState("");
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
-  
-  // Function to handle zoom
-  const handleZoomIn = () => {
-    if (position.zoom >= 4) return;
-    setPosition(pos => ({ ...pos, zoom: pos.zoom * 1.5 }));
-  };
-
-  const handleZoomOut = () => {
-    if (position.zoom <= 1) return;
-    setPosition(pos => ({ ...pos, zoom: pos.zoom / 1.5 }));
-  };
 
   // Type for position from react-simple-maps
   interface MapPosition {
@@ -606,22 +595,6 @@ export default function DashboardPage() {
                 <Globe className="h-5 w-5 mr-2" />
                 <CardTitle>Country Distribution</CardTitle>
               </div>
-              <div className="flex gap-1">
-                <button 
-                  onClick={handleZoomIn}
-                  className="p-1 rounded bg-gray-100 hover:bg-gray-200"
-                  title="Zoom in"
-                >
-                  <ZoomIn size={16} />
-                </button>
-                <button 
-                  onClick={handleZoomOut}
-                  className="p-1 rounded bg-gray-100 hover:bg-gray-200"
-                  title="Zoom out"
-                >
-                  <ZoomOut size={16} />
-                </button>
-              </div>
             </div>
             <CardDescription>Shipments by destination country (scroll to zoom, drag to pan)</CardDescription>
           </CardHeader>
@@ -861,24 +834,6 @@ export default function DashboardPage() {
                         })}
                     </ZoomableGroup>
                   </ComposableMap>
-                </div>
-                
-                {/* Controls */}
-                <div className="absolute bottom-4 right-4 flex gap-2 z-10">
-                  <button 
-                    onClick={handleZoomIn}
-                    className="p-2 rounded-full bg-white shadow hover:bg-gray-100 transition-colors"
-                    title="Zoom in"
-                  >
-                    <ZoomIn size={16} className="text-gray-700" />
-                  </button>
-                  <button 
-                    onClick={handleZoomOut}
-                    className="p-2 rounded-full bg-white shadow hover:bg-gray-100 transition-colors"
-                    title="Zoom out"
-                  >
-                    <ZoomOut size={16} className="text-gray-700" />
-                  </button>
                 </div>
                 
                 {/* Custom tooltip */}
