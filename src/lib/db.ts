@@ -74,11 +74,12 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Booked';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
   completed_at?: string | null;
+  booked_at?: string | null;
   shipment_photo_url?: string[] | null;
   shipment_photo_uploaded_at?: string | null;
   

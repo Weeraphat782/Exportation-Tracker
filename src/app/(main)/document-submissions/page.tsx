@@ -808,14 +808,14 @@ export default function DocumentSubmissionsPage() {
       {/* Document Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         {selectedSubmission && (
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Document Details</DialogTitle>
               <DialogDescription>
                 Submitted on {formatDate(selectedSubmission.submitted_at)}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4 py-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Company</h3>
                 <p>{selectedSubmission.company_name || 'Unknown'}</p>
@@ -844,6 +844,15 @@ export default function DocumentSubmissionsPage() {
                 <h3 className="text-sm font-medium text-gray-500">File Name</h3>
                 <p className="truncate">{selectedSubmission.file_name}</p>
               </div>
+              
+              {selectedSubmission.description && (
+                <div className="col-span-2">
+                  <h3 className="text-sm font-medium text-gray-500">AI Generated Description</h3>
+                  <p className="text-gray-700 whitespace-pre-wrap bg-blue-50 p-3 rounded-md border-l-4 border-blue-400">
+                    {selectedSubmission.description}
+                  </p>
+                </div>
+              )}
               
               {selectedSubmission.notes && (
                 <div className="col-span-2">
@@ -887,7 +896,7 @@ export default function DocumentSubmissionsPage() {
                 </Button>
               </div>
             </div>
-            <DialogFooter className="gap-2 flex-wrap sm:justify-between">
+            <DialogFooter className="flex-shrink-0 gap-2 flex-wrap sm:justify-between">
               <div className="space-x-2">
                 <Button 
                   variant="outline" 

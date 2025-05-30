@@ -12,7 +12,8 @@ import {
   Calculator,
   Menu,
   FileText,
-  LayoutDashboard
+  LayoutDashboard,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -97,6 +98,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         >
           <FileText className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Document Submissions</span>}
+        </Link>
+        
+        <Link 
+          href="/booking" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/booking") ? "bg-slate-800" : ""
+          )}
+          title="Booking"
+        >
+          <Calendar className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Booking</span>}
         </Link>
         
         <div className="space-y-1">
