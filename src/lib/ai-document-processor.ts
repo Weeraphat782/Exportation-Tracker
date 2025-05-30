@@ -343,43 +343,74 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
     }
     
     try {
-      // Use pdfjs-dist for reliable PDF text extraction in serverless environment
-      console.log('🔍 Extracting text from PDF buffer using pdfjs-dist...');
-      console.log('📦 About to import pdfjs-dist...');
+      // Use pdf2json for serverless-friendly PDF text extraction
+      console.log('🔍 Extracting text from PDF buffer using pdf2json...');
+      console.log('📦 About to import pdf2json...');
       
-      const pdfjsLib = await import('pdfjs-dist');
-      console.log('✅ pdfjs-dist imported successfully');
+      const PDFParser = await import('pdf2json');
+      console.log('✅ pdf2json imported successfully');
       
-      // Convert ArrayBuffer to Uint8Array for pdfjs
-      const pdfData = new Uint8Array(pdfBuffer);
-      console.log('📦 PDF data prepared for pdfjs processing, size:', pdfData.length);
+      // Create PDF parser instance
+      const pdfParser = new (PDFParser.default || PDFParser)();
+      console.log('📦 PDF parser created');
       
-      // Load PDF document
-      console.log('🚀 About to load PDF document...');
-      const pdfDocument = await pdfjsLib.getDocument({ data: pdfData }).promise;
-      console.log('✅ PDF document loaded successfully, pages:', pdfDocument.numPages);
-      
-      let extractedText = '';
-      
-      // Extract text from all pages
-      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
-        try {
-          const page = await pdfDocument.getPage(pageNum);
-          const textContent = await page.getTextContent();
+      // Extract text using Promise wrapper
+      const extractedText = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('PDF parsing timeout after 45 seconds'));
+        }, 45000);
+        
+        pdfParser.on('pdfParser_dataError', (errData: unknown) => {
+          clearTimeout(timeout);
+          console.error('❌ PDF parsing error:', errData);
+          const errorMsg = (errData as { parserError?: string })?.parserError || 'Unknown error';
+          reject(new Error(`PDF parsing failed: ${errorMsg}`));
+        });
+        
+        pdfParser.on('pdfParser_dataReady', (pdfData: unknown) => {
+          clearTimeout(timeout);
+          console.log('✅ PDF data ready, processing...');
           
-          const pageText = textContent.items
-            .map((item) => (item as { str?: string }).str || '')
-            .filter((str) => str.length > 0)
-            .join(' ');
-          
-          extractedText += pageText + '\n';
-          console.log(`📄 Extracted ${pageText.length} characters from page ${pageNum}`);
-        } catch (pageError) {
-          console.warn(`⚠️ Failed to extract text from page ${pageNum}:`, pageError);
-        }
-      }
+          try {
+            let text = '';
+            
+            // Extract text from all pages
+            const data = pdfData as { Pages?: Array<{ Texts?: Array<{ R?: Array<{ T?: string }> }> }> };
+            
+            if (data.Pages && Array.isArray(data.Pages)) {
+              for (let i = 0; i < data.Pages.length; i++) {
+                const page = data.Pages[i];
+                if (page.Texts && Array.isArray(page.Texts)) {
+                  for (const textItem of page.Texts) {
+                    if (textItem.R && Array.isArray(textItem.R)) {
+                      for (const run of textItem.R) {
+                        if (run.T) {
+                          // Decode URI component and add to text
+                          text += decodeURIComponent(run.T) + ' ';
+                        }
+                      }
+                    }
+                  }
+                }
+                text += '\n'; // Add newline between pages
+              }
+            }
+            
+            console.log(`📄 Extracted ${text.length} characters using pdf2json`);
+            resolve(text.trim());
+          } catch (processError) {
+            console.error('❌ Error processing PDF data:', processError);
+            reject(processError);
+          }
+        });
+        
+        // Parse PDF from buffer
+        console.log('🚀 Starting PDF parsing...');
+        const buffer = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+        pdfParser.parseBuffer(buffer);
+      });
       
-      console.log(`📄 Total extracted ${extractedText.length} characters from ${fileName}`);
+      console.log(`📄 Final extracted text length: ${extractedText.length} characters from ${fileName}`);
       console.log(`🔤 First 200 chars: ${extractedText.substring(0, 200)}`);
       
       if (extractedText && extractedText.trim().length > 10) {
@@ -402,16 +433,23 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
       console.error('❌ PDF text extraction failed:', extractError);
       
       const extractErrorMessage = extractError instanceof Error ? extractError.message : 'Unknown extraction error';
+      console.error('❌ Full error details:', extractErrorMessage);
       
-      // Provide specific error messages
+      // Provide specific error messages and fallback to filename analysis
       if (extractErrorMessage.includes('timeout')) {
         return `PDF ${fileName} - การประมวลผลหมดเวลา (ไฟล์ใหญ่หรือซับซ้อนเกินไป)`;
       } else if (extractErrorMessage.includes('encrypted') || extractErrorMessage.includes('password')) {
         return `PDF ${fileName} - เอกสารมีการป้องกันด้วยรหัสผ่าน ไม่สามารถอ่านได้`;
       } else if (extractErrorMessage.includes('corrupted') || extractErrorMessage.includes('invalid')) {
         return `PDF ${fileName} - ไฟล์เสียหายหรือไม่ถูกต้อง`;
+      } else if (extractErrorMessage.includes('ENOENT') || extractErrorMessage.includes('no such file')) {
+        // If we still get file system errors, fall back to filename analysis
+        console.log('⚠️ PDF processing failed due to file system issues, falling back to filename analysis');
+        return analyzePDFFromFilename(fileName);
       } else {
-        return `PDF ${fileName} - เกิดข้อผิดพลาดในการสกัดข้อความจาก Supabase: ${extractErrorMessage}`;
+        // For any other errors, try to fall back to filename analysis
+        console.log('⚠️ PDF processing failed, falling back to filename analysis');
+        return analyzePDFFromFilename(fileName);
       }
     }
   } catch (error: unknown) {
