@@ -368,7 +368,8 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
           const textContent = await page.getTextContent();
           
           const pageText = textContent.items
-            .map((item: any) => item.str)
+            .map((item) => (item as { str?: string }).str || '')
+            .filter((str) => str.length > 0)
             .join(' ');
           
           extractedText += pageText + '\n';
