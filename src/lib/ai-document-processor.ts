@@ -343,19 +343,42 @@ async function extractTextFromPDF(pdfUrl: string, fileName: string): Promise<str
     }
     
     try {
-      // Use pdf-parse with direct buffer processing (no file system operations)
-      console.log('🔍 Extracting text from PDF buffer...');
-      const pdfParse = await import('pdf-parse');
+      // Use pdfjs-dist for reliable PDF text extraction in serverless environment
+      console.log('🔍 Extracting text from PDF buffer using pdfjs-dist...');
+      console.log('📦 About to import pdfjs-dist...');
       
-      // Convert ArrayBuffer to Buffer for pdf-parse
-      const buffer = Buffer.from(pdfBuffer);
-      console.log('📦 Buffer prepared for pdf-parse processing');
+      const pdfjsLib = await import('pdfjs-dist');
+      console.log('✅ pdfjs-dist imported successfully');
       
-      // Parse PDF directly from buffer
-      const data = await pdfParse.default(buffer);
-      const extractedText = data.text;
+      // Convert ArrayBuffer to Uint8Array for pdfjs
+      const pdfData = new Uint8Array(pdfBuffer);
+      console.log('📦 PDF data prepared for pdfjs processing, size:', pdfData.length);
       
-      console.log(`📄 Extracted ${extractedText.length} characters from ${fileName}`);
+      // Load PDF document
+      console.log('🚀 About to load PDF document...');
+      const pdfDocument = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      console.log('✅ PDF document loaded successfully, pages:', pdfDocument.numPages);
+      
+      let extractedText = '';
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+        try {
+          const page = await pdfDocument.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          
+          extractedText += pageText + '\n';
+          console.log(`📄 Extracted ${pageText.length} characters from page ${pageNum}`);
+        } catch (pageError) {
+          console.warn(`⚠️ Failed to extract text from page ${pageNum}:`, pageError);
+        }
+      }
+      
+      console.log(`📄 Total extracted ${extractedText.length} characters from ${fileName}`);
       console.log(`🔤 First 200 chars: ${extractedText.substring(0, 200)}`);
       
       if (extractedText && extractedText.trim().length > 10) {
