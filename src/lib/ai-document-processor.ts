@@ -1,6 +1,4 @@
 import OpenAI from 'openai';
-import { join } from 'path';
-import { tmpdir } from 'os';
 
 // Initialize the OpenAI client with OpenTyphoon API
 const openai = new OpenAI({
