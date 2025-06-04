@@ -261,7 +261,8 @@ export default function AWBManagementPage() {
                         <TableHead>Company</TableHead>
                         <TableHead>Destination</TableHead>
                         <TableHead>Value</TableHead>
-                        <TableHead>Weight</TableHead>
+                        <TableHead>Actual Weight</TableHead>
+                        <TableHead>Volume Weight</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -275,8 +276,13 @@ export default function AWBManagementPage() {
                           <TableCell>{quotation.destination}</TableCell>
                           <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
                           <TableCell>
-                            {quotation.chargeable_weight ? 
-                              `${quotation.chargeable_weight} kg` : 'Not specified'
+                            {quotation.total_actual_weight ? 
+                              `${quotation.total_actual_weight} kg` : 'Not specified'
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {quotation.total_volume_weight ? 
+                              `${quotation.total_volume_weight} kg` : 'Not specified'
                             }
                           </TableCell>
                           <TableCell className="text-right">
@@ -330,6 +336,8 @@ export default function AWBManagementPage() {
                         <TableHead>Company</TableHead>
                         <TableHead>Destination</TableHead>
                         <TableHead>Value</TableHead>
+                        <TableHead>Actual Weight</TableHead>
+                        <TableHead>Volume Weight</TableHead>
                         <TableHead>AWB File</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -343,6 +351,16 @@ export default function AWBManagementPage() {
                           </TableCell>
                           <TableCell>{quotation.destination}</TableCell>
                           <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
+                          <TableCell>
+                            {quotation.total_actual_weight ? 
+                              `${quotation.total_actual_weight} kg` : 'Not specified'
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {quotation.total_volume_weight ? 
+                              `${quotation.total_volume_weight} kg` : 'Not specified'
+                            }
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center">
                               <FileText className="h-4 w-4 mr-2 text-blue-500" />
