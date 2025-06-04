@@ -13,7 +13,8 @@ import {
   Menu,
   FileText,
   LayoutDashboard,
-  Calendar
+  Calendar,
+  FileCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -111,6 +112,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         >
           <Calendar className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Booking</span>}
+        </Link>
+        
+        <Link 
+          href="/awb-debit-management" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/awb-debit-management") ? "bg-slate-800" : ""
+          )}
+          title="Airway Bills"
+        >
+          <FileCheck className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Airway Bills</span>}
         </Link>
       </nav>
       

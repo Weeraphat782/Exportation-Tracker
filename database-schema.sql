@@ -98,7 +98,12 @@ CREATE TABLE quotations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  last_updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL
+  last_updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  -- Add AWB (Air Waybill) related columns to quotations table
+  awb_file_url TEXT,
+  awb_file_name TEXT,
+  awb_uploaded_at TIMESTAMP WITH TIME ZONE,
+  awb_confirmed_at TIMESTAMP WITH TIME ZONE
 );
 
 -- สร้างตาราง document_submissions สำหรับเก็บข้อมูลเอกสารที่ลูกค้าอัปโหลด

@@ -74,12 +74,19 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Booked';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Booked' | 'AWB Confirmed';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
   completed_at?: string | null;
   booked_at?: string | null;
+  
+  // AWB (Air Waybill) related fields
+  awb_file_url?: string | null;
+  awb_file_name?: string | null;
+  awb_uploaded_at?: string | null;
+  awb_confirmed_at?: string | null;
+  
   shipment_photo_url?: string[] | null;
   shipment_photo_uploaded_at?: string | null;
   
@@ -122,6 +129,13 @@ export interface Setting {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+}
+
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  fields: string[];
+  file_url?: string;
 }
 
 // PROFILE FUNCTIONS
@@ -951,22 +965,133 @@ export async function deleteSetting(id: string) {
 }
 
 // Function to get document template by document type ID
-export async function getDocumentTemplate(documentTypeId: string) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getDocumentTemplate(_documentTypeId: string): Promise<DocumentTemplate | null> {
+  // For now, we'll return null since we don't have actual templates stored
+  // This can be expanded later to fetch from a templates table
+  
+  // Example of what this could return when templates are implemented:
+  // return {
+  //   id: documentTypeId,
+  //   name: 'Sample Template',
+  //   fields: ['field1', 'field2'],
+  //   file_url: '/templates/sample.pdf'
+  // };
+  
+  return null;
+}
+
+// AWB (Air Waybill) FUNCTIONS
+export async function updateQuotationWithAWB(
+  quotationId: string, 
+  awbFileUrl: string, 
+  awbFileName: string
+): Promise<Quotation | null> {
   try {
+    const now = new Date().toISOString();
+    
     const { data, error } = await supabase
-      .from('document_templates')
-      .select('*')
-      .eq('document_type_id', documentTypeId)
-      .single();
+      .from('quotations')
+      .update({
+        awb_file_url: awbFileUrl,
+        awb_file_name: awbFileName,
+        awb_uploaded_at: now,
+        awb_confirmed_at: now,
+        status: 'AWB Confirmed',
+        updated_at: now
+      })
+      .eq('id', quotationId)
+      .select(`
+        *,
+        companies:company_id(name),
+        destinations:destination_id(country, port)
+      `);
 
     if (error) {
-      console.error('Error fetching document template:', error);
+      console.error('Error updating quotation with AWB:', error);
       return null;
     }
 
-    return data;
-  } catch (err) {
-    console.error('Failed to fetch document template:', err);
+    if (!data || data.length === 0) {
+      console.error('No quotation found with ID:', quotationId);
+      return null;
+    }
+
+    const quotation = data[0];
+    return {
+      ...quotation,
+      company_name: quotation.companies?.name || null,
+      destination: quotation.destinations 
+        ? `${quotation.destinations.country}${quotation.destinations.port ? ` - ${quotation.destinations.port}` : ''}`
+        : null
+    } as Quotation;
+
+  } catch (error) {
+    console.error('Error in updateQuotationWithAWB:', error);
     return null;
+  }
+}
+
+export async function getQuotationsForAWB(userId: string): Promise<Quotation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        companies:company_id(name),
+        destinations:destination_id(country, port)
+      `)
+      .eq('user_id', userId)
+      .in('status', ['Booked']) // Only show booked quotations waiting for AWB
+      .order('booked_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching quotations for AWB:', error);
+      return [];
+    }
+
+    return (data || []).map(quotation => ({
+      ...quotation,
+      company_name: quotation.companies?.name || null,
+      destination: quotation.destinations 
+        ? `${quotation.destinations.country}${quotation.destinations.port ? ` - ${quotation.destinations.port}` : ''}`
+        : null
+    })) as Quotation[];
+
+  } catch (error) {
+    console.error('Error in getQuotationsForAWB:', error);
+    return [];
+  }
+}
+
+export async function getConfirmedAWBs(userId: string): Promise<Quotation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        companies:company_id(name),
+        destinations:destination_id(country, port)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'AWB Confirmed')
+      .order('awb_confirmed_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching confirmed AWBs:', error);
+      return [];
+    }
+
+    return (data || []).map(quotation => ({
+      ...quotation,
+      company_name: quotation.companies?.name || null,
+      destination: quotation.destinations 
+        ? `${quotation.destinations.country}${quotation.destinations.port ? ` - ${quotation.destinations.port}` : ''}`
+        : null
+    })) as Quotation[];
+
+  } catch (error) {
+    console.error('Error in getConfirmedAWBs:', error);
+    return [];
   }
 } 

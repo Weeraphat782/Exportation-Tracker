@@ -187,6 +187,10 @@ export default function ShippingCalculatorPage() {
         return 'destructive';
       case 'docs_uploaded':
         return 'purple'; // Use the new purple variant
+      case 'Booked':
+        return 'default'; // Blue variant for booked
+      case 'AWB Confirmed':
+        return 'success'; // Green variant for AWB confirmed
       case 'completed':
         return 'success';
       default:
@@ -206,6 +210,10 @@ export default function ShippingCalculatorPage() {
         return 'Rejected';
       case 'docs_uploaded':
         return 'Documents Uploaded';
+      case 'Booked':
+        return 'Booked';
+      case 'AWB Confirmed':
+        return 'AWB Confirmed';
       case 'completed':
         return 'Completed';
       default:

@@ -332,11 +332,13 @@ export default function DocumentUploadPage() {
       
       const template = await getDocumentTemplate(documentTypeId);
       
-      if (template && template.file_url) {
+      // Since getDocumentTemplate currently returns null, show informational message
+      if (template && typeof template === 'object' && 'file_url' in template && template.file_url) {
         // Open the URL directly in a new tab
-        window.open(template.file_url, '_blank');
+        window.open(template.file_url as string, '_blank');
       } else {
-        setError(`No template available for ${documentName}`);
+        // No template available - show informational message
+        setError(`Template preview not available for ${documentName}. Templates will be added in future updates.`);
       }
     } catch (err) {
       console.error('Error loading document template:', err);

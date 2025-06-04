@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Bot, Loader2 } from 'lucide-react';
 import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
-import { formatFileSize } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -825,20 +824,12 @@ export default function DocumentSubmissionsPage() {
                 <p>{selectedSubmission.quotation_id}</p>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Category</h3>
-                <p>{selectedSubmission.category || 'Other'}</p>
-              </div>
-              <div>
                 <h3 className="text-sm font-medium text-gray-500">Document Type</h3>
                 <p>{selectedSubmission.document_type}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Status</h3>
                 <p>{getStatusBadge(selectedSubmission.status)}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">File Size</h3>
-                <p>{selectedSubmission.file_size ? formatFileSize(selectedSubmission.file_size) : 'Unknown'}</p>
               </div>
               <div className="col-span-2">
                 <h3 className="text-sm font-medium text-gray-500">File Name</h3>
