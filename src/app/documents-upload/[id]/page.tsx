@@ -219,76 +219,106 @@ export default function DocumentUploadPage() {
     setError(null);
     setSuccess(false); // Reset success message
 
-    const uploadPromises = uploadQueue.map(async (queuedFile) => {
-      try {
-        // 1. Get Signed URL from our backend
-        const generateUrlResponse = await fetch('/api/generate-upload-url', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fileName: queuedFile.file.name,
-            contentType: queuedFile.file.type,
-            quotationId: quotationId,
-            documentType: queuedFile.documentType,
-          }),
-        });
-
-        if (!generateUrlResponse.ok) {
-            const errorResult = await generateUrlResponse.json();
-            throw new Error(errorResult.error || `Failed to get upload URL: ${generateUrlResponse.statusText}`);
-        }
-
-        const { signedUrl, path: filePath } = await generateUrlResponse.json();
-        
-        // 2. Upload file directly to Supabase Storage using the Signed URL
-        const storageResponse = await fetch(signedUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': queuedFile.file.type, // Important for Supabase
-            // Supabase signed URLs might implicitly handle other headers
-            // Add 'x-upsert': 'true' if you want to allow overwrites, but usually not needed with unique names
-          },
-          body: queuedFile.file,
-        });
-
-        if (!storageResponse.ok) {
-          // Try to get error details from Supabase response (might be XML)
-          const errorText = await storageResponse.text();
-          console.error('Direct Supabase Upload Error:', errorText);
-          throw new Error(`Storage upload failed: ${storageResponse.statusText}`);
-        }
-
-        // 3. Confirm successful upload with our backend to save DB record
-        const confirmResponse = await fetch('/api/confirm-upload', {
+    try {
+      console.log(`Starting upload for ${uploadQueue.length} files`);
+      
+      const uploadPromises = uploadQueue.map(async (queuedFile, index) => {
+        try {
+          console.log(`Processing file ${index + 1}/${uploadQueue.length}: ${queuedFile.file.name}`);
+          
+          // 1. Get Signed URL from our backend
+          console.log('Step 1: Getting signed URL...');
+          const generateUrlResponse = await fetch('/api/generate-upload-url', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                filePath: filePath, // Use the path returned by generate-upload-url
-                quotationId: quotationId,
-                documentType: queuedFile.documentType,
-                documentTypeName: queuedFile.documentTypeName,
-                originalFileName: queuedFile.file.name,
-          notes: queuedFile.notes,
-                companyName: companyName, 
+              fileName: queuedFile.file.name,
+              contentType: queuedFile.file.type,
+              quotationId: quotationId,
+              documentType: queuedFile.documentType,
             }),
-        });
+          });
 
-        if (!confirmResponse.ok) {
-            const errorResult = await confirmResponse.json();
-            throw new Error(errorResult.error || `Failed to confirm upload: ${confirmResponse.statusText}`);
-        }
+          if (!generateUrlResponse.ok) {
+            let errorDetails;
+            try {
+              errorDetails = await generateUrlResponse.json();
+            } catch {
+              errorDetails = { error: `HTTP ${generateUrlResponse.status}: ${generateUrlResponse.statusText}` };
+            }
+            throw new Error(`Failed to get upload URL: ${errorDetails.error || generateUrlResponse.statusText}`);
+          }
 
-        const confirmResult = await confirmResponse.json();
+          const generateUrlResult = await generateUrlResponse.json();
+          const { signedUrl, path: filePath, originalFileName, safeFileName } = generateUrlResult;
           
-        // Add to successfully uploaded files list for UI update
+          if (!signedUrl || !filePath) {
+            throw new Error('Invalid response from generate-upload-url API');
+          }
+          
+          console.log('Step 1 completed: Signed URL obtained');
+          
+          // 2. Upload file directly to Supabase Storage using the Signed URL
+          console.log('Step 2: Uploading to storage...');
+          const storageResponse = await fetch(signedUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': queuedFile.file.type,
+            },
+            body: queuedFile.file,
+          });
+
+          if (!storageResponse.ok) {
+            let errorText;
+            try {
+              errorText = await storageResponse.text();
+            } catch {
+              errorText = `HTTP ${storageResponse.status}: ${storageResponse.statusText}`;
+            }
+            console.error('Storage upload error:', errorText);
+            throw new Error(`Storage upload failed: ${errorText}`);
+          }
+          
+          console.log('Step 2 completed: File uploaded to storage');
+
+          // 3. Confirm successful upload with our backend to save DB record
+          console.log('Step 3: Confirming upload...');
+          const confirmResponse = await fetch('/api/confirm-upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              filePath: filePath,
+              quotationId: quotationId,
+              documentType: queuedFile.documentType,
+              documentTypeName: queuedFile.documentTypeName,
+              originalFileName: originalFileName || queuedFile.file.name,
+              notes: queuedFile.notes || '',
+              companyName: companyName, 
+            }),
+          });
+
+          if (!confirmResponse.ok) {
+            let errorDetails;
+            try {
+              errorDetails = await confirmResponse.json();
+            } catch {
+              errorDetails = { error: `HTTP ${confirmResponse.status}: ${confirmResponse.statusText}` };
+            }
+            throw new Error(`Failed to confirm upload: ${errorDetails.error || confirmResponse.statusText}`);
+          }
+
+          const confirmResult = await confirmResponse.json();
+          console.log('Step 3 completed: Upload confirmed');
+            
+          // Add to successfully uploaded files list for UI update
           setUploadedFiles(prev => [
             ...prev,
             {
-              id: confirmResult.dbId || queuedFile.id, // Use DB ID from confirmation
+              id: confirmResult.dbId || queuedFile.id,
               name: queuedFile.file.name,
               type: queuedFile.documentTypeName,
               documentType: queuedFile.documentType,
@@ -296,26 +326,50 @@ export default function DocumentUploadPage() {
             }
           ]);
 
-        return { success: true, fileName: queuedFile.file.name };
-      } catch (err: unknown) { // Catch errors from any step
-        console.error(`Error processing ${queuedFile.file.name}:`, err);
-        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-        return { success: false, fileName: queuedFile.file.name, error: errorMessage };
+          console.log(`Successfully processed: ${queuedFile.file.name}`);
+          return { success: true, fileName: queuedFile.file.name };
+          
+        } catch (err: unknown) {
+          console.error(`Error processing ${queuedFile.file.name}:`, err);
+          const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+          return { success: false, fileName: queuedFile.file.name, error: errorMessage };
+        }
+      });
+
+      console.log('Waiting for all uploads to complete...');
+      const results = await Promise.all(uploadPromises);
+      console.log('All upload promises resolved');
+
+      const failedUploads = results.filter(r => !r.success);
+      const successfulUploads = results.filter(r => r.success);
+
+      console.log(`Upload results: ${successfulUploads.length} successful, ${failedUploads.length} failed`);
+
+      if (failedUploads.length > 0) {
+        const errorDetails = failedUploads.map(f => `${f.fileName}: ${f.error}`).join('\n');
+        console.error('Failed uploads:', errorDetails);
+        setError(`Failed to upload ${failedUploads.length} file(s):\n${errorDetails}`);
+      } 
+      
+      if (successfulUploads.length > 0) {
+        setSuccess(true);
+        // Clear the upload queue for successful uploads
+        setUploadQueue(prev => prev.filter(item => 
+          !successfulUploads.some(success => success.fileName === item.file.name)
+        ));
+        
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setSuccess(false);
+        }, 5000);
       }
-    });
-
-    const results = await Promise.all(uploadPromises);
-
-    const failedUploads = results.filter(r => !r.success);
-
-    if (failedUploads.length > 0) {
-      setError(`Failed to upload ${failedUploads.length} file(s). ${failedUploads.map(f => f.fileName).join(', ')}. Check console for details.`);
-    } else {
-      setSuccess(true); // Show success only if all uploads succeeded
-       // Hide success message after 5 seconds
-       setTimeout(() => {
-         setSuccess(false);
-       }, 5000);
+      
+    } catch (err: unknown) {
+      console.error('Critical error in handleSubmitAll:', err);
+      const errorMessage = err instanceof Error ? err.message : 'A critical error occurred during upload';
+      setError(`Critical error: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
 
     // Clear the queue regardless of success/failure

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         quotation_id: quotationId,
         document_type: documentType,
         document_type_name: documentTypeName,
-        file_name: filePath.split('/').pop() || originalFileName, // Extract unique name from path
+        file_name: originalFileName, // Always use original filename for display
         original_file_name: originalFileName,
         file_path: filePath,
         file_url: fileUrl,

@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
-// import { randomUUID } from 'crypto' // Removed as unused
+import { randomUUID } from 'crypto'
 
 export const dynamic = 'force-dynamic'
+
+// Function to create a completely safe filename using UUID
+function createSafeFileName(originalFileName: string): string {
+  // Extract file extension
+  const lastDotIndex = originalFileName.lastIndexOf('.');
+  const extension = lastDotIndex !== -1 ? originalFileName.substring(lastDotIndex) : '';
+  
+  // Use UUID to create a completely safe filename
+  const uuid = randomUUID();
+  
+  // Create final filename: uuid.ext
+  return `${uuid}${extension}`;
+}
 
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseServerClient();
@@ -24,18 +37,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Define the storage bucket
-    const bucket = 'documents' // Replace if you use a different bucket
+    const bucket = 'documents'
 
-    // Create a unique path (e.g., quotationId/documentType/uuid_filename)
-    // Using UUID to prevent potential filename clashes more robustly
-    // const uniqueId = randomUUID(); // Removed UUID
-    // Simple sanitization: replace non-alphanumeric with underscore
-    // const safeOriginalName = fileName.replace(/[^a-zA-Z0-9.]/g, '_'); // Removed simple sanitization
-    // const uniqueFileName = `${uniqueId}_${safeOriginalName}` // Removed UUID prefix
+    // Create a URL-safe filename
+    const safeFileName = createSafeFileName(fileName);
     
-    // Use original filename directly, relying on Supabase/client encoding
-    // WARNING: This increases risk of filename collisions if not handled elsewhere.
-    const filePath = `${quotationId}/${documentType}/${fileName}`;
+    // Create the storage path with the safe filename
+    const filePath = `${quotationId}/${documentType}/${safeFileName}`;
 
     // Generate a signed URL for uploading
     const { data, error } = await supabase.storage
@@ -50,11 +58,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Return the signed URL and the path it corresponds to
+    // Return the signed URL, path, and original filename for reference
     return NextResponse.json({ 
       signedUrl: data.signedUrl,
-      path: data.path, // The actual path in the bucket
-      token: data.token // The token is part of the signedUrl
+      path: data.path, // The actual path in the bucket (with safe filename)
+      token: data.token, // The token is part of the signedUrl
+      originalFileName: fileName, // Keep original filename for display purposes
+      safeFileName: safeFileName // The sanitized filename used in storage
     });
 
   } catch (error) {
