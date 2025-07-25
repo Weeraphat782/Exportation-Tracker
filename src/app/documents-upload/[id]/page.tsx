@@ -252,7 +252,7 @@ export default function DocumentUploadPage() {
           }
 
           const generateUrlResult = await generateUrlResponse.json();
-          const { signedUrl, path: filePath, originalFileName, safeFileName } = generateUrlResult;
+          const { signedUrl, path: filePath, originalFileName } = generateUrlResult;
           
           if (!signedUrl || !filePath) {
             throw new Error('Invalid response from generate-upload-url API');
