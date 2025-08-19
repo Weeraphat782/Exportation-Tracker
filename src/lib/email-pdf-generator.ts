@@ -39,7 +39,7 @@ export async function generateEmailBookingPDF(
     const lineHeight = 5;
     const pageHeight = 280; // Leave margin at bottom
     
-    lines.forEach((line, index) => {
+    lines.forEach((line) => {
       // Check if we need a new page
       if (yPosition > pageHeight) {
         doc.addPage();
@@ -172,3 +172,4 @@ export function generateEmailBookingHTML(
     </html>
   `;
 }
+

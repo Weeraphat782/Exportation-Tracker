@@ -195,7 +195,7 @@ export default function EmailBookingPage() {
                 disabled
                 className="bg-muted"
               />
-              <p className="text-xs text-muted-foreground">Sender name is always "Weeraphat"</p>
+              <p className="text-xs text-muted-foreground">Sender name is always &quot;Weeraphat&quot;</p>
             </div>
 
             {/* Shipment Information */}
@@ -207,7 +207,7 @@ export default function EmailBookingPage() {
                 disabled
                 className="bg-muted"
               />
-              <p className="text-xs text-muted-foreground">Product is always "Dried Cannabis Flower"</p>
+              <p className="text-xs text-muted-foreground">Product is always &quot;Dried Cannabis Flower&quot;</p>
             </div>
 
             <div className="space-y-2">
