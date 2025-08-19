@@ -13,7 +13,6 @@ import {
   Menu,
   FileText,
   LayoutDashboard,
-  Mail,
   Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -99,19 +98,6 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         >
           <FileText className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Document Submissions</span>}
-        </Link>
-
-        <Link 
-          href="/email-booking" 
-          className={cn(
-            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
-            isCollapsed ? "justify-center" : "",
-            pathname?.startsWith("/email-booking") ? "bg-slate-800" : ""
-          )}
-          title="Email Booking"
-        >
-          <Mail className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
-          {!isCollapsed && <span className="text-base">Email Booking</span>}
         </Link>
 
         <Link 
