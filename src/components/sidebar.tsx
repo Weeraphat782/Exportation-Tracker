@@ -12,6 +12,7 @@ import {
   Ship,
   BarChart,
   Mail,
+  Package,
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -54,6 +55,17 @@ export function Sidebar() {
         >
           <Mail className="h-5 w-5" />
           Email Booking
+        </Link>
+        
+        <Link
+          href="/packing-list"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
+            pathname.includes("/packing-list") ? "bg-slate-100 text-primary" : "text-slate-500"
+          )}
+        >
+          <Package className="h-5 w-5" />
+          Packing List Generator
         </Link>
         
         <Separator className="my-4" />
