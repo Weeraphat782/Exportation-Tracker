@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Search, Share2, FileArchive, CheckCircle, Calendar } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, FileArchive, CheckCircle, Calendar, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
@@ -443,6 +443,18 @@ export default function ShippingCalculatorPage() {
                             onClick={() => handleViewQuotation(quotation.id)}
                           >
                             <FileText className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            asChild
+                            title="Create booking email"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Link href={`/email-booking/${quotation.id}`}>
+                              <Mail className="h-4 w-4" />
+                            </Link>
                           </Button>
                           
                           <Button

@@ -11,6 +11,7 @@ import {
   Settings,
   Ship,
   BarChart,
+  Mail,
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -42,6 +43,17 @@ export function Sidebar() {
         >
           <Ship className="h-5 w-5" />
           Shipping Calculator
+        </Link>
+        
+        <Link
+          href="/email-booking"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
+            pathname.includes("/email-booking") ? "bg-slate-100 text-primary" : "text-slate-500"
+          )}
+        >
+          <Mail className="h-5 w-5" />
+          Email Booking
         </Link>
         
         <Separator className="my-4" />
