@@ -32,10 +32,10 @@ export function generateBookingEmailFromQuotation(quotation: Quotation, addition
   
   if (quotation.pallets && Array.isArray(quotation.pallets)) {
     quotation.pallets.forEach(pallet => {
-      const quantity = pallet.quantity || 1;
+      const quantity = Number(pallet.quantity) || 1;
       totalPallets += quantity;
       // Use actual weight from pallets, not chargeable weight
-      actualWeight += (pallet.weight || 0) * quantity;
+      actualWeight += (Number(pallet.weight) || 0) * quantity;
     });
     
     // Get dimensions from first pallet
