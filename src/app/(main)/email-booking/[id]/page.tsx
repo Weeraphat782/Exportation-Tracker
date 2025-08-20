@@ -11,7 +11,7 @@ import { ArrowLeft, Copy, Mail, Send, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { getQuotationById, Quotation } from '@/lib/db';
 import { generateBookingEmailFromQuotation, formatBookingEmail, generateEmailSubject, EmailBookingData } from '@/lib/email-templates';
-import { generateEmailBookingPDF, generateEmailBookingHTML } from '@/lib/email-pdf-generator';
+
 
 export default function EmailBookingPage() {
   const params = useParams();
@@ -97,26 +97,72 @@ export default function EmailBookingPage() {
   const handleExportPDF = async () => {
     if (!quotation) return;
     
-    try {
-      await generateEmailBookingPDF(emailData, quotation, emailContent);
-      toast.success('PDF exported successfully!');
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-      toast.error('Failed to export PDF');
+    // Create a simple HTML version for printing
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Email Booking - ${emailData.recipientName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+            .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+            .content { white-space: pre-wrap; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Email Booking</h1>
+            <p><strong>Subject:</strong> ${generateEmailSubject(emailData)}</p>
+          </div>
+          <div class="content">${emailContent}</div>
+        </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      toast.success('Print dialog opened!');
+    } else {
+      toast.error('Unable to open print window');
     }
   };
 
   const handlePrintEmail = () => {
     if (!quotation) return;
     
-    const htmlContent = generateEmailBookingHTML(emailData, quotation, emailContent);
-    const printWindow = window.open('', '_blank');
+    // Use the same HTML generation as handleExportPDF
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Email Booking - ${emailData.recipientName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+            .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+            .content { white-space: pre-wrap; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Email Booking</h1>
+            <p><strong>Subject:</strong> ${generateEmailSubject(emailData)}</p>
+          </div>
+          <div class="content">${emailContent}</div>
+        </body>
+      </html>
+    `;
     
+    const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
     }
   };
 

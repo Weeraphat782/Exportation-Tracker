@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Package, Plus, Minus, Download, Eye, BarChart3 } from 'lucide-react';
+import { Package, Plus, Minus, Download, Eye, BarChart3, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePackingListPDF } from '@/lib/packing-list-pdf';
 import { generateSankeyChart } from '@/lib/sankey-chart';
@@ -71,7 +71,15 @@ interface PackingListData {
   countryOfOrigin: string;
 }
 
+const WIZARD_STEPS = [
+  { id: 1, title: 'Consigner Information', description: 'Consigner details and shipping information' },
+  { id: 2, title: 'Consignee & Shipped To', description: 'Consignee and Shipped To information' },
+  { id: 3, title: 'Pallet & Box Details', description: 'Configure pallets and their contents' },
+  { id: 4, title: 'Summary & Export', description: 'Review data and generate documents' }
+];
+
 export default function PackingListPage() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [packingData, setPackingData] = useState<PackingListData>({
     consignee: '',
     consigneeAddress: '',
@@ -348,89 +356,134 @@ export default function PackingListPage() {
     toast.success('Data logged to console');
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Packing List Generator</h1>
-          <p className="text-muted-foreground">Generate professional packing lists for your shipments</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={previewData}>
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
-          </Button>
-        </div>
-      </div>
+  const nextStep = () => {
+    if (currentStep < WIZARD_STEPS.length) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
 
-      {/* Header Information */}
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+  };
+
+  const isStepCompleted = (step: number) => {
+    switch (step) {
+      case 1:
+        return packingData.consigner.trim() !== '' && 
+               packingData.customerOpNo.trim() !== '' && 
+               packingData.typeOfShipment.trim() !== '' && 
+               packingData.portLoading.trim() !== '' && 
+               packingData.portDestination.trim() !== '';
+      case 2:
+        return packingData.consignee.trim() !== '' && 
+               packingData.shippedTo.trim() !== '';
+      case 3:
+        return packingData.pallets.length > 0 && packingData.pallets.every(pallet => 
+          pallet.boxNumberFrom > 0 && 
+          pallet.boxNumberTo >= pallet.boxNumberFrom && 
+          pallet.products.length > 0 &&
+          pallet.products.every(product => 
+            product.quantity > 0 && 
+            product.weightPerBox > 0 &&
+            (product.productCode.trim() !== '' || product.description.trim() !== '' || product.batch.trim() !== '')
+          )
+        );
+      case 4:
+        // Step 4 is completed only when user has filled in additional info
+        return packingData.boxSize.trim() !== '' || 
+               packingData.airport.trim() !== '' || 
+               packingData.destination.trim() !== '' || 
+               packingData.totalGrossWeight > 0;
+      default:
+        return false;
+    }
+  };
+
+  const canProceedToNext = () => {
+    return true; // Allow users to proceed to next step without validation
+  };
+
+  const renderStepIndicator = () => (
+    <div className="mb-8">
+      <div className="flex items-center justify-between">
+        {WIZARD_STEPS.map((step, index) => {
+          const isActive = currentStep === step.id;
+          const isCompleted = isStepCompleted(step.id);
+          const canAccess = true; // Allow access to all steps
+          
+          return (
+            <div key={step.id} className="flex items-center">
+              <button
+                onClick={() => canAccess ? goToStep(step.id) : null}
+                className={`
+                  flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all
+                  ${isActive 
+                    ? 'border-blue-600 bg-blue-600 text-white' 
+                    : isCompleted 
+                      ? 'border-green-600 bg-green-600 text-white cursor-pointer hover:bg-green-700' 
+                      : canAccess
+                        ? 'border-gray-300 bg-white text-gray-600 cursor-pointer hover:border-blue-400'
+                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+                disabled={!canAccess}
+              >
+                {isCompleted && !isActive ? (
+                  <Check className="h-5 w-5" />
+                ) : (
+                  step.id
+                )}
+              </button>
+              
+              {index < WIZARD_STEPS.length - 1 && (
+                <div className={`
+                  w-16 h-0.5 mx-2
+                  ${isCompleted ? 'bg-green-600' : 'bg-gray-200'}
+                `} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="mt-4 text-center">
+        <h2 className="text-2xl font-bold">{WIZARD_STEPS[currentStep - 1].title}</h2>
+        <p className="text-muted-foreground">{WIZARD_STEPS[currentStep - 1].description}</p>
+      </div>
+    </div>
+  );
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return renderConsignerInformation();
+      case 2:
+        return renderConsigneeShippedToInformation();
+      case 3:
+        return renderPalletDetails();
+      case 4:
+        return renderSummaryAndExport();
+      default:
+        return null;
+    }
+  };
+
+  const renderConsignerInformation = () => (
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Header Information</CardTitle>
-          <CardDescription>Basic shipment information</CardDescription>
+          <CardTitle>Consigner Information</CardTitle>
+          <CardDescription>Details of the sender</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Consignee Section */}
-          <div>
-            <h3 className="text-lg font-medium mb-3">Consignee Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="consignee">Company Name</Label>
-                <Input
-                  id="consignee"
-                  value={packingData.consignee}
-                  onChange={(e) => updateHeader('consignee', e.target.value)}
-                  placeholder="Enter consignee company name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="consigneePhone">Phone Number</Label>
-                <Input
-                  id="consigneePhone"
-                  value={packingData.consigneePhone}
-                  onChange={(e) => updateHeader('consigneePhone', e.target.value)}
-                  placeholder="Enter phone number"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <Label htmlFor="consigneeAddress">Address</Label>
-                <Textarea
-                  id="consigneeAddress"
-                  value={packingData.consigneeAddress}
-                  onChange={(e) => updateHeader('consigneeAddress', e.target.value)}
-                  placeholder="Enter complete address"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="consigneeEmail">Email</Label>
-                <Input
-                  id="consigneeEmail"
-                  type="email"
-                  value={packingData.consigneeEmail}
-                  onChange={(e) => updateHeader('consigneeEmail', e.target.value)}
-                  placeholder="Enter email address"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="consigneeContract">Contract</Label>
-                <Input
-                  id="consigneeContract"
-                  value={packingData.consigneeContract}
-                  onChange={(e) => updateHeader('consigneeContract', e.target.value)}
-                  placeholder="Enter contract number"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Consigner Section */}
           <div>
-            <h3 className="text-lg font-medium mb-3">Consigner Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="consigner">Company Name</Label>
@@ -485,10 +538,134 @@ export default function PackingListPage() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Shipping Information</CardTitle>
+          <CardDescription>Customer operation details and port information</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="customerOpNo">Customer OP No</Label>
+            <Input
+              id="customerOpNo"
+              value={packingData.customerOpNo}
+              onChange={(e) => updateHeader('customerOpNo', e.target.value)}
+              placeholder="Enter customer operation number"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="typeOfShipment">Type of Shipment</Label>
+            <Input
+              id="typeOfShipment"
+              value={packingData.typeOfShipment}
+              onChange={(e) => updateHeader('typeOfShipment', e.target.value)}
+              placeholder="e.g., Air Freight, Sea Freight"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="portLoading">Port of Loading</Label>
+            <Input
+              id="portLoading"
+              value={packingData.portLoading}
+              onChange={(e) => updateHeader('portLoading', e.target.value)}
+              placeholder="Enter port of loading"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="portDestination">Port of Destination</Label>
+            <Input
+              id="portDestination"
+              value={packingData.portDestination}
+              onChange={(e) => updateHeader('portDestination', e.target.value)}
+              placeholder="Enter port of destination"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderConsigneeShippedToInformation = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Consignee Information</CardTitle>
+          <CardDescription>Details of the recipient</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Consignee Section */}
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="consignee">Company Name</Label>
+                <Input
+                  id="consignee"
+                  value={packingData.consignee}
+                  onChange={(e) => updateHeader('consignee', e.target.value)}
+                  placeholder="Enter consignee company name"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="consigneePhone">Phone Number</Label>
+                <Input
+                  id="consigneePhone"
+                  value={packingData.consigneePhone}
+                  onChange={(e) => updateHeader('consigneePhone', e.target.value)}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              
+              <div className="md:col-span-2">
+                <Label htmlFor="consigneeAddress">Address</Label>
+                <Textarea
+                  id="consigneeAddress"
+                  value={packingData.consigneeAddress}
+                  onChange={(e) => updateHeader('consigneeAddress', e.target.value)}
+                  placeholder="Enter complete address"
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="consigneeEmail">Email</Label>
+                <Input
+                  id="consigneeEmail"
+                  type="email"
+                  value={packingData.consigneeEmail}
+                  onChange={(e) => updateHeader('consigneeEmail', e.target.value)}
+                  placeholder="Enter email address"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="consigneeContract">Contract</Label>
+                <Input
+                  id="consigneeContract"
+                  value={packingData.consigneeContract}
+                  onChange={(e) => updateHeader('consigneeContract', e.target.value)}
+                  placeholder="Enter contract number"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Shipped To Information</CardTitle>
+          <CardDescription>Shipping destination details</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           {/* Shipped To Section */}
           <div>
-            <h3 className="text-lg font-medium mb-3">Shipped To Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="shippedTo">Company Name</Label>
@@ -543,329 +720,284 @@ export default function PackingListPage() {
               </div>
             </div>
           </div>
-
-          {/* Other Information */}
-          <div>
-            <h3 className="text-lg font-medium mb-3">Shipping Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              <div>
-                <Label htmlFor="customerOpNo">Customer OP No</Label>
-                <Input
-                  id="customerOpNo"
-                  value={packingData.customerOpNo}
-                  onChange={(e) => updateHeader('customerOpNo', e.target.value)}
-                  placeholder="Enter customer operation number"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="typeOfShipment">Type of Shipment</Label>
-                <Input
-                  id="typeOfShipment"
-                  value={packingData.typeOfShipment}
-                  onChange={(e) => updateHeader('typeOfShipment', e.target.value)}
-                  placeholder="e.g., Air Freight"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="portLoading">Port of Loading</Label>
-                <Input
-                  id="portLoading"
-                  value={packingData.portLoading}
-                  onChange={(e) => updateHeader('portLoading', e.target.value)}
-                  placeholder="e.g., Bangkok, Thailand"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="portDestination">Port of Destination</Label>
-                <Input
-                  id="portDestination"
-                  value={packingData.portDestination}
-                  onChange={(e) => updateHeader('portDestination', e.target.value)}
-                  placeholder="e.g., Munich, Germany"
-                />
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
+    </div>
+  );
 
-      {/* Pallets and Items */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Pallets & Items</CardTitle>
-              <CardDescription>Configure pallets and their contents</CardDescription>
-            </div>
-            <Button onClick={addPallet} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Pallet
-            </Button>
+  const renderPalletDetails = () => (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Pallets & Items</CardTitle>
+            <CardDescription>Configure pallets and their contents</CardDescription>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {packingData.pallets.map((pallet, index) => {
-            const boxes = (pallet.boxNumberTo - pallet.boxNumberFrom) + 1;
-            
-            return (
-              <div key={pallet.id} className="border rounded-lg p-4 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Pallet {index + 1}</h3>
-                  {packingData.pallets.length > 1 && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => removePallet(pallet.id)}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                  )}
+          <Button onClick={addPallet} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Pallet
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {packingData.pallets.map((pallet, index) => {
+          const boxes = (pallet.boxNumberTo - pallet.boxNumberFrom) + 1;
+          
+          return (
+            <div key={pallet.id} className="border rounded-lg p-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Pallet {index + 1}</h3>
+                {packingData.pallets.length > 1 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => removePallet(pallet.id)}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                  <Label>Box No. From</Label>
+                  <Input
+                    type="number"
+                    value={pallet.boxNumberFrom}
+                    onChange={(e) => updatePallet(pallet.id, 'boxNumberFrom', parseInt(e.target.value) || 0)}
+                  />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <div>
-                    <Label>Box No. From</Label>
-                    <Input
-                      type="number"
-                      value={pallet.boxNumberFrom}
-                      onChange={(e) => updatePallet(pallet.id, 'boxNumberFrom', parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label>Box No. To</Label>
-                    <Input
-                      type="number"
-                      value={pallet.boxNumberTo}
-                      onChange={(e) => updatePallet(pallet.id, 'boxNumberTo', parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                  
+                <div>
+                  <Label>Box No. To</Label>
+                  <Input
+                    type="number"
+                    value={pallet.boxNumberTo}
+                    onChange={(e) => updatePallet(pallet.id, 'boxNumberTo', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
 
-                  
+              {/* Products Section */}
+              <div className="mt-4">
+                <div className="flex justify-between items-center mb-3">
+                  <Label className="text-base font-medium">Products in this Pallet</Label>
+                  <Button 
+                    onClick={() => addProduct(pallet.id)} 
+                    size="sm" 
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Product
+                  </Button>
                 </div>
 
-                {/* Products Section */}
-                <div className="mt-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <Label className="text-base font-medium">Products in this Pallet</Label>
-                    <Button 
-                      onClick={() => addProduct(pallet.id)} 
-                      size="sm" 
-                      variant="outline"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Product
-                    </Button>
-                  </div>
-
-                  {pallet.products.map((product, productIndex) => (
-                    <div key={product.id} className="border rounded-lg p-3 mb-3 bg-gray-50">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-600">Product {productIndex + 1}</span>
-                        {pallet.products.length > 1 && (
-                          <Button 
-                            onClick={() => removeProduct(pallet.id, product.id)} 
-                            size="sm" 
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                        <div>
-                          <Label>Product Code</Label>
-                          <Input
-                            value={product.productCode}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'productCode', e.target.value)}
-                            placeholder="Enter product code"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label>Description</Label>
-                          <Input
-                            value={product.description}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'description', e.target.value)}
-                            placeholder="Product description"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label>Batch</Label>
-                          <Input
-                            value={product.batch}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'batch', e.target.value)}
-                            placeholder="Batch number"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <Label>Quantity (boxes)</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={product.quantity}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'quantity', parseInt(e.target.value) || 1)}
-                            placeholder="Number of boxes"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Net Weight/Box (g)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={product.weightPerBox}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'weightPerBox', parseFloat(e.target.value) || 0)}
-                            placeholder="Net weight per box"
-                          />
-                        </div>
-
-                        <div>
-                          <Label>Total Gross Weight (g)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={product.totalGrossWeight}
-                            onChange={(e) => updateProduct(pallet.id, product.id, 'totalGrossWeight', parseFloat(e.target.value) || 0)}
-                            placeholder="Total gross weight for this product"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Mixed Products Checkbox */}
-                      <div className="flex items-center space-x-2 mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                        <Checkbox
-                          id={`mixed-${product.id}`}
-                          checked={product.hasMixedProducts}
-                          onCheckedChange={(checked) => toggleMixedProducts(pallet.id, product.id, checked as boolean)}
-                        />
-                        <Label htmlFor={`mixed-${product.id}`} className="text-sm font-medium text-yellow-800">
-                          This box contains 2 different products (Mixed Products)
-                        </Label>
-                      </div>
-
-                      {/* Second Product Fields */}
-                      {product.hasMixedProducts && product.secondProduct && (
-                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                          <Label className="text-sm font-medium text-blue-800 mb-2 block">Second Product in Same Box</Label>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                            <div>
-                              <Label>Product Code (2nd)</Label>
-                              <Input
-                                value={product.secondProduct.productCode}
-                                onChange={(e) => updateSecondProduct(pallet.id, product.id, 'productCode', e.target.value)}
-                                placeholder="Second product code"
-                              />
-                            </div>
-                            
-                            <div>
-                              <Label>Description (2nd)</Label>
-                              <Input
-                                value={product.secondProduct.description}
-                                onChange={(e) => updateSecondProduct(pallet.id, product.id, 'description', e.target.value)}
-                                placeholder="Second product description"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <Label>Batch (2nd)</Label>
-                              <Input
-                                value={product.secondProduct.batch}
-                                onChange={(e) => updateSecondProduct(pallet.id, product.id, 'batch', e.target.value)}
-                                placeholder="Second product batch"
-                              />
-                            </div>
-
-                            <div>
-                              <Label>Net Weight/Box (2nd) (g)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={product.secondProduct.weightPerBox}
-                                onChange={(e) => updateSecondProduct(pallet.id, product.id, 'weightPerBox', parseFloat(e.target.value) || 0)}
-                                placeholder="Net weight of second product per box"
-                              />
-                            </div>
-
-                            <div>
-                              <Label>Total Gross Weight (2nd) (g)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={product.secondProduct.totalGrossWeight}
-                                onChange={(e) => updateSecondProduct(pallet.id, product.id, 'totalGrossWeight', parseFloat(e.target.value) || 0)}
-                                placeholder="Total gross weight for second product"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                {pallet.products.map((product, productIndex) => (
+                  <div key={product.id} className="border rounded-lg p-3 mb-3 bg-gray-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600">Product {productIndex + 1}</span>
+                      {pallet.products.length > 1 && (
+                        <Button 
+                          onClick={() => removeProduct(pallet.id, product.id)} 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                  ))}
-                </div>
-                
-                <div className="bg-muted p-3 rounded">
-                  <p className="text-sm">
-                    <strong>Boxes:</strong> {boxes} | 
-                    <strong> Net Weight:</strong> {(pallet.products.reduce((sum, product) => {
-                      let productNet = product.quantity * product.weightPerBox;
-                      if (product.hasMixedProducts && product.secondProduct) {
-                        productNet += product.quantity * product.secondProduct.weightPerBox;
-                      }
-                      return sum + productNet;
-                    }, 0)).toFixed(1)} g |
-                    <strong> Gross Weight:</strong> {(pallet.products.reduce((sum, product) => {
-                      let productGross = product.totalGrossWeight;
-                      if (product.hasMixedProducts && product.secondProduct) {
-                        productGross += product.secondProduct.totalGrossWeight;
-                      }
-                      return sum + productGross;
-                    }, 0)).toFixed(1)} g |
-                    <strong> Range:</strong> {pallet.boxNumberFrom}-{pallet.boxNumberTo}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <div>
+                        <Label>Product Code</Label>
+                        <Input
+                          value={product.productCode}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'productCode', e.target.value)}
+                          placeholder="Enter product code"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label>Description</Label>
+                        <Input
+                          value={product.description}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'description', e.target.value)}
+                          placeholder="Product description"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label>Batch</Label>
+                        <Input
+                          value={product.batch}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'batch', e.target.value)}
+                          placeholder="Batch number"
+                        />
+                      </div>
+                    </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <Label>Quantity (boxes)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={product.quantity}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'quantity', parseInt(e.target.value) || 1)}
+                          placeholder="Number of boxes"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Net Weight/Box (g)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={product.weightPerBox}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'weightPerBox', parseFloat(e.target.value) || 0)}
+                          placeholder="Net weight per box"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Total Gross Weight (g)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={product.totalGrossWeight}
+                          onChange={(e) => updateProduct(pallet.id, product.id, 'totalGrossWeight', parseFloat(e.target.value) || 0)}
+                          placeholder="Total gross weight for this product"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Mixed Products Checkbox */}
+                    <div className="flex items-center space-x-2 mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                      <Checkbox
+                        id={`mixed-${product.id}`}
+                        checked={product.hasMixedProducts}
+                        onCheckedChange={(checked) => toggleMixedProducts(pallet.id, product.id, checked as boolean)}
+                      />
+                      <Label htmlFor={`mixed-${product.id}`} className="text-sm font-medium text-yellow-800">
+                        This box contains 2 different products (Mixed Products)
+                      </Label>
+                    </div>
+
+                    {/* Second Product Fields */}
+                    {product.hasMixedProducts && product.secondProduct && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                        <Label className="text-sm font-medium text-blue-800 mb-2 block">Second Product in Same Box</Label>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <Label>Product Code (2nd)</Label>
+                            <Input
+                              value={product.secondProduct.productCode}
+                              onChange={(e) => updateSecondProduct(pallet.id, product.id, 'productCode', e.target.value)}
+                              placeholder="Second product code"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label>Description (2nd)</Label>
+                            <Input
+                              value={product.secondProduct.description}
+                              onChange={(e) => updateSecondProduct(pallet.id, product.id, 'description', e.target.value)}
+                              placeholder="Second product description"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div>
+                            <Label>Batch (2nd)</Label>
+                            <Input
+                              value={product.secondProduct.batch}
+                              onChange={(e) => updateSecondProduct(pallet.id, product.id, 'batch', e.target.value)}
+                              placeholder="Second product batch"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Net Weight/Box (2nd) (g)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={product.secondProduct.weightPerBox}
+                              onChange={(e) => updateSecondProduct(pallet.id, product.id, 'weightPerBox', parseFloat(e.target.value) || 0)}
+                              placeholder="Net weight of second product per box"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Total Gross Weight (2nd) (g)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={product.secondProduct.totalGrossWeight}
+                              onChange={(e) => updateSecondProduct(pallet.id, product.id, 'totalGrossWeight', parseFloat(e.target.value) || 0)}
+                              placeholder="Total gross weight for second product"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="bg-muted p-3 rounded">
+                <p className="text-sm">
+                  <strong>Boxes:</strong> {boxes} | 
+                  <strong> Net Weight:</strong> {(pallet.products.reduce((sum, product) => {
+                    let productNet = product.quantity * product.weightPerBox;
+                    if (product.hasMixedProducts && product.secondProduct) {
+                      productNet += product.quantity * product.secondProduct.weightPerBox;
+                    }
+                    return sum + productNet;
+                  }, 0)).toFixed(1)} g |
+                  <strong> Gross Weight:</strong> {(pallet.products.reduce((sum, product) => {
+                    let productGross = product.totalGrossWeight;
+                    if (product.hasMixedProducts && product.secondProduct) {
+                      productGross += product.secondProduct.totalGrossWeight;
+                    }
+                    return sum + productGross;
+                  }, 0)).toFixed(1)} g |
+                  <strong> Range:</strong> {pallet.boxNumberFrom}-{pallet.boxNumberTo}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+
+  const renderSummaryAndExport = () => (
+    <div className="space-y-6">
       {/* Footer Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Footer Information</CardTitle>
-          <CardDescription>Additional shipping details</CardDescription>
+          <CardTitle>Additional Information</CardTitle>
+          <CardDescription>Final shipping details</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                        <Label htmlFor="totalGrossWeight">Total Gross Weight (Pallet Include) (g)</Label>
-                        <Input
-                          id="totalGrossWeight"
-                          type="number"
-                          step="0.1"
-                          value={packingData.totalGrossWeight}
-                          onChange={(e) => updateHeader('totalGrossWeight', parseFloat(e.target.value) || 0)}
-                          placeholder="Enter total gross weight including pallets in grams"
-                        />
-                      </div>
+          <div>
+            <Label htmlFor="totalGrossWeight">Total Gross Weight (Pallet Include) (g)</Label>
+            <Input
+              id="totalGrossWeight"
+              type="number"
+              step="0.1"
+              value={packingData.totalGrossWeight}
+              onChange={(e) => updateHeader('totalGrossWeight', parseFloat(e.target.value) || 0)}
+              placeholder="Enter total gross weight including pallets in grams"
+            />
+          </div>
 
           <div>
             <Label htmlFor="boxSize">Box Size</Label>
@@ -953,7 +1085,7 @@ export default function PackingListPage() {
       </Card>
 
       {/* Action Buttons */}
-      <div className="flex justify-center gap-4 pt-6">
+      <div className="flex justify-center gap-4">
         <Button onClick={generateSankey} size="lg" variant="outline" className="px-8">
           <BarChart3 className="h-5 w-5 mr-2" />
           Generate Sankey Chart
@@ -961,6 +1093,55 @@ export default function PackingListPage() {
         <Button onClick={generatePDF} size="lg" className="bg-blue-600 hover:bg-blue-700 px-8">
           <Download className="h-5 w-5 mr-2" />
           Export PDF
+        </Button>
+        <Button variant="outline" onClick={previewData} size="lg" className="px-8">
+          <Eye className="h-4 w-4 mr-2" />
+          Preview Data
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Packing List Generator</h1>
+          <p className="text-muted-foreground">Generate professional packing lists for your shipments</p>
+        </div>
+      </div>
+
+      {/* Step Indicator */}
+      {renderStepIndicator()}
+
+      {/* Step Content */}
+      <div className="min-h-[400px]">
+        {renderStepContent()}
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center pt-6 border-t">
+        <Button 
+          variant="outline" 
+          onClick={prevStep}
+          disabled={currentStep === 1}
+          className="flex items-center"
+        >
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Previous
+        </Button>
+        
+        <div className="text-sm text-muted-foreground">
+          Step {currentStep} of {WIZARD_STEPS.length}
+        </div>
+        
+        <Button 
+          onClick={nextStep}
+          disabled={currentStep === WIZARD_STEPS.length || !canProceedToNext()}
+          className="flex items-center"
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
     </div>
