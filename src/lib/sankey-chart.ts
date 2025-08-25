@@ -57,26 +57,23 @@ export function generateSankeyChart(data: PackingListData) {
     nodes.push({name: `Pallet ${index + 1}`});
   });
 
-  // Add Box nodes for each pallet
-  data.pallets.forEach((pallet, pIndex) => {
-    const from = Number(pallet.boxNumberFrom);
-    const to = Number(pallet.boxNumberTo);
-    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-    const start = Math.min(from, to);
-    const end = Math.max(from, to);
-    for (let boxNum = start; boxNum <= end; boxNum++) {
-      nodes.push({name: `Box P${pIndex + 1}-${boxNum}`});
-    }
-  });
+  // Box column removed: we aggregate quantities per product per pallet
 
   // Collect all unique product codes, descriptions, and batches
   const allProducts = data.pallets.flatMap(pallet => 
     pallet.products.flatMap(product => {
-      const products = [product];
+      const main = {
+        ...product,
+        description: product.description || '-',
+        batch: product.batch || '-'
+      };
+      const products = [main];
       if (product.hasMixedProducts && product.secondProduct) {
         products.push({
           ...product.secondProduct,
           id: product.id + '_second',
+          description: product.secondProduct.description || '-',
+          batch: product.secondProduct.batch || '-',
           quantity: product.quantity,
           hasMixedProducts: false
         });
@@ -86,8 +83,8 @@ export function generateSankeyChart(data: PackingListData) {
   );
   
   const productCodes = [...new Set(allProducts.map(p => p.productCode).filter(Boolean))];
-  const descriptions = [...new Set(allProducts.map(p => p.description).filter(Boolean))];
-  const batches = [...new Set(allProducts.map(p => p.batch).filter(Boolean))];
+  const descriptions = [...new Set(allProducts.map(p => p.description || '-'))];
+  const batches = [...new Set(allProducts.map(p => p.batch || '-'))];
 
   // Add Product, Description, and Batch nodes
   productCodes.forEach(code => nodes.push({name: `Product: ${code}`}));
@@ -97,7 +94,7 @@ export function generateSankeyChart(data: PackingListData) {
   // Create links
   let nodeIndex = 0;
   const palletIndices: {[key: string]: number} = {};
-  const boxIndices: {[key: string]: number} = {};
+  // Box indices removed
   const productCodeIndices: {[key: string]: number} = {};
   const descriptionIndices: {[key: string]: number} = {};
   const batchIndices: {[key: string]: number} = {};
@@ -107,17 +104,7 @@ export function generateSankeyChart(data: PackingListData) {
     palletIndices[`Pallet ${index + 1}`] = nodeIndex++;
   });
 
-  // Map boxes to indices
-  data.pallets.forEach((pallet, pIndex) => {
-    const from = Number(pallet.boxNumberFrom);
-    const to = Number(pallet.boxNumberTo);
-    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-    const start = Math.min(from, to);
-    const end = Math.max(from, to);
-    for (let boxNum = start; boxNum <= end; boxNum++) {
-      boxIndices[`Box P${pIndex + 1}-${boxNum}`] = nodeIndex++;
-    }
-  });
+  // No box mapping
 
   // Map product codes to indices
   productCodes.forEach(code => {
@@ -138,20 +125,25 @@ export function generateSankeyChart(data: PackingListData) {
   data.pallets.forEach((pallet, palletIndex) => {
     const palletNodeIndex = palletIndices[`Pallet ${palletIndex + 1}`];
 
-    // Create Pallet -> Box links
-    const from = Number(pallet.boxNumberFrom);
-    const to = Number(pallet.boxNumberTo);
-    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-    const start = Math.min(from, to);
-    const end = Math.max(from, to);
-    for (let boxNum = start; boxNum <= end; boxNum++) {
-      const boxNodeIndex = boxIndices[`Box P${palletIndex + 1}-${boxNum}`];
-      links.push({
-        source: palletNodeIndex,
-        target: boxNodeIndex,
-        value: 1 // Each box has value 1
-      });
-    }
+    // Aggregate per-product quantity for this pallet
+    const productQtyMap: {[code: string]: number} = {};
+    pallet.products.forEach(prod => {
+      const code = prod?.productCode;
+      const qty = Number(prod?.quantity) || 0;
+      if (!code || qty <= 0) return;
+      productQtyMap[code] = (productQtyMap[code] || 0) + qty;
+      if (prod.hasMixedProducts && prod.secondProduct?.productCode) {
+        const code2 = prod.secondProduct.productCode;
+        productQtyMap[code2] = (productQtyMap[code2] || 0) + qty;
+      }
+    });
+
+    Object.entries(productQtyMap).forEach(([code, qty]) => {
+      const productIndex = productCodeIndices[code];
+      if (productIndex !== undefined) {
+        links.push({ source: palletNodeIndex, target: productIndex, value: qty });
+      }
+    });
 
     // Create Box -> Product links based on product quantities
     pallet.products.forEach(product => {
@@ -161,37 +153,13 @@ export function generateSankeyChart(data: PackingListData) {
         const safeQty = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
         if (safeQty <= 0) return;
 
-        // Distribute product quantity across boxes
-        let remainingQuantity = safeQty;
-        for (let boxNum = start; boxNum <= end && remainingQuantity > 0; boxNum++) {
-          const boxNodeIndex = boxIndices[`Box P${palletIndex + 1}-${boxNum}`];
-          const productIndex = productCodeIndices[prod.productCode];
-          
-          // Each box gets 1 unit of this product (or remaining if less than 1)
-          const boxQuantity = Math.min(1, remainingQuantity);
-          
-          if (boxQuantity > 0) {
-            const existingLink = links.find(link => 
-              link.source === boxNodeIndex && link.target === productIndex
-            );
-            
-            if (existingLink) {
-              existingLink.value += boxQuantity;
-            } else {
-              links.push({
-                source: boxNodeIndex,
-                target: productIndex,
-                value: boxQuantity
-              });
-            }
-            remainingQuantity -= boxQuantity;
-          }
-        }
+        // Box column removed: pallet already links to product with aggregated qty
 
         // Product Code -> Description
-        if (prod.productCode && prod.description) {
+        if (prod.productCode) {
           const productIndex = productCodeIndices[prod.productCode];
-          const descIndex = descriptionIndices[prod.description];
+          const descKey = (prod.description && descriptionIndices[prod.description] !== undefined) ? prod.description : '-';
+          const descIndex = descriptionIndices[descKey];
           
           const existingLink = links.find(link => 
             link.source === productIndex && link.target === descIndex
@@ -209,9 +177,11 @@ export function generateSankeyChart(data: PackingListData) {
         }
 
         // Description -> Batch
-        if (prod.description && prod.batch) {
-          const descIndex = descriptionIndices[prod.description];
-          const batchIndex = batchIndices[prod.batch];
+        {
+          const descKey = (prod.description && descriptionIndices[prod.description] !== undefined) ? prod.description : '-';
+          const batchKey = (prod.batch && batchIndices[prod.batch] !== undefined) ? prod.batch : '-';
+          const descIndex = descriptionIndices[descKey];
+          const batchIndex = batchIndices[batchKey];
           
           const existingLink = links.find(link => 
             link.source === descIndex && link.target === batchIndex
@@ -434,7 +404,7 @@ export function generateSankeyChart(data: PackingListData) {
         // Enhanced color function for different node types
         function getNodeColor(d) {
           if (d.name.startsWith('Pallet')) return "#440154";   // Purple - Far Left
-          if (d.name.startsWith('Box')) return "#8E44AD";      // Light Purple - Second column
+          // Box column removed
           if (d.name.startsWith('Product:')) return "#FDE725"; // Yellow - Third column
           if (d.name.startsWith('Desc:')) return "#35B779";    // Green - Fourth column
           if (d.name.startsWith('Batch:')) return "#31688E";   // Blue - Far Right
@@ -494,7 +464,7 @@ export function generateSankeyChart(data: PackingListData) {
         // add the rectangles for the nodes with enhanced styling
         node
           .append("rect")
-            .attr("height", function(d) { return d.dy; })
+            .attr("height", function(d) { return Math.max(12, d.dy); })
             .attr("width", sankey.nodeWidth())
             .style("fill", function(d) { 
               d.color = getNodeColor(d);
@@ -555,7 +525,7 @@ export function generateSankeyChart(data: PackingListData) {
                 return sankey.nodeWidth() / 2;
               }
             })
-            .attr("y", function(d) { return d.dy / 2; })
+            .attr("y", function(d) { return Math.max(12, d.dy) / 2; })
             .attr("dy", ".35em")
             .attr("text-anchor", function(d) { 
               if (d.x < width * 0.25) return "start";
@@ -596,10 +566,7 @@ export function generateSankeyChart(data: PackingListData) {
                 text.text(d.name);
               }
             })
-            .style("font-size", function(d) {
-              // Larger font size for better readability
-              return d.dy > 50 ? "16px" : d.dy > 30 ? "14px" : "12px";
-            })
+            .style("font-size", function(d) { return d.dy > 50 ? "16px" : d.dy > 30 ? "14px" : "12px"; })
             .style("font-weight", "600")
             .style("fill", "#2c3e50");
 
