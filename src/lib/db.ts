@@ -169,9 +169,16 @@ export async function updateProfile(userId: string, updates: Partial<Profile>) {
 // COMPANY FUNCTIONS
 export async function getCompanies() {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('User not authenticated');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('companies')
       .select('*')
+      .eq('user_id', user.id)
       .order('name', { ascending: true });
 
     if (error) {
@@ -267,9 +274,16 @@ export async function deleteCompany(id: string) {
 // DESTINATION FUNCTIONS
 export async function getDestinations() {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('User not authenticated');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('destinations')
       .select('id, country, port')
+      .eq('user_id', user.id)
       .order('country', { ascending: true });
 
     if (error) {
@@ -377,12 +391,19 @@ export async function deleteDestination(id: string) {
 // FREIGHT RATE FUNCTIONS
 export async function getFreightRates() {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('User not authenticated');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('freight_rates')
       .select(`
         id, destination_id, min_weight, max_weight, base_rate, effective_date, user_id,
         destinations ( country, port )
       `)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
