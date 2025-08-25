@@ -10,3 +10,4 @@ ALTER TABLE packing_list_products DISABLE ROW LEVEL SECURITY;
 -- ALTER TABLE packing_list_pallets ENABLE ROW LEVEL SECURITY;  
 -- ALTER TABLE packing_list_products ENABLE ROW LEVEL SECURITY;
 
+

@@ -16,3 +16,4 @@ FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 -- สำหรับ development - ตั้งค่า created_by เป็น NULL ได้
 -- UPDATE packing_lists SET created_by = NULL WHERE created_by = '00000000-0000-0000-0000-000000000000';
 
+

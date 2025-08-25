@@ -43,3 +43,4 @@ WHEN (NEW.packing_list_no IS NULL OR NEW.packing_list_no = '')
 EXECUTE FUNCTION generate_packing_list_number();
 
 
+

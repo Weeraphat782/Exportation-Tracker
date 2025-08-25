@@ -2,7 +2,8 @@ interface PackingListData {
   consignee: string;
   consigner: string;
   shippedTo: string;
-  customerOpNo: string;
+  customerOpNo?: string;
+  customerPoNo?: string;
   typeOfShipment: string;
   portLoading: string;
   portDestination: string;
@@ -53,14 +54,18 @@ export function generateSankeyChart(data: PackingListData) {
   
   // Add Pallet nodes
   data.pallets.forEach((pallet, index) => {
-    const totalBoxes = (pallet.boxNumberTo - pallet.boxNumberFrom) + 1;
-    nodes.push({name: `Pallet ${index + 1} (${totalBoxes} boxes)`});
+    nodes.push({name: `Pallet ${index + 1}`});
   });
 
   // Add Box nodes for each pallet
-  data.pallets.forEach((pallet) => {
-    for (let boxNum = pallet.boxNumberFrom; boxNum <= pallet.boxNumberTo; boxNum++) {
-      nodes.push({name: `Box ${boxNum}`});
+  data.pallets.forEach((pallet, pIndex) => {
+    const from = Number(pallet.boxNumberFrom);
+    const to = Number(pallet.boxNumberTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+    const start = Math.min(from, to);
+    const end = Math.max(from, to);
+    for (let boxNum = start; boxNum <= end; boxNum++) {
+      nodes.push({name: `Box P${pIndex + 1}-${boxNum}`});
     }
   });
 
@@ -103,9 +108,14 @@ export function generateSankeyChart(data: PackingListData) {
   });
 
   // Map boxes to indices
-  data.pallets.forEach((pallet) => {
-    for (let boxNum = pallet.boxNumberFrom; boxNum <= pallet.boxNumberTo; boxNum++) {
-      boxIndices[`Box ${boxNum}`] = nodeIndex++;
+  data.pallets.forEach((pallet, pIndex) => {
+    const from = Number(pallet.boxNumberFrom);
+    const to = Number(pallet.boxNumberTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+    const start = Math.min(from, to);
+    const end = Math.max(from, to);
+    for (let boxNum = start; boxNum <= end; boxNum++) {
+      boxIndices[`Box P${pIndex + 1}-${boxNum}`] = nodeIndex++;
     }
   });
 
@@ -129,8 +139,13 @@ export function generateSankeyChart(data: PackingListData) {
     const palletNodeIndex = palletIndices[`Pallet ${palletIndex + 1}`];
 
     // Create Pallet -> Box links
-    for (let boxNum = pallet.boxNumberFrom; boxNum <= pallet.boxNumberTo; boxNum++) {
-      const boxNodeIndex = boxIndices[`Box ${boxNum}`];
+    const from = Number(pallet.boxNumberFrom);
+    const to = Number(pallet.boxNumberTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+    const start = Math.min(from, to);
+    const end = Math.max(from, to);
+    for (let boxNum = start; boxNum <= end; boxNum++) {
+      const boxNodeIndex = boxIndices[`Box P${palletIndex + 1}-${boxNum}`];
       links.push({
         source: palletNodeIndex,
         target: boxNodeIndex,
@@ -142,12 +157,14 @@ export function generateSankeyChart(data: PackingListData) {
     pallet.products.forEach(product => {
       // Helper function to create links for a product
       const createLinksForProduct = (prod: { productCode?: string; description?: string; batch?: string }, quantity: number) => {
-        if (!prod.productCode) return;
+        if (!prod || !prod.productCode) return;
+        const safeQty = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+        if (safeQty <= 0) return;
 
         // Distribute product quantity across boxes
-        let remainingQuantity = quantity;
-        for (let boxNum = pallet.boxNumberFrom; boxNum <= pallet.boxNumberTo && remainingQuantity > 0; boxNum++) {
-          const boxNodeIndex = boxIndices[`Box ${boxNum}`];
+        let remainingQuantity = safeQty;
+        for (let boxNum = start; boxNum <= end && remainingQuantity > 0; boxNum++) {
+          const boxNodeIndex = boxIndices[`Box P${palletIndex + 1}-${boxNum}`];
           const productIndex = productCodeIndices[prod.productCode];
           
           // Each box gets 1 unit of this product (or remaining if less than 1)
@@ -181,12 +198,12 @@ export function generateSankeyChart(data: PackingListData) {
           );
           
           if (existingLink) {
-            existingLink.value += quantity;
+            existingLink.value += safeQty;
           } else {
             links.push({
               source: productIndex,
               target: descIndex,
-              value: quantity
+              value: safeQty
             });
           }
         }
@@ -201,23 +218,23 @@ export function generateSankeyChart(data: PackingListData) {
           );
           
           if (existingLink) {
-            existingLink.value += quantity;
+            existingLink.value += safeQty;
           } else {
             links.push({
               source: descIndex,
               target: batchIndex,
-              value: quantity
+              value: safeQty
             });
           }
         }
       };
 
       // Create links for main product
-      createLinksForProduct(product, product.quantity);
+      createLinksForProduct(product, Number(product.quantity));
 
       // Create links for second product if it exists
       if (product.hasMixedProducts && product.secondProduct) {
-        createLinksForProduct(product.secondProduct, product.quantity);
+        createLinksForProduct(product.secondProduct, Number(product.quantity));
       }
     });
   });
@@ -342,7 +359,7 @@ export function generateSankeyChart(data: PackingListData) {
     <body>
       <div class="header">
         <h1>Packing List Distribution - Sankey Chart</h1>
-        <p>Customer OP: ${data.customerOpNo} | Total Pallets: ${data.pallets.length} | Total Products: ${productCodes.length}</p>
+        <p>Customer PO: ${data.customerPoNo || data.customerOpNo || ''} | Total Pallets: ${data.pallets.length} | Total Products: ${productCodes.length}</p>
         <p style="font-size: 12px; color: #666; margin-top: 10px;">
           <strong>Note:</strong> Flow values represent product quantities per pallet. Pallet box counts show total boxes (${data.pallets.map(p => (p.boxNumberTo - p.boxNumberFrom) + 1).join(', ')}).
         </p>
@@ -428,7 +445,7 @@ export function generateSankeyChart(data: PackingListData) {
         function getLinkColor(d) {
           var sourceColor = getNodeColor(d.source);
           var targetColor = getNodeColor(d.target);
-          return d3.interpolate(sourceColor, targetColor)(0.5);
+          return d3.interpolateRgb(sourceColor, targetColor)(0.5);
         }
 
         // Set the sankey diagram properties
