@@ -57,14 +57,20 @@ export function UserProfile(/* { className }: UserProfileProps */) {
       localStorage.removeItem('quotations'); // ล้างข้อมูล quotations เพื่อความปลอดภัย
       
       // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
       
       console.log('User logged out successfully');
       
       // Redirect to login page
       window.location.href = '/login';
-    } catch (error) {
+    } catch (error: unknown) {
+      // ถ้าไม่มี session อยู่แล้ว ให้ถือว่าออกจากระบบสำเร็จ
+      const msg = (error as Error)?.message || '';
+      if (msg.includes('Auth session missing')) {
+        window.location.href = '/login';
+        return;
+      }
       console.error('Error during logout:', error);
     }
   };

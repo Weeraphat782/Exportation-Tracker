@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-// This route handles the callback from Supabase Auth
+// Handle Supabase OAuth/email login callback and set session cookies
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
-  const code = requestUrl.searchParams.get('code');
-  
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+
   if (code) {
-    // Exchange the code for a session
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  // Redirect to the app after successful sign-in
-  return NextResponse.redirect(new URL('/shipping-calculator', request.url));
-} 
+  // Redirect to packing list page after login
+  return NextResponse.redirect(new URL('/packing-list', request.url));
+}

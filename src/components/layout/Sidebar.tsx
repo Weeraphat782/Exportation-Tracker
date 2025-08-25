@@ -12,8 +12,7 @@ import {
   Calculator,
   Menu,
   FileText,
-  LayoutDashboard,
-  Package
+  LayoutDashboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -75,6 +74,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         </Link>
 
         <Link 
+          href="/packing-lists" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/packing-lists") ? "bg-slate-800" : ""
+          )}
+          title="Packing Lists"
+        >
+          <FileText className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Packing Lists</span>}
+        </Link>
+
+        <Link 
           href="/shipping-calculator" 
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
@@ -100,18 +112,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
           {!isCollapsed && <span className="text-base">Document Submissions</span>}
         </Link>
 
-        <Link 
-          href="/packing-list" 
-          className={cn(
-            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
-            isCollapsed ? "justify-center" : "",
-            pathname?.startsWith("/packing-list") ? "bg-slate-800" : ""
-          )}
-          title="Packing List Generator"
-        >
-          <Package className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
-          {!isCollapsed && <span className="text-base">Packing List Generator</span>}
-        </Link>
+        {/* Removed direct link to Generator; creation is accessed from list page */}
         
         <div className="space-y-1">
           <button

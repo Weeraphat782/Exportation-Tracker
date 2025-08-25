@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Package, Plus, Minus, Download, Eye, BarChart3, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Package, Plus, Minus, Download, Eye, BarChart3, ChevronLeft, ChevronRight, Check, Save, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePackingListPDF } from '@/lib/packing-list-pdf';
 import { generateSankeyChart } from '@/lib/sankey-chart';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface ProductItem {
   id: string;
@@ -38,6 +39,8 @@ interface PalletItem {
 }
 
 interface PackingListData {
+  id?: string;
+  packing_list_no?: string;
   // Header Information
   consignee: string;
   consigneeAddress: string;
@@ -69,6 +72,8 @@ interface PackingListData {
   airport: string;
   destination: string;
   countryOfOrigin: string;
+  status?: 'draft' | 'completed' | 'archived';
+  notes?: string;
 }
 
 const WIZARD_STEPS = [
@@ -100,32 +105,31 @@ export default function PackingListPage() {
     typeOfShipment: '',
     portLoading: '',
     portDestination: '',
-    pallets: [
-      {
-        id: '1',
-        boxNumberFrom: 1,
-        boxNumberTo: 10,
-        products: [
-          {
-            id: '1',
-            productCode: '',
-            description: '',
-            batch: '',
-            quantity: 10,
-            weightPerBox: 25500, // 25.5 kg = 25500 g
-            totalGrossWeight: 255000, // 255 kg = 255000 g (default)
-            hasMixedProducts: false
-          }
-        ]
-      }
-    ],
+    pallets: [],
     totalGrossWeight: 0,
     boxSize: '',
     shippingMark: '',
     airport: '',
     destination: '',
-    countryOfOrigin: 'Thailand'
+    countryOfOrigin: 'Thailand',
+    status: 'draft'
   });
+
+  // State สำหรับ Save/Load functionality
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  interface SavedPackingListRow {
+    id: string;
+    packing_list_no: string;
+    consigner: string;
+    consignee: string;
+    port_loading?: string;
+    port_destination?: string;
+    status: 'draft' | 'completed' | 'archived';
+    created_at: string;
+  }
+  const [savedPackingLists, setSavedPackingLists] = useState<SavedPackingListRow[]>([]);
+  const [isLoadingLists, setIsLoadingLists] = useState(false);
 
   // Calculate totals
   const calculateTotals = () => {
@@ -159,20 +163,114 @@ export default function PackingListPage() {
 
   const totals = calculateTotals();
 
+  // ฟังก์ชันสำหรับ Save Packing List
+  const savePackingList = async () => {
+    if (!packingData.consignee || !packingData.consigner) {
+      toast.error('กรุณากรอกข้อมูล Consignee และ Consigner');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Attach Supabase access token so API can authenticate via Authorization header
+      const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch('/api/packing-lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify(packingData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(`บันทึกสำเร็จ! เลขที่: ${result.data.packing_list_no}`);
+        setPackingData(prev => ({
+          ...prev,
+          id: result.data.id,
+          packing_list_no: result.data.packing_list_no
+        }));
+      } else {
+        toast.error('เกิดข้อผิดพลาดในการบันทึก');
+      }
+    } catch (error) {
+      console.error('Error saving packing list:', error);
+      toast.error('เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ฟังก์ชันสำหรับโหลดรายการ Packing Lists
+  const loadPackingLists = async () => {
+    setIsLoadingLists(true);
+    try {
+      const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch('/api/packing-lists', {
+        headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setSavedPackingLists(result.data);
+      } else {
+        toast.error('เกิดข้อผิดพลาดในการโหลดรายการ');
+      }
+    } catch (error) {
+      console.error('Error loading packing lists:', error);
+      toast.error('เกิดข้อผิดพลาดในการโหลดรายการ');
+    } finally {
+      setIsLoadingLists(false);
+    }
+  };
+
+  // ฟังก์ชันสำหรับโหลด Packing List ที่เลือก
+  const loadPackingList = async (id: string) => {
+    try {
+      const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const response = await fetch(`/api/packing-lists/${id}`, {
+        headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setPackingData(result.data);
+        setIsLoadDialogOpen(false);
+        toast.success('โหลดข้อมูลสำเร็จ!');
+      } else {
+        toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      }
+    } catch (error) {
+      console.error('Error loading packing list:', error);
+      toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+    }
+  };
+
+  // เปิด Load Dialog และโหลดรายการ
+  const openLoadDialog = () => {
+    setIsLoadDialogOpen(true);
+    loadPackingLists();
+  };
+
   const addPallet = () => {
     const newPallet: PalletItem = {
       id: Date.now().toString(),
-      boxNumberFrom: totals.totalBoxes + 1,
-      boxNumberTo: totals.totalBoxes + 10,
+      boxNumberFrom: 0,
+      boxNumberTo: 0,
       products: [
         {
           id: Date.now().toString() + '_product_1',
           productCode: '',
           description: '',
           batch: '',
-          quantity: 10,
-          weightPerBox: 25500, // 25.5 kg = 25500 g
-          totalGrossWeight: 255000, // 255 kg = 255000 g (default)
+          quantity: 0,
+          weightPerBox: 0,
+          totalGrossWeight: 0,
           hasMixedProducts: false
         }
       ]
@@ -208,9 +306,9 @@ export default function PackingListPage() {
       productCode: '',
       description: '',
       batch: '',
-      quantity: 1,
-      weightPerBox: 25500, // default 25.5 kg = 25500 g
-      totalGrossWeight: 25500, // default gross weight (same as net for new product)
+      quantity: 0,
+      weightPerBox: 0,
+      totalGrossWeight: 0,
       hasMixedProducts: false
     };
 
@@ -548,7 +646,7 @@ export default function PackingListPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="customerOpNo">Customer OP No</Label>
+            <Label htmlFor="customerOpNo">Customer PO No</Label>
             <Input
               id="customerOpNo"
               value={packingData.customerOpNo}
@@ -1107,7 +1205,28 @@ export default function PackingListPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Packing List Generator</h1>
-          <p className="text-muted-foreground">Generate professional packing lists for your shipments</p>
+          <p className="text-muted-foreground">
+            Generate professional packing lists for your shipments
+            {packingData.packing_list_no && (
+              <span className="ml-2 text-sm font-medium text-blue-600">
+                ({packingData.packing_list_no})
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openLoadDialog} className="flex items-center">
+            <FolderOpen className="h-4 w-4 mr-2" />
+            Load
+          </Button>
+          <Button 
+            onClick={savePackingList} 
+            disabled={isSaving}
+            className="flex items-center"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
         </div>
       </div>
 
@@ -1144,6 +1263,59 @@ export default function PackingListPage() {
           <ChevronRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
+
+      {/* Load Dialog */}
+      <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Load Packing List</DialogTitle>
+            <DialogDescription>
+              Select a saved packing list to load
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingLists ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-muted-foreground">Loading...</div>
+            </div>
+          ) : savedPackingLists.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-muted-foreground">No saved packing lists found</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {savedPackingLists.map((list) => (
+                <div 
+                  key={list.id}
+                  className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => loadPackingList(list.id)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium">{list.packing_list_no}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {list.consigner} → {list.consignee}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {list.port_loading} → {list.port_destination}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">
+                        {list.status === 'draft' ? 'Draft' : 
+                         list.status === 'completed' ? 'Completed' : 'Archived'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(list.created_at).toLocaleDateString('th-TH')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

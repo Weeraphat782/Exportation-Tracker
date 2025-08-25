@@ -33,4 +33,29 @@ export function getSupabaseServerClient(): SupabaseClient | null {
   })
 
   return supabaseServerClient;
+}
+
+/**
+ * Creates a separate Supabase client specifically for packing list operations
+ * This client is isolated and won't interfere with user authentication
+ */
+export function getPackingListClient(): SupabaseClient | null {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('Missing environment variables for packing list client')
+    return null;
+  }
+
+  // Create a fresh client instance for packing list operations
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    db: {
+      schema: 'public'
+    }
+  })
 } 
