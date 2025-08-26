@@ -491,9 +491,9 @@ export default function PackingListPage() {
     }));
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const totals = calculateTotals();
-    generatePackingListPDF(packingData, totals);
+    await generatePackingListPDF(packingData, totals);
   };
 
   const generateSankey = () => {

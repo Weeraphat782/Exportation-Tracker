@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 interface PackingListData {
   consignee: string;
@@ -56,8 +57,61 @@ interface Totals {
   totalNetWeight: number;
 }
 
-export function generatePackingListPDF(data: PackingListData, totals: Totals) {
+export async function generatePackingListPDF(data: PackingListData, totals: Totals) {
   try {
+    // Try to resolve a per-user company logo from Supabase Storage
+    let logoUrl: string | null = null;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (userId) {
+        // Change bucket/path as needed: e.g., bucket 'company-assets', file at users/<uid>/logo.*
+        const bucket = 'company-assets';
+        const candidateFolders = [
+          `users/${userId}`,
+          `${userId}/users/${userId}`,
+          `${userId}`
+        ];
+        // Fast path: try common filenames directly (avoid list permission issues)
+        const tryPathsFirst = [] as string[];
+        for (const f of candidateFolders) {
+          tryPathsFirst.push(`${f}/logo.png`, `${f}/logo.jpg`, `${f}/logo.jpeg`, `${f}/logo.webp`);
+        }
+        for (const p of tryPathsFirst) {
+          try {
+            const signed = await supabase.storage.from(bucket).createSignedUrl(p, 60 * 30);
+            if (signed.data?.signedUrl) { logoUrl = signed.data.signedUrl; break; }
+            const pub = supabase.storage.from(bucket).getPublicUrl(p).data?.publicUrl || null;
+            if (pub) { logoUrl = pub; break; }
+          } catch {}
+        }
+        // Fallback: list folders to find any image
+        for (const folder of candidateFolders) {
+          if (logoUrl) break;
+          try {
+            const listed = await supabase.storage.from(bucket).list(folder, { limit: 100 });
+            const files = listed.data || [];
+            const pick = (names: string[]) => files.find(f => names.includes(f.name));
+            const image =
+              pick(['logo.png','logo.jpg','logo.jpeg','logo.webp']) ||
+              files.find(f => /\.(png|jpg|jpeg|webp)$/i.test(f.name));
+            if (image) {
+              const path = `${folder}/${image.name}`;
+              // Prefer signed URL first (works for private buckets too)
+              const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 30);
+              logoUrl = signed.data?.signedUrl || null;
+              if (!logoUrl) {
+                const pub = supabase.storage.from(bucket).getPublicUrl(path).data?.publicUrl || null;
+                if (pub) logoUrl = pub;
+              }
+              if (logoUrl) break;
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      // Ignore logo errors; render without a logo
+    }
     // Create a new window for the PDF content
     const printWindow = window.open("", "_blank");
 
@@ -76,18 +130,31 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           body {
             font-family: Arial, sans-serif;
             margin: 15px;
-            font-size: 10px;
+            font-size: 11px;
             line-height: 1.2;
           }
-          .header {
-            text-align: center;
-            margin-bottom: 15px;
-            border: 2px solid #000;
-            padding: 8px;
+          .top-row { display: grid; grid-template-columns: 260px 1fr 260px; align-items: center; gap: 16px; margin-bottom: 12px; }
+          .logo-container { width: 260px; }
+          .logo-bar { display: flex; align-items: center; justify-content: flex-start; min-height: 100px; }
+          .logo-placeholder {
+            width: 260px;
+            height: 96px;
+            border: 1px dashed #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 10px;
           }
+          .logo-img {
+            max-height: 96px;
+            max-width: 360px;
+            object-fit: contain;
+          }
+          .header { text-align: center; margin: 0; border: none; padding: 0; }
           .header h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
           }
           .company-section {
@@ -103,7 +170,7 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           }
           .company-title {
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 6px;
             text-decoration: underline;
           }
@@ -111,6 +178,7 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
             font-size: 9px;
             line-height: 1.2;
           }
+          .company-info { font-size: 10px; }
           .shipping-details {
             border: 1px solid #000;
             padding: 8px;
@@ -119,7 +187,7 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           }
           .shipping-title {
             font-weight: bold;
-            font-size: 11px;
+            font-size: 12px;
             margin-bottom: 8px;
             text-align: center;
           }
@@ -136,13 +204,13 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
             font-weight: bold;
             min-width: 100px;
             margin-right: 8px;
-            font-size: 9px;
+            font-size: 10px;
           }
           .shipping-value {
             flex: 1;
             border-bottom: 1px solid #ccc;
             padding-bottom: 1px;
-            font-size: 9px;
+            font-size: 10px;
           }
 
           .table {
@@ -153,19 +221,19 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           .table th,
           .table td {
             border: 1px solid #000;
-            padding: 3px;
+            padding: 4px 5px;
             text-align: center;
-            font-size: 7px;
+            font-size: 10px;
           }
           .table th {
             background-color: #e0e0e0;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 11px;
           }
           .table tfoot td {
             background-color: #f0f0f0;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 10px;
             border-top: 2px solid #000;
           }
           .summary-section {
@@ -175,7 +243,7 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           }
           .summary-title {
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
             text-align: center;
             margin-bottom: 10px;
           }
@@ -192,13 +260,13 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
             font-weight: bold;
             min-width: 140px;
             margin-right: 8px;
-            font-size: 8px;
+            font-size: 9px;
           }
           .summary-value {
             flex: 1;
             border-bottom: 1px solid #000;
             padding-bottom: 1px;
-            font-size: 8px;
+            font-size: 9px;
           }
           .shipping-mark {
             margin-top: 10px;
@@ -210,34 +278,44 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
             min-height: 40px;
             white-space: pre-wrap;
             background-color: #f9f9f9;
-            font-size: 8px;
+            font-size: 9px;
           }
           .footer {
             margin-top: 15px;
             text-align: center;
-            font-size: 8px;
+            font-size: 9px;
             color: #666;
           }
           @media print {
             body { 
               margin: 0; 
-              font-size: 9px;
+              font-size: 10px;
             }
             .no-print { display: none; }
-            .header h1 { font-size: 16px; }
-            .company-title { font-size: 10px; }
-            .company-info { font-size: 8px; }
-            .shipping-title { font-size: 10px; }
-            .summary-title { font-size: 11px; }
-            .table th { font-size: 7px; }
-            .table td { font-size: 6px; }
-            .table tfoot td { font-size: 7px; }
+            .header h1 { font-size: 18px; }
+            .company-title { font-size: 11px; }
+            .company-info { font-size: 9px; }
+            .shipping-title { font-size: 11px; }
+            .summary-title { font-size: 12px; }
+            .table th { font-size: 10px; }
+            .table td { font-size: 9px; }
+            .table tfoot td { font-size: 10px; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>PACKING LIST</h1>
+        <div class="top-row">
+          <div class="logo-container">
+            <div class="logo-bar">
+              ${logoUrl
+                ? `<img class="logo-img" src="${logoUrl}" alt="Company Logo" />`
+                : `<div class="logo-placeholder">Company Logo</div>`}
+            </div>
+          </div>
+          <div class="header">
+            <h1>PACKING LIST</h1>
+          </div>
+          <div></div>
         </div>
 
         <div class="company-section">
@@ -278,7 +356,7 @@ export function generatePackingListPDF(data: PackingListData, totals: Totals) {
           <div class="shipping-grid">
             <div>
               <div class="shipping-item">
-                <span class="shipping-label">Customer OP No:</span>
+                <span class="shipping-label">Customer PO No:</span>
                 <span class="shipping-value">${data.customerOpNo}</span>
               </div>
               <div class="shipping-item">
