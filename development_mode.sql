@@ -28,3 +28,4 @@ SELECT COUNT(*) as total_pallets FROM packing_list_pallets;
 SELECT COUNT(*) as total_products FROM packing_list_products;
 
 
+

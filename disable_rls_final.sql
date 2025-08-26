@@ -31,3 +31,4 @@ SELECT COUNT(*) as total_products FROM packing_list_products;
 SELECT 'RLS has been disabled. System is ready to use!' as status;
 
 
+

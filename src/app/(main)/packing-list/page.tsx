@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,8 @@ const WIZARD_STEPS = [
 ];
 
 export default function PackingListPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [packingData, setPackingData] = useState<PackingListData>({
     consignee: '',
@@ -130,6 +133,76 @@ export default function PackingListPage() {
   }
   const [savedPackingLists, setSavedPackingLists] = useState<SavedPackingListRow[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+
+  // Load existing packing list if ID is provided in URL
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      loadExistingPackingList(id);
+    }
+  }, [searchParams]);
+
+  // Function to load existing packing list data
+  const loadExistingPackingList = async (id: string) => {
+    setIsLoadingExisting(true);
+    try {
+      const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      const response = await fetch(`/api/packing-lists/${id}`, {
+        headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const existingData = result.data;
+        setPackingData({
+          id: existingData.id,
+          packing_list_no: existingData.packing_list_no,
+          consignee: existingData.consignee || '',
+          consigneeAddress: existingData.consigneeAddress || '',
+          consigneePhone: existingData.consigneePhone || '',
+          consigneeEmail: existingData.consigneeEmail || '',
+          consigneeContract: existingData.consigneeContract || '',
+          consigner: existingData.consigner || '',
+          consignerAddress: existingData.consignerAddress || '',
+          consignerPhone: existingData.consignerPhone || '',
+          consignerEmail: existingData.consignerEmail || '',
+          consignerContract: existingData.consignerContract || '',
+          shippedTo: existingData.shippedTo || '',
+          shippedToAddress: existingData.shippedToAddress || '',
+          shippedToPhone: existingData.shippedToPhone || '',
+          shippedToEmail: existingData.shippedToEmail || '',
+          shippedToContract: existingData.shippedToContract || '',
+          customerOpNo: existingData.customerOpNo || '',
+          typeOfShipment: existingData.typeOfShipment || '',
+          portLoading: existingData.portLoading || '',
+          portDestination: existingData.portDestination || '',
+          pallets: existingData.pallets || [],
+          totalGrossWeight: existingData.totalGrossWeight || 0,
+          boxSize: existingData.boxSize || '',
+          shippingMark: existingData.shippingMark || '',
+          airport: existingData.airport || '',
+          destination: existingData.destination || '',
+          countryOfOrigin: existingData.countryOfOrigin || 'Thailand',
+          status: existingData.status || 'draft',
+          notes: existingData.notes || ''
+        });
+        toast.success(`Loaded existing packing list: ${existingData.packing_list_no}`);
+      } else {
+        toast.error('Failed to load existing packing list');
+        router.push('/packing-list');
+      }
+    } catch (error) {
+      console.error('Error loading existing packing list:', error);
+      toast.error('Error loading existing packing list');
+      router.push('/packing-list');
+    } finally {
+      setIsLoadingExisting(false);
+    }
+  };
 
   // Calculate totals
   const calculateTotals = () => {
@@ -163,7 +236,7 @@ export default function PackingListPage() {
 
   const totals = calculateTotals();
 
-  // ฟังก์ชันสำหรับ Save Packing List
+  // ฟังก์ชันสำหรับ Save Packing List (Create or Update)
   const savePackingList = async () => {
     if (!packingData.consignee || !packingData.consigner) {
       toast.error('กรุณากรอกข้อมูล Consignee และ Consigner');
@@ -175,8 +248,13 @@ export default function PackingListPage() {
       // Attach Supabase access token so API can authenticate via Authorization header
       const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      const response = await fetch('/api/packing-lists', {
-        method: 'POST',
+      
+      const isUpdate = !!packingData.id;
+      const url = isUpdate ? `/api/packing-lists/${packingData.id}` : '/api/packing-lists';
+      const method = isUpdate ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
@@ -187,14 +265,15 @@ export default function PackingListPage() {
       const result = await response.json();
 
       if (result.success) {
-        toast.success(`บันทึกสำเร็จ! เลขที่: ${result.data.packing_list_no}`);
+        const action = isUpdate ? 'อัปเดต' : 'บันทึก';
+        toast.success(`${action}สำเร็จ! เลขที่: ${result.data.packing_list_no}`);
         setPackingData(prev => ({
           ...prev,
           id: result.data.id,
           packing_list_no: result.data.packing_list_no
         }));
       } else {
-        toast.error('เกิดข้อผิดพลาดในการบันทึก');
+        toast.error(`เกิดข้อผิดพลาดในการ${isUpdate ? 'อัปเดต' : 'บันทึก'}`);
       }
     } catch (error) {
       console.error('Error saving packing list:', error);
@@ -1204,10 +1283,17 @@ export default function PackingListPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Packing List Generator</h1>
+          <h1 className="text-3xl font-bold">
+            {isLoadingExisting ? 'Loading...' : 'Packing List Generator'}
+            {packingData.id && !isLoadingExisting && (
+              <span className="ml-2 text-sm font-medium text-blue-600">
+                (Editing)
+              </span>
+            )}
+          </h1>
           <p className="text-muted-foreground">
-            Generate professional packing lists for your shipments
-            {packingData.packing_list_no && (
+            {isLoadingExisting ? 'Loading existing packing list...' : 'Generate professional packing lists for your shipments'}
+            {packingData.packing_list_no && !isLoadingExisting && (
               <span className="ml-2 text-sm font-medium text-blue-600">
                 ({packingData.packing_list_no})
               </span>
@@ -1215,17 +1301,59 @@ export default function PackingListPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {packingData.id && (
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setPackingData({
+                  consignee: '',
+                  consigneeAddress: '',
+                  consigneePhone: '',
+                  consigneeEmail: '',
+                  consigneeContract: '',
+                  consigner: '',
+                  consignerAddress: '',
+                  consignerPhone: '',
+                  consignerEmail: '',
+                  consignerContract: '',
+                  shippedTo: '',
+                  shippedToAddress: '',
+                  shippedToPhone: '',
+                  shippedToEmail: '',
+                  shippedToContract: '',
+                  customerOpNo: '',
+                  typeOfShipment: '',
+                  portLoading: '',
+                  portDestination: '',
+                  pallets: [],
+                  totalGrossWeight: 0,
+                  boxSize: '',
+                  shippingMark: '',
+                  airport: '',
+                  destination: '',
+                  countryOfOrigin: 'Thailand',
+                  status: 'draft'
+                });
+                setCurrentStep(1);
+                router.push('/packing-list');
+              }}
+              className="flex items-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New
+            </Button>
+          )}
           <Button variant="outline" onClick={openLoadDialog} className="flex items-center">
             <FolderOpen className="h-4 w-4 mr-2" />
             Load
           </Button>
           <Button 
             onClick={savePackingList} 
-            disabled={isSaving}
+            disabled={isSaving || isLoadingExisting}
             className="flex items-center"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? 'Saving...' : (isLoadingExisting ? 'Loading...' : (packingData.id ? 'Update' : 'Save'))}
           </Button>
         </div>
       </div>
@@ -1243,7 +1371,7 @@ export default function PackingListPage() {
         <Button 
           variant="outline" 
           onClick={prevStep}
-          disabled={currentStep === 1}
+          disabled={currentStep === 1 || isLoadingExisting}
           className="flex items-center"
         >
           <ChevronLeft className="h-4 w-4 mr-2" />
@@ -1251,12 +1379,12 @@ export default function PackingListPage() {
         </Button>
         
         <div className="text-sm text-muted-foreground">
-          Step {currentStep} of {WIZARD_STEPS.length}
+          {isLoadingExisting ? 'Loading...' : `Step ${currentStep} of ${WIZARD_STEPS.length}`}
         </div>
         
         <Button 
           onClick={nextStep}
-          disabled={currentStep === WIZARD_STEPS.length || !canProceedToNext()}
+          disabled={currentStep === WIZARD_STEPS.length || !canProceedToNext() || isLoadingExisting}
           className="flex items-center"
         >
           Next

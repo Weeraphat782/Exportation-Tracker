@@ -28,3 +28,4 @@ WHERE tablename IN ('packing_lists', 'packing_list_pallets', 'packing_list_produ
 -- DELETE FROM packing_lists WHERE created_by IS NULL;
 
 
+
