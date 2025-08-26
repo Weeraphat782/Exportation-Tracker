@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,7 +86,6 @@ const WIZARD_STEPS = [
 
 export default function PackingListPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [packingData, setPackingData] = useState<PackingListData>({
     consignee: '',
@@ -137,11 +136,14 @@ export default function PackingListPage() {
 
   // Load existing packing list if ID is provided in URL
   useEffect(() => {
-    const id = searchParams.get('id');
-    if (id) {
-      loadExistingPackingList(id);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (id) {
+        loadExistingPackingList(id);
+      }
     }
-  }, [searchParams]);
+  }, []);
 
   // Function to load existing packing list data
   const loadExistingPackingList = async (id: string) => {
@@ -1280,6 +1282,7 @@ export default function PackingListPage() {
   );
 
   return (
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading...</div>}>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
@@ -1445,5 +1448,6 @@ export default function PackingListPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </Suspense>
   );
 }
