@@ -416,6 +416,7 @@ export default function ShippingCalculatorPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>ID</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Customer Name</TableHead>
                     <TableHead>Destination</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Total Cost</TableHead>
@@ -428,6 +429,7 @@ export default function ShippingCalculatorPage() {
                       <TableCell>{formatDate(quotation.created_at)}</TableCell>
                       <TableCell>{quotation.id}</TableCell>
                       <TableCell>{quotation.company_name}</TableCell>
+                      <TableCell>{quotation.customer_name || '-'}</TableCell>
                       <TableCell>{quotation.destination}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(quotation.status)}>

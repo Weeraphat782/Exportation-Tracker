@@ -58,6 +58,7 @@ const additionalChargeSchema = z.object({
 // Fields managed by useForm defaults don't need .optional() or .default() here
 const quotationFormSchema = z.object({
   companyId: z.string().min(1, { message: 'Company is required' }),
+  customerName: z.string().min(1, { message: 'Customer name is required' }),
   contactPerson: z.string().min(1, { message: 'Contact person is required' }),
   contractNo: z.string().optional(), // Still optional
   destinationId: z.string().min(1, { message: 'Destination is required' }),
@@ -511,6 +512,7 @@ function ShippingCalculatorPageContent() {
         resolver: zodResolver(quotationFormSchema),
         defaultValues: {
             companyId: '',
+            customerName: '',
             contactPerson: '',
             contractNo: '',
             destinationId: '',
@@ -638,6 +640,7 @@ function ShippingCalculatorPageContent() {
                         const typedExistingQuotation = existingQuotation as Quotation;
                         reset({
                             companyId: typedExistingQuotation.company_id || '',
+                            customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
                             contractNo: typedExistingQuotation.contract_no || '',
                             destinationId: typedExistingQuotation.destination_id || '',
@@ -671,6 +674,7 @@ function ShippingCalculatorPageContent() {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
                     reset({
                         companyId: '',
+                        customerName: '',
                         contactPerson: '',
                         contractNo: '',
                         destinationId: '',
@@ -789,6 +793,7 @@ function ShippingCalculatorPageContent() {
         const dataForDB: NewQuotationData = {
             user_id: userId,
             company_id: formData.companyId,
+            customer_name: formData.customerName,
             contact_person: formData.contactPerson,
             contract_no: formData.contractNo || null,
             destination_id: formData.destinationId,
@@ -1004,6 +1009,19 @@ function ShippingCalculatorPageContent() {
                                             </SelectContent>
                                         </Select>
                                         {errors.companyId && <p className="text-red-500 text-xs mt-1">{errors.companyId.message}</p>}
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
+                                name="customerName"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Customer Name *</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Enter customer name" {...field} />
+                                        </FormControl>
+                                        {errors.customerName && <p className="text-red-500 text-xs mt-1">{errors.customerName.message}</p>}
                                     </FormItem>
                                 )}
                             />

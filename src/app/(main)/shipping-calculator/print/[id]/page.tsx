@@ -232,6 +232,10 @@ export default function PrintQuotationPage() {
                 <td className="py-1">{data?.company_name || 'N/A'}</td>
               </tr>
               <tr>
+                <td className="py-1 font-medium">Customer Name:</td>
+                <td className="py-1">{data?.customer_name || 'N/A'}</td>
+              </tr>
+              <tr>
                 <td className="py-1 font-medium">Contact Person:</td>
                 <td className="py-1">{data?.contact_person || 'N/A'}</td>
               </tr>
@@ -374,6 +378,7 @@ export default function PrintQuotationPage() {
         <div className="flex flex-col">
           <p className="font-semibold">Client</p>
           <p>{data?.company_name || "N/A"}</p>
+          <p className="text-sm text-gray-600">{data?.customer_name || "N/A"}</p>
         </div>
         <div className="flex flex-col text-right">
           <p className="font-semibold">Quotation Date</p>

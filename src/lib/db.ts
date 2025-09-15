@@ -65,6 +65,7 @@ export interface Quotation {
   created_at: string;
   user_id: string;
   company_id: string;
+  customer_name: string;
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
