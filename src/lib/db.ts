@@ -69,6 +69,7 @@ export interface Quotation {
   contact_person: string;
   contract_no?: string | null;
   destination_id: string;
+  shipping_date?: string | null;
   pallets: Pallet[]; // Use defined type
   delivery_service_required: boolean;
   delivery_vehicle_type: '4wheel' | '6wheel';

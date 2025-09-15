@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Package, FileCheck, Building, Globe, Clock, DollarSign, ZoomIn, ZoomOut } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 import { 
   PieChart, Pie, Cell, CartesianGrid, Tooltip as RechartsTooltip, 
   Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis
@@ -522,7 +523,10 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <MobileMenuButton />
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+      </div>
       {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
       
       {/* Summary Stats */}

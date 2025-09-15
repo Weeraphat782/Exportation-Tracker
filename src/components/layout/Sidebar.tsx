@@ -12,7 +12,8 @@ import {
   Calculator,
   Menu,
   FileText,
-  LayoutDashboard
+  LayoutDashboard,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,11 +24,12 @@ import { UserProfile } from '@/components/ui/user-profile';
 interface SidebarProps {
   isCollapsed: boolean;
   toggleSidebar: () => void;
+  isMobile: boolean;
   className?: string;
 }
 
 // Update component to accept props
-const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
+const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -39,8 +41,17 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
   return (
     <div 
       className={cn(
-        "h-screen bg-slate-900 text-white flex flex-col transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-16" : "w-72 p-4",
+        "h-full bg-slate-900 text-white flex flex-col transition-all duration-300 ease-in-out",
+        // Width based on state
+        isCollapsed ? "w-16" : "w-64",
+        // Position: fixed overlay on mobile, normal on desktop  
+        isMobile 
+          ? "fixed left-0 top-0 z-50 h-screen" 
+          : "relative",
+        // Hide on mobile when collapsed
+        isMobile && isCollapsed ? "hidden" : "flex",
+        // Padding
+        isCollapsed ? "p-2" : "p-4",
         className
       )}
     >
@@ -49,14 +60,17 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         isCollapsed ? "justify-center" : "justify-between" 
       )}>
         {!isCollapsed && <div className="text-lg font-bold">Exportation Tracker</div>}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="text-white hover:bg-slate-800"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+        {/* Show toggle button only on desktop or when sidebar is expanded on mobile */}
+        {(!isMobile || !isCollapsed) && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleSidebar}
+            className="text-white hover:bg-slate-800"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
       </div>
       
       <nav className="space-y-3 flex-1 overflow-y-auto">
@@ -110,6 +124,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, className }: SidebarProps) => {
         >
           <FileText className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Document Submissions</span>}
+        </Link>
+
+        <Link 
+          href="/calendar" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/calendar") ? "bg-slate-800" : ""
+          )}
+          title="Calendar"
+        >
+          <Calendar className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Calendar</span>}
         </Link>
 
         {/* Removed direct link to Generator; creation is accessed from list page */}

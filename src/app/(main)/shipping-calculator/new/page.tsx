@@ -495,6 +495,7 @@ function ShippingCalculatorPageContent() {
     const [isSaving, setIsSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
+    const [existingQuotation, setExistingQuotation] = useState<Quotation | null>(null);
 
     // Update the useEffect for recalculating costs to prevent infinite loops
     const [lastCalculatedValues, setLastCalculatedValues] = useState<{
@@ -631,13 +632,16 @@ function ShippingCalculatorPageContent() {
             try {
                 if (isEditMode && quotationId && userId) {
                     console.log(`Effect 2: Fetching existing quotation ${quotationId}`);
-                    const existingQuotation = await dbGetQuotationById(quotationId);
+                    const fetchedQuotation = await dbGetQuotationById(quotationId);
                     
-                    if (existingQuotation && existingQuotation.user_id === userId) {
+                    if (fetchedQuotation && fetchedQuotation.user_id === userId) {
                         console.log("Effect 2: Existing quotation found, resetting form.");
+                        // Store existing quotation for status preservation
+                        setExistingQuotation(fetchedQuotation);
+                        
                         // Use more specific type if possible, otherwise suppress error
                         // Assuming dbGetQuotationById returns Quotation | null
-                        const typedExistingQuotation = existingQuotation as Quotation;
+                        const typedExistingQuotation = fetchedQuotation as Quotation;
                         reset({
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
@@ -672,6 +676,9 @@ function ShippingCalculatorPageContent() {
                     }
                 } else {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
+                    // Clear existing quotation for new mode
+                    setExistingQuotation(null);
+                    
                     reset({
                         companyId: '',
                         customerName: '',
@@ -809,7 +816,8 @@ function ShippingCalculatorPageContent() {
             total_volume_weight: calculationResult.totalVolumeWeight,
             total_actual_weight: calculationResult.totalActualWeight,
             chargeable_weight: calculationResult.totalChargeableWeight,
-            status: 'sent',
+            // Preserve existing status if in edit mode, otherwise set to 'sent'
+            status: isEditMode && existingQuotation ? existingQuotation.status : 'sent',
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination 
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}` 

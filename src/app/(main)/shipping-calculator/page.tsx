@@ -7,12 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Search, Share2, FileArchive, CheckCircle, Calendar, Mail } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 
 export default function ShippingCalculatorPage() {
   const router = useRouter();
@@ -351,45 +353,174 @@ export default function ShippingCalculatorPage() {
     }
   };
 
-  // Filter quotations based on search term (use fields available in the data)
-  const filteredQuotations = quotations.filter(quotation => {
+  // Separate quotations by status
+  const activeQuotations = quotations.filter(quotation => quotation.status !== 'completed');
+  const completedQuotations = quotations.filter(quotation => quotation.status === 'completed');
+
+  // Filter function for search
+  const filterQuotations = (quotationsList: Quotation[]) => {
+    if (!searchTerm) return quotationsList;
+    
     const searchTermLower = searchTerm.toLowerCase();
-    return (
+    return quotationsList.filter(quotation => (
       (quotation.id?.toLowerCase().includes(searchTermLower)) ||
-      (quotation.company_name?.toLowerCase().includes(searchTermLower))
+      (quotation.company_name?.toLowerCase().includes(searchTermLower)) ||
+      (quotation.customer_name?.toLowerCase().includes(searchTermLower))
+    ));
+  };
+
+  const filteredActiveQuotations = filterQuotations(activeQuotations);
+  const filteredCompletedQuotations = filterQuotations(completedQuotations);
+
+  // Function to render quotations table
+  const renderQuotationsTable = (quotationsList: Quotation[], showCompleteButton: boolean = true) => {
+    if (quotationsList.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <FileText className="h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium">No quotations found</h3>
+          <p className="text-sm text-gray-500 mt-1 mb-4">
+            {searchTerm ? 'Try adjusting your search terms.' : 'No quotations in this category yet.'}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[90px] text-xs sm:text-sm">Date</TableHead>
+              <TableHead className="min-w-[80px] text-xs sm:text-sm">ID</TableHead>
+              <TableHead className="min-w-[120px] text-xs sm:text-sm">Company</TableHead>
+              <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>
+              <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>
+              <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>
+              <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>
+              <TableHead className="min-w-[140px] text-right text-xs sm:text-sm">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {quotationsList.map((quotation) => (
+              <TableRow key={quotation.id}>
+                <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>
+                <TableCell className="text-xs sm:text-sm font-mono">{quotation.id}</TableCell>
+                <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>
+                <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>
+                <TableCell className="text-xs sm:text-sm">{quotation.destination}</TableCell>
+                <TableCell>
+                  <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
+                    {getStatusText(quotation.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1 sm:gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewQuotation(quotation.id)}
+                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      title="Create booking email"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Link href={`/email-booking/${quotation.id}`}>
+                        <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Link>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
+                        navigator.clipboard.writeText(url);
+                        toast.success('Link Copied', {
+                          description: 'Document upload link copied to clipboard!'
+                        });
+                      }}
+                      title="Share document upload link"
+                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                    
+                    {showCompleteButton && quotation.status !== 'completed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenCompleteDialog(quotation.id)}
+                        title="Mark as completed"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
+                      >
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    )}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteQuotation(quotation.id)}
+                      title="Delete quotation"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     );
-  });
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Shipping Calculator</h1>
-        <Button asChild>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
+        <div className="flex items-center gap-3">
+          <MobileMenuButton />
+          <h1 className="text-2xl sm:text-3xl font-bold">Shipping Calculator</h1>
+        </div>
+        <Button asChild className="self-start sm:self-auto">
           <Link href="/shipping-calculator/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Calculation
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+            <span className="text-sm sm:text-base">New Calculation</span>
           </Link>
         </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Quotations</CardTitle>
-          <CardDescription>View and manage your recent shipping quotations</CardDescription>
-          {/* Add Search Input Here */}
+        <CardHeader className="pb-4">
+          <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-start sm:space-y-0">
+            <div>
+              <CardTitle className="text-lg sm:text-xl">Quotations Management</CardTitle>
+              <CardDescription className="text-sm">View and manage your shipping quotations by status</CardDescription>
+            </div>
+          </div>
+          {/* Search Input */}
           <div className="relative mt-4">
-             {/* Add Search Icon back */}
              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /> 
              <Input 
                 type="search"
-                placeholder="Search by ID or Company..."
+                placeholder="Search by ID, Company, or Customer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full md:w-1/3"
+                className="pl-8 w-full sm:w-1/2 lg:w-1/3 text-sm"
               />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-pulse">Loading quotations...</div>
@@ -409,109 +540,26 @@ export default function ShippingCalculatorPage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Customer Name</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total Cost</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredQuotations.map((quotation) => (
-                    <TableRow key={quotation.id}>
-                      <TableCell>{formatDate(quotation.created_at)}</TableCell>
-                      <TableCell>{quotation.id}</TableCell>
-                      <TableCell>{quotation.company_name}</TableCell>
-                      <TableCell>{quotation.customer_name || '-'}</TableCell>
-                      <TableCell>{quotation.destination}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(quotation.status)}>
-                          {getStatusText(quotation.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleViewQuotation(quotation.id)}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            asChild
-                            title="Create booking email"
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Link href={`/email-booking/${quotation.id}`}>
-                              <Mail className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                              const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
-                              navigator.clipboard.writeText(url);
-                              toast.success('Link Copied', {
-                                description: 'Document upload link copied to clipboard!'
-                              });
-                            }}
-                            title="Share document upload link"
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            asChild
-                            title="View document submissions"
-                          >
-                            <Link href={`/document-submissions?quotation=${quotation.id}`}>
-                              <FileArchive className="h-4 w-4" />
-                            </Link>
-                          </Button>
-
-                          {quotation.status !== 'completed' && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleOpenCompleteDialog(quotation.id)}
-                              title="Mark as completed"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDeleteQuotation(quotation.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="active" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Active ({filteredActiveQuotations.length})
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Completed ({filteredCompletedQuotations.length})
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="active" className="mt-4">
+                {renderQuotationsTable(filteredActiveQuotations, true)}
+              </TabsContent>
+              
+              <TabsContent value="completed" className="mt-4">
+                {renderQuotationsTable(filteredCompletedQuotations, false)}
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,19 +134,8 @@ export default function PackingListPage() {
   const [isLoadingLists, setIsLoadingLists] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
-  // Load existing packing list if ID is provided in URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get('id');
-      if (id) {
-        loadExistingPackingList(id);
-      }
-    }
-  }, []);
-
   // Function to load existing packing list data
-  const loadExistingPackingList = async (id: string) => {
+  const loadExistingPackingList = useCallback(async (id: string) => {
     setIsLoadingExisting(true);
     try {
       const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
@@ -204,7 +193,18 @@ export default function PackingListPage() {
     } finally {
       setIsLoadingExisting(false);
     }
-  };
+  }, [router]);
+
+  // Load existing packing list if ID is provided in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (id) {
+        loadExistingPackingList(id);
+      }
+    }
+  }, [loadExistingPackingList]);
 
   // Calculate totals
   const calculateTotals = () => {

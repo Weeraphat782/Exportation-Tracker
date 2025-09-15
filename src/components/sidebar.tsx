@@ -13,6 +13,7 @@ import {
   BarChart,
   Mail,
   Package,
+  Calendar,
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -66,6 +67,17 @@ export function Sidebar() {
         >
           <Package className="h-5 w-5" />
           Packing List Generator
+        </Link>
+        
+        <Link
+          href="/calendar"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:text-primary",
+            pathname.includes("/calendar") ? "bg-slate-100 text-primary" : "text-slate-500"
+          )}
+        >
+          <Calendar className="h-5 w-5" />
+          Calendar
         </Link>
         
         <Separator className="my-4" />
