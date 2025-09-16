@@ -61,7 +61,7 @@ export default function QuotationPreviewPage() {
           created_at: new Date().toISOString(),
           user_id: '123', // This should be the actual user ID in production
           company_id: '456', // This should be a valid company ID
-          customer_name: 'Mr. Somchai Jaidee',
+          customer_name: 'Sample Customer',
           contact_person: 'John Doe',
           contract_no: 'CNT-2025-123',
           destination_id: '789', // This should be a valid destination ID
@@ -217,10 +217,6 @@ export default function QuotationPreviewPage() {
                     <tr>
                       <td className="py-1 font-medium">Company:</td>
                       <td className="py-1">{quotationData?.company_name || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td className="py-1 font-medium">Customer Name:</td>
-                      <td className="py-1">{quotationData?.customer_name || 'N/A'}</td>
                     </tr>
                     <tr>
                       <td className="py-1 font-medium">Contact Person:</td>

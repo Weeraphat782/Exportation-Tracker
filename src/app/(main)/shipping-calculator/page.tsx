@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
@@ -397,6 +397,7 @@ export default function ShippingCalculatorPage() {
               <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>
               <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>
+              <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>
               <TableHead className="min-w-[140px] text-right text-xs sm:text-sm">Actions</TableHead>
             </TableRow>
@@ -413,6 +414,26 @@ export default function ShippingCalculatorPage() {
                   <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
                     {getStatusText(quotation.status)}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-xs sm:text-sm">
+                  {(() => {
+                    // Use stored total_actual_weight if available
+                    if (quotation.total_actual_weight) {
+                      return `${quotation.total_actual_weight} kg`;
+                    }
+                    
+                    // Calculate from pallets if no stored value
+                    if (quotation.pallets && quotation.pallets.length > 0) {
+                      const calculatedWeight = quotation.pallets.reduce((total, pallet) => {
+                        const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
+                        const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
+                        return total + (weight * quantity);
+                      }, 0);
+                      return calculatedWeight > 0 ? `${calculatedWeight} kg` : '-';
+                    }
+                    
+                    return '-';
+                  })()}
                 </TableCell>
                 <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>
                 <TableCell className="text-right">
@@ -435,6 +456,18 @@ export default function ShippingCalculatorPage() {
                     >
                       <Link href={`/email-booking/${quotation.id}`}>
                         <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      title="Create Debit Note"
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Link href={`/debit-note/${quotation.id}`}>
+                        <Receipt className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Link>
                     </Button>
                     
@@ -543,7 +576,7 @@ export default function ShippingCalculatorPage() {
             <Tabs defaultValue="active" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="active" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
+                            <FileText className="h-4 w-4" />
                   Active ({filteredActiveQuotations.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed" className="flex items-center gap-2">
