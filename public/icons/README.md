@@ -31,3 +31,4 @@ The logo is used in:
 ## Note
 
 The logo will automatically scale proportionally based on the height setting while maintaining aspect ratio.
+

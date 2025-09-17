@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 
@@ -438,76 +439,91 @@ export default function ShippingCalculatorPage() {
                 <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1 sm:gap-2">
+                    {/* View Quotation Button */}
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => handleViewQuotation(quotation.id)}
+                      title="View quotation"
                       className="h-7 w-7 sm:h-9 sm:w-9 p-0"
                     >
                       <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      title="Create booking email"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
-                    >
-                      <Link href={`/email-booking/${quotation.id}`}>
-                        <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Link>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      title="Create Debit Note"
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
-                    >
-                      <Link href={`/debit-note/${quotation.id}`}>
-                        <Receipt className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Link>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
-                        navigator.clipboard.writeText(url);
-                        toast.success('Link Copied', {
-                          description: 'Document upload link copied to clipboard!'
-                        });
-                      }}
-                      title="Share document upload link"
-                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
-                    >
-                      <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </Button>
-                    
-                    {showCompleteButton && quotation.status !== 'completed' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenCompleteDialog(quotation.id)}
-                        title="Mark as completed"
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
-                      >
-                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    )}
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteQuotation(quotation.id)}
-                      title="Delete quotation"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 sm:h-9 sm:w-9 p-0"
-                    >
-                      <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </Button>
+                    {/* Actions Dropdown Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                        >
+                          <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {/* Document Submissions */}
+                        <DropdownMenuItem asChild>
+                          <Link href={`/document-submissions?quotation=${quotation.id}`} className="flex items-center">
+                            <FileArchive className="h-4 w-4 mr-2" />
+                            View Documents
+                          </Link>
+                        </DropdownMenuItem>
+                        
+                        {/* Create Booking Email */}
+                        <DropdownMenuItem asChild>
+                          <Link href={`/email-booking/${quotation.id}`} className="flex items-center">
+                            <Mail className="h-4 w-4 mr-2" />
+                            Create Booking Email
+                          </Link>
+                        </DropdownMenuItem>
+                        
+                        {/* Create Debit Note */}
+                        <DropdownMenuItem asChild>
+                          <Link href={`/debit-note/${quotation.id}`} className="flex items-center">
+                            <Receipt className="h-4 w-4 mr-2" />
+                            Create Debit Note
+                          </Link>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        {/* Share Upload Link */}
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success('Link Copied', {
+                              description: 'Document upload link copied to clipboard!'
+                            });
+                          }}
+                        >
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share Upload Link
+                        </DropdownMenuItem>
+                        
+                        {/* Mark as Completed */}
+                        {showCompleteButton && quotation.status !== 'completed' && (
+                          <DropdownMenuItem
+                            onClick={() => handleOpenCompleteDialog(quotation.id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Mark as Completed
+                          </DropdownMenuItem>
+                        )}
+                        
+                        <DropdownMenuSeparator />
+                        
+                        {/* Delete */}
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteQuotation(quotation.id)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash className="h-4 w-4 mr-2" />
+                          Delete Quotation
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
