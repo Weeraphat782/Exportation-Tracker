@@ -170,13 +170,25 @@ export default function ShippingCalculatorPage() {
 
   const formatDate = (dateString: string) => {
     try {
-      // Handle different date formats
+      // Handle different date formats and fix timezone issue
+      if (dateString.includes('T')) {
+        // If it's a full datetime string, parse normally
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('th-TH', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       }).format(date);
+      } else {
+        // If it's just a date string (YYYY-MM-DD), parse as local date to avoid timezone issues
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }).format(date);
+      }
     } catch {
       return dateString; // Return original string if parsing fails
     }
@@ -329,9 +341,12 @@ export default function ShippingCalculatorPage() {
 
     setIsUpdating(true);
     try {
+      // Fix timezone issue by ensuring we save the date as-is without timezone conversion
+      const dateToSave = selectedShippingDate; // Keep as string format YYYY-MM-DD
+      
       // Update quotation shipping date in the database
       const result = await updateQuotation(quotationForShipping, {
-        shipping_date: selectedShippingDate
+        shipping_date: dateToSave
       });
 
       if (result) {
@@ -339,7 +354,7 @@ export default function ShippingCalculatorPage() {
         setQuotations(prev => 
           prev.map(q => 
             q.id === quotationForShipping 
-              ? { ...q, shipping_date: selectedShippingDate } 
+              ? { ...q, shipping_date: dateToSave } 
               : q
           )
         );
@@ -733,7 +748,7 @@ export default function ShippingCalculatorPage() {
                           toast.success('Shipping date removed');
                           setIsShippingDateDialogOpen(false);
                         }
-                      } catch (error) {
+                      } catch {
                         toast.error('Failed to remove date');
                       } finally {
                         setIsUpdating(false);

@@ -38,6 +38,32 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [quotations, setQuotations] = useState<QuotationEvent[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Format date function to handle timezone issues
+  const formatDate = (dateString: string) => {
+    try {
+      if (dateString.includes('T')) {
+        // If it's a full datetime string, parse normally
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }).format(date);
+      } else {
+        // If it's just a date string (YYYY-MM-DD), parse as local date to avoid timezone issues
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day); // month is 0-indexed
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }).format(date);
+      }
+    } catch {
+      return dateString; // Return original string if parsing fails
+    }
+  };
   const [selectedQuotation, setSelectedQuotation] = useState<QuotationEvent | null>(null);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editingShippingDate, setEditingShippingDate] = useState('');
@@ -100,15 +126,14 @@ export default function CalendarPage() {
 
       console.log('Loaded quotations:', data);
       
-      // Filter out completed quotations but include sent and docs_uploaded
-      const activeQuotations = data.filter(q => 
-        q.status !== 'completed' && 
-        q.status !== 'rejected'
+      // Include all quotations including completed ones for calendar display
+      const allQuotations = data.filter(q => 
+        q.status !== 'rejected'  // Only exclude rejected quotations
       );
-      console.log('Active quotations (excluding completed/rejected):', activeQuotations);
+      console.log('All quotations (excluding rejected):', allQuotations);
       
       // Use real data from database
-      const quotationsWithShippingDates = activeQuotations.map(q => ({
+      const quotationsWithShippingDates = allQuotations.map(q => ({
         ...q,
         // Add fallback values for display
         company_name: q.company_name || 'Unknown Company',
@@ -148,7 +173,12 @@ export default function CalendarPage() {
   };
 
   const getQuotationsForDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // Fix timezone issue - use local date string format
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
     const filtered = quotations.filter(q => q.shipping_date === dateString);
     if (filtered.length > 0) {
       console.log(`Date ${dateString} has ${filtered.length} quotations:`, filtered);
@@ -212,7 +242,11 @@ export default function CalendarPage() {
     if (!selectedDate || !quotationToAssign) return;
     
     try {
-      const dateString = selectedDate.toISOString().split('T')[0];
+      // Fix timezone issue - use local date string format
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
       
       // Update in database
       const { error } = await supabase
@@ -235,7 +269,7 @@ export default function CalendarPage() {
       
       setQuotations(updatedQuotations);
       setAvailableQuotations(updatedQuotations.filter(q => 
-        (q.status === 'sent' || q.status === 'docs_uploaded') && !q.shipping_date
+        q.status !== 'rejected' && !q.shipping_date
       ));
       setShowAssignDialog(false);
       toast.success('Quotation assigned to date successfully');
@@ -269,9 +303,9 @@ export default function CalendarPage() {
       );
       setQuotations(updatedQuotations);
       
-      // Update available quotations list
+      // Update available quotations list (include all statuses except rejected)
       setAvailableQuotations(updatedQuotations.filter(q => 
-        (q.status === 'sent' || q.status === 'docs_uploaded') && !q.shipping_date
+        q.status !== 'rejected' && !q.shipping_date
       ));
       
       setSelectedQuotation({
@@ -311,9 +345,9 @@ export default function CalendarPage() {
       );
       setQuotations(updatedQuotations);
       
-      // Update available quotations list
+      // Update available quotations list (include all statuses except rejected)
       setAvailableQuotations(updatedQuotations.filter(q => 
-        (q.status === 'sent' || q.status === 'docs_uploaded') && !q.shipping_date
+        q.status !== 'rejected' && !q.shipping_date
       ));
       
       setSelectedQuotation({
@@ -510,7 +544,7 @@ export default function CalendarPage() {
                           text-xs p-0.5 sm:p-1 rounded cursor-pointer hover:opacity-80 space-y-0.5 sm:space-y-1
                           ${getStatusColor(quotation.status)}
                         `}
-                        title={`${quotation.customer_name || quotation.company_name} - ${quotation.destination} (Created: ${new Date(quotation.created_at).toLocaleDateString()})`}
+                        title={`${quotation.customer_name || quotation.company_name} - ${quotation.destination} (Created: ${formatDate(quotation.created_at)})`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="truncate font-medium min-w-0 flex-1">
@@ -542,10 +576,7 @@ export default function CalendarPage() {
                             </div>
                           </div>
                           <span className="text-xs flex-shrink-0 hidden sm:inline">
-                            {new Date(quotation.created_at).toLocaleDateString('en-GB', { 
-                              day: '2-digit', 
-                              month: '2-digit' 
-                            })}
+                            {formatDate(quotation.created_at)}
                           </span>
                         </div>
                       </div>
@@ -604,12 +635,7 @@ export default function CalendarPage() {
               <div>
                 <Label className="text-sm font-medium">Created Date</Label>
                 <p className="text-sm text-gray-600">
-                  {new Date(selectedQuotation.created_at).toLocaleDateString('en-GB', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+                  {formatDate(selectedQuotation.created_at)}
                 </p>
               </div>
 
@@ -650,7 +676,7 @@ export default function CalendarPage() {
                 ) : (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600">
-                      {selectedQuotation.shipping_date || 'Not set'}
+                      {selectedQuotation.shipping_date ? formatDate(selectedQuotation.shipping_date) : 'Not set'}
                     </p>
                     {selectedQuotation.shipping_date && (
                       <Button
@@ -800,7 +826,7 @@ export default function CalendarPage() {
                           </span>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {quotation.destination} • {quotation.total_cost.toLocaleString()} THB • Created: {new Date(quotation.created_at).toLocaleDateString()}
+                          {quotation.destination} • {quotation.total_cost.toLocaleString()} THB • Created: {formatDate(quotation.created_at)}
                         </span>
                       </div>
                     </SelectItem>
