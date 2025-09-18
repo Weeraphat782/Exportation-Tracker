@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
@@ -27,6 +28,9 @@ export default function ShippingCalculatorPage() {
   const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
   const [completedDate, setCompletedDate] = useState<Date>(new Date());
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isShippingDateDialogOpen, setIsShippingDateDialogOpen] = useState(false);
+  const [selectedShippingDate, setSelectedShippingDate] = useState('');
+  const [quotationForShipping, setQuotationForShipping] = useState<string>('');
 
   // First useEffect - only for auth checking
   useEffect(() => {
@@ -311,6 +315,50 @@ export default function ShippingCalculatorPage() {
     }
   };
 
+  // Handle shipping date assignment
+  const handleOpenShippingDateDialog = (id: string) => {
+    setQuotationForShipping(id);
+    // Get current shipping date if exists
+    const quotation = quotations.find(q => q.id === id);
+    setSelectedShippingDate(quotation?.shipping_date || '');
+    setIsShippingDateDialogOpen(true);
+  };
+
+  const handleSaveShippingDate = async () => {
+    if (!quotationForShipping || !selectedShippingDate) return;
+
+    setIsUpdating(true);
+    try {
+      // Update quotation shipping date in the database
+      const result = await updateQuotation(quotationForShipping, {
+        shipping_date: selectedShippingDate
+      });
+
+      if (result) {
+        // Update local state
+        setQuotations(prev => 
+          prev.map(q => 
+            q.id === quotationForShipping 
+              ? { ...q, shipping_date: selectedShippingDate } 
+              : q
+          )
+        );
+        
+        toast.success('Shipping Date Assigned', {
+          description: `Shipping date has been assigned successfully.`
+        });
+      } else {
+        toast.error('Failed to assign shipping date');
+      }
+    } catch (error) {
+      console.error('Error assigning shipping date:', error);
+      toast.error('An error occurred');
+    } finally {
+      setIsUpdating(false);
+      setIsShippingDateDialogOpen(false);
+    }
+  };
+
   // Handle complete quotation
   const handleOpenCompleteDialog = (id: string) => {
     setSelectedQuotationId(id);
@@ -399,6 +447,7 @@ export default function ShippingCalculatorPage() {
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>
               <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>
+              <TableHead className="min-w-[100px] text-xs sm:text-sm">Shipping Date</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>
               <TableHead className="min-w-[140px] text-right text-xs sm:text-sm">Actions</TableHead>
             </TableRow>
@@ -435,6 +484,31 @@ export default function ShippingCalculatorPage() {
                     
                     return '-';
                   })()}
+                </TableCell>
+                <TableCell className="text-xs sm:text-sm">
+                  {quotation.shipping_date ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenShippingDateDialog(quotation.id)}
+                      className="h-auto p-1 flex items-center gap-2 text-green-700 hover:text-green-800 hover:bg-green-50"
+                    >
+                      <CalendarDays className="h-3 w-3" />
+                      <span className="text-xs">
+                        {formatDate(quotation.shipping_date)}
+                      </span>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenShippingDateDialog(quotation.id)}
+                      className="h-6 text-xs px-2 py-1"
+                    >
+                      <Calendar className="h-3 w-3 mr-1" />
+                      Assign
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>
                 <TableCell className="text-right">
@@ -612,6 +686,81 @@ export default function ShippingCalculatorPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Shipping Date Assignment Dialog */}
+      <Dialog open={isShippingDateDialogOpen} onOpenChange={setIsShippingDateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Shipping Date</DialogTitle>
+            <DialogDescription>
+              Select the shipping date for this quotation. This will be displayed in the Calendar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="space-y-2">
+              <Label htmlFor="shipping-date">Shipping Date</Label>
+              <Input
+                id="shipping-date"
+                type="date"
+                value={selectedShippingDate}
+                onChange={(e) => setSelectedShippingDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <div className="flex justify-between w-full">
+              <div>
+                {quotations.find(q => q.id === quotationForShipping)?.shipping_date && (
+                  <Button 
+                    variant="destructive"
+                    onClick={async () => {
+                      setIsUpdating(true);
+                      try {
+                        const result = await updateQuotation(quotationForShipping, {
+                          shipping_date: null
+                        });
+                        if (result) {
+                          setQuotations(prev => 
+                            prev.map(q => 
+                              q.id === quotationForShipping 
+                                ? { ...q, shipping_date: null } 
+                                : q
+                            )
+                          );
+                          toast.success('Shipping date removed');
+                          setIsShippingDateDialogOpen(false);
+                        }
+                      } catch (error) {
+                        toast.error('Failed to remove date');
+                      } finally {
+                        setIsUpdating(false);
+                      }
+                    }}
+                    disabled={isUpdating}
+                  >
+                    Remove Date
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsShippingDateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveShippingDate} 
+                  disabled={isUpdating || !selectedShippingDate}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isUpdating ? 'Saving...' : 'Assign Date'}
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Complete Confirmation Dialog */}
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>

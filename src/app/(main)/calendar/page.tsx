@@ -117,10 +117,10 @@ export default function CalendarPage() {
       
       console.log('Quotations with shipping dates:', quotationsWithShippingDates);
       setQuotations(quotationsWithShippingDates);
-      // Show all quotations that are 'sent' or 'docs_uploaded' status for assignment
-      setAvailableQuotations(quotationsWithShippingDates.filter(q => 
-        (q.status === 'sent' || q.status === 'docs_uploaded') && !q.shipping_date
-      ));
+      
+      // Show all quotations for assignment (including completed ones for flexibility)
+      setAvailableQuotations(data || []);
+      
     } catch (error) {
       console.error('Error loading quotations:', error);
       toast.error('Failed to load quotations: ' + (error as Error).message);
