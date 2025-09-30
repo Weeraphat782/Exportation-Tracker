@@ -328,6 +328,17 @@ export default function QuotationPreviewPage() {
                 <div className="text-sm">{quotationData.notes}</div>
               </div>
             )}
+
+            {/* Bank Account Information */}
+            <div className="mb-8">
+              <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">PAYMENT INFORMATION</h3>
+              <div className="text-sm space-y-1">
+                <p><strong>Kindly transfer to the following account:</strong></p>
+                <p><strong>Bank:</strong> KASIKORN BANK</p>
+                <p><strong>Account Name:</strong> Mr. Shivek Sachdev</p>
+                <p><strong>Account Number:</strong> 784-2-02905-2</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

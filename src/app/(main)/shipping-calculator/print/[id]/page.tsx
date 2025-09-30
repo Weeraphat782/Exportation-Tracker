@@ -374,6 +374,17 @@ export default function PrintQuotationPage() {
         </div>
       )}
 
+      {/* Bank Account Information */}
+      <div className="mb-8">
+        <h3 className="font-semibold border-b border-gray-300 pb-1 mb-3">PAYMENT INFORMATION</h3>
+        <div className="p-4 bg-gray-50 rounded-md text-sm space-y-1">
+          <p><strong>Kindly transfer to the following account:</strong></p>
+          <p><strong>Bank:</strong> KASIKORN BANK</p>
+          <p><strong>Account Name:</strong> Mr. Shivek Sachdev</p>
+          <p><strong>Account Number:</strong> 784-2-02905-2</p>
+        </div>
+      </div>
+
       <div className="flex flex-row justify-between mb-4">
         <div className="flex flex-col">
           <p className="font-semibold">Client</p>
