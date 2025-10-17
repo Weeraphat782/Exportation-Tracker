@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "exportation-quotation-node": {
+      "command": "node",
+      "args": ["mcp-server.js"],
+      "cwd": "C:\\Users\\Jirut\\Exportation Without Typhoon\\Tr\\mcp-node-server",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}

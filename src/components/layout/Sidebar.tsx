@@ -13,7 +13,9 @@ import {
   Menu,
   FileText,
   LayoutDashboard,
-  Calendar
+  Calendar,
+  FileCheck,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -127,6 +129,19 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
         </Link>
 
         <Link 
+          href="/document-comparison" 
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/document-comparison") ? "bg-slate-800" : ""
+          )}
+          title="Document Comparison"
+        >
+          <FileCheck className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Document Comparison</span>}
+        </Link>
+
+        <Link 
           href="/calendar" 
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
@@ -192,6 +207,16 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
               >
                 <DollarSign className="h-5 w-5 mr-3" />
                 <span className="text-base">Freight Rate</span>
+              </Link>
+              <Link 
+                href="/settings/ai" 
+                className={cn(
+                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                  pathname?.startsWith("/settings/ai") ? "bg-slate-700" : ""
+                )}
+              >
+                <Sparkles className="h-5 w-5 mr-3" />
+                <span className="text-base">AI Settings</span>
               </Link>
             </div>
           )}

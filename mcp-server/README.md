@@ -57,11 +57,39 @@ uv run python -m src.quotation_server
 
 ## Usage with Cursor
 
-1. Make sure the MCP server is running
-2. In Cursor, the server will be automatically detected
-3. Use the tools in chat or code completion
+### Setup
 
-### Example Usage
+1. **Copy the configuration:**
+   - Copy the contents of `cursor-mcp-config.json`
+   - In Cursor, go to Settings → MCP → Custom MCP Tools
+   - Paste the configuration
+   - **Important:** Update the paths in the config to match your actual file paths
+
+2. **Alternative: Manual Configuration**
+   ```json
+   {
+     "mcpServers": {
+       "exportation-quotation-manager": {
+         "command": "python",
+         "args": ["-m", "src.quotation_server"],
+         "cwd": "C:\\path\\to\\your\\Tr\\mcp-server",
+         "env": {
+           "PYTHONPATH": "C:\\path\\to\\your\\Tr\\mcp-server\\src"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Make sure dependencies are installed:**
+   ```bash
+   cd mcp-server
+   pip install -e .
+   ```
+
+### Usage
+
+Once configured, you can use the MCP tools in Cursor chat or code completion:
 
 ```
 First, set your email:

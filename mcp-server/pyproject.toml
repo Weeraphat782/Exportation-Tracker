@@ -19,3 +19,4 @@ packages = ["src"]
 
 [project.scripts]
 quotation-mcp-server = "src.quotation_server:main"
+
