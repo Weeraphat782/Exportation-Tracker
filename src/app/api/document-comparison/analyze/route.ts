@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Increase timeout for AI processing (max 300s for Pro plan, 60s for Hobby)
+export const maxDuration = 60; // 60 seconds
+export const dynamic = 'force-dynamic';
+
 // Interface for extracted document data
 interface ExtractedData {
   consignor_name?: string;
@@ -148,8 +152,10 @@ export async function POST(request: Request) {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Phase 1: Download files and convert to base64, then extract key fields
-    console.log('Phase 1: Downloading files and extracting data...');
+    // Phase 1: Download files and convert to base64, then extract key fields (PARALLEL)
+    console.log('Phase 1: Downloading files and extracting data in parallel...');
+    console.time('Phase 1');
+    
     const extractedMap: Record<string, ExtractedData> = {};
     const documentsWithData: Array<{
       id: string;
@@ -159,19 +165,20 @@ export async function POST(request: Request) {
       mimeType: string;
     }> = [];
 
-    for (const doc of documents) {
+    // Process all documents in parallel for faster processing
+    const processPromises = documents.map(async (doc) => {
       try {
         console.log(`Downloading file: ${doc.file_name}`);
         const base64Data = await downloadAndConvertToBase64(doc.file_url);
         const mimeType = getMimeType(doc.file_name);
 
-        documentsWithData.push({
+        const docData = {
           id: doc.id,
           name: doc.file_name || doc.document_type,
           type: doc.document_type,
           base64Data,
           mimeType,
-        });
+        };
 
         // Extract fields from this document
         // EXACT PROMPT from ai-doc-review-main - DO NOT MODIFY
@@ -213,13 +220,37 @@ Return STRICT JSON only (no prose) with keys (use empty string or null if not pr
         } catch {
           extracted = {};
         }
-        extractedMap[doc.id] = extracted;
-        console.log(`Extracted data from ${doc.file_name}`);
+        
+        console.log(`✓ Extracted data from ${doc.file_name}`);
+        return { docData, extracted };
       } catch (error) {
         console.error(`Error processing document ${doc.id}:`, error);
-        extractedMap[doc.id] = {};
+        return {
+          docData: {
+            id: doc.id,
+            name: doc.file_name || doc.document_type,
+            type: doc.document_type,
+            base64Data: '',
+            mimeType: 'application/pdf',
+          },
+          extracted: {}
+        };
       }
-    }
+    });
+
+    // Wait for all documents to be processed
+    const results = await Promise.all(processPromises);
+    
+    // Populate arrays from results
+    results.forEach(({ docData, extracted }) => {
+      if (docData.base64Data) {
+        documentsWithData.push(docData);
+        extractedMap[docData.id] = extracted;
+      }
+    });
+    
+    console.timeEnd('Phase 1');
+    console.log(`✓ Processed ${documentsWithData.length} documents`);
 
     // Phase 2: Generate comprehensive cross-document comparison
     // EXACT LOGIC from ai-doc-review-main - DO NOT MODIFY
