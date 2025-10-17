@@ -52,8 +52,23 @@ function getMimeType(fileName: string): string {
 
 export async function POST(request: Request) {
   try {
+    // Check environment variables first
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Missing Supabase environment variables');
+      return NextResponse.json(
+        { error: 'Server configuration error. Please contact administrator.' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { document_ids, quotation_id, user_id } = body;
+
+    console.log('Document comparison request:', { 
+      document_ids_count: document_ids?.length,
+      quotation_id,
+      user_id 
+    });
 
     if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
       return NextResponse.json(
@@ -78,8 +93,8 @@ export async function POST(request: Request) {
 
     // Use Service Role Key to access settings
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
       {
         auth: {
           autoRefreshToken: false,
