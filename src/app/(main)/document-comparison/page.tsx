@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileCheck, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { FileCheck, AlertCircle, ArrowLeft, Brain } from 'lucide-react';
 import { DocumentSelector } from '@/components/document-comparison/document-selector';
 import { ComparisonResults } from '@/components/document-comparison/comparison-results';
 import { supabase } from '@/lib/supabase';
@@ -88,6 +89,32 @@ export default function DocumentComparisonPage() {
 
   return (
     <div className="space-y-6">
+      {/* Loading Dialog Popup */}
+      <Dialog open={isAnalyzing}>
+        <DialogContent className="sm:max-w-md [&>button]:hidden">
+          <DialogTitle className="sr-only">Analyzing Documents</DialogTitle>
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="relative">
+              <Brain className="h-20 w-20 text-blue-600 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Analyzing Documents...</h3>
+              <p className="text-sm text-muted-foreground">
+                AI is analyzing and comparing your documents
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Please wait, this may take 30-60 seconds
+              </p>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
