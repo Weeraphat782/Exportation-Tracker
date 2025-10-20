@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   FileText, 
+  FileCheck,
   AlertTriangle, 
   XCircle, 
   CheckCircle2, 
@@ -20,12 +21,20 @@ interface AnalysisResult {
   sequence_order: number;
 }
 
-interface ComparisonResultsProps {
-  results: AnalysisResult[];
-  fullFeedback?: string; // Optional, kept for future use
+interface CriticalCheckResult {
+  check_name: string;
+  status: 'PASS' | 'FAIL' | 'WARNING';
+  details: string;
+  issue: string;
 }
 
-export function ComparisonResults({ results }: ComparisonResultsProps) {
+interface ComparisonResultsProps {
+  results: AnalysisResult[];
+  fullFeedback?: string;
+  criticalChecksResults?: CriticalCheckResult[];
+}
+
+export function ComparisonResults({ results, criticalChecksResults = [] }: ComparisonResultsProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Extract all issues for summary
@@ -96,8 +105,127 @@ export function ComparisonResults({ results }: ComparisonResultsProps) {
 
   const { allCritical, allWarnings } = extractAllIssues();
 
+  // Calculate critical checks summary
+  const passedChecks = criticalChecksResults.filter(c => c.status === 'PASS').length;
+  const failedChecks = criticalChecksResults.filter(c => c.status === 'FAIL').length;
+  const warningChecks = criticalChecksResults.filter(c => c.status === 'WARNING').length;
+
   return (
     <div className="space-y-6">
+      {/* Critical Checks Checklist */}
+      {criticalChecksResults.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5" />
+              Critical Checks Status
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Verification results for all critical requirements
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{passedChecks}</div>
+                  <div className="text-sm font-medium text-green-700 dark:text-green-400">Passed</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
+                  <XCircle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-600">{failedChecks}</div>
+                  <div className="text-sm font-medium text-red-700 dark:text-red-400">Failed</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-600 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-yellow-600">{warningChecks}</div>
+                  <div className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Warnings</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {criticalChecksResults.map((check, idx) => (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-lg border ${
+                    check.status === 'PASS'
+                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                      : check.status === 'FAIL'
+                      ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900'
+                      : 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        check.status === 'PASS'
+                          ? 'bg-green-600'
+                          : check.status === 'FAIL'
+                          ? 'bg-red-600'
+                          : 'bg-yellow-600'
+                      }`}
+                    >
+                      {check.status === 'PASS' ? (
+                        <CheckCircle2 className="h-5 w-5 text-white" />
+                      ) : check.status === 'FAIL' ? (
+                        <XCircle className="h-5 w-5 text-white" />
+                      ) : (
+                        <AlertTriangle className="h-5 w-5 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold text-sm">{check.check_name}</h4>
+                        <Badge
+                          variant={
+                            check.status === 'PASS'
+                              ? 'default'
+                              : check.status === 'FAIL'
+                              ? 'destructive'
+                              : 'secondary'
+                          }
+                          className={
+                            check.status === 'PASS'
+                              ? 'bg-green-600'
+                              : check.status === 'WARNING'
+                              ? 'bg-yellow-500'
+                              : ''
+                          }
+                        >
+                          {check.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        <strong>Details:</strong> {check.details}
+                      </p>
+                      {check.issue && check.issue !== 'None' && check.issue !== 'N/A' && (
+                        <p className="text-sm font-medium text-foreground">
+                          <strong>Issue:</strong> {check.issue}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Review Summary */}
       <Card>
         <CardHeader>

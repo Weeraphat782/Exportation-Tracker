@@ -16,13 +16,21 @@ interface AnalysisResult {
   sequence_order: number;
 }
 
+interface CriticalCheckResult {
+  check_name: string;
+  status: 'PASS' | 'FAIL' | 'WARNING';
+  details: string;
+  issue: string;
+}
+
 export default function DocumentComparisonPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult[] | null>(null);
   const [fullFeedback, setFullFeedback] = useState<string>('');
+  const [criticalChecksResults, setCriticalChecksResults] = useState<CriticalCheckResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleAnalyze(quotationId: string, documentIds: string[]) {
+  async function handleAnalyze(quotationId: string, documentIds: string[], ruleId: string) {
     setIsAnalyzing(true);
     setError(null);
     setResults(null);
@@ -45,6 +53,7 @@ export default function DocumentComparisonPage() {
           quotation_id: quotationId,
           document_ids: documentIds,
           user_id: user.id,
+          rule_id: ruleId,
         }),
       });
 
@@ -58,6 +67,7 @@ export default function DocumentComparisonPage() {
       if (data.success) {
         setResults(data.results);
         setFullFeedback(data.full_feedback);
+        setCriticalChecksResults(data.critical_checks_results || []);
       } else {
         throw new Error('Analysis failed');
       }
@@ -72,6 +82,7 @@ export default function DocumentComparisonPage() {
   function handleReset() {
     setResults(null);
     setFullFeedback('');
+    setCriticalChecksResults([]);
     setError(null);
   }
 
@@ -129,6 +140,7 @@ export default function DocumentComparisonPage() {
         <ComparisonResults 
           results={results} 
           fullFeedback={fullFeedback}
+          criticalChecksResults={criticalChecksResults}
         />
       )}
 

@@ -28,8 +28,15 @@ interface Quotation {
   status: string;
 }
 
+interface Rule {
+  id: string;
+  name: string;
+  description: string;
+  is_default: boolean;
+}
+
 interface DocumentSelectorProps {
-  onAnalyze: (quotationId: string, documentIds: string[]) => void;
+  onAnalyze: (quotationId: string, documentIds: string[], ruleId: string) => void;
   isAnalyzing: boolean;
 }
 
@@ -38,12 +45,16 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
   const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [selectedRuleId, setSelectedRuleId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [loadingRules, setLoadingRules] = useState(false);
 
-  // Load quotations on mount
+  // Load quotations and rules on mount
   useEffect(() => {
     loadQuotations();
+    loadRules();
   }, []);
 
   // Load documents when quotation changes
@@ -94,6 +105,34 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
     }
   }
 
+  async function loadRules() {
+    setLoadingRules(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const response = await fetch(`/api/document-comparison/rules?user_id=${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRules(data);
+        
+        // Auto-select default rule
+        const defaultRule = data.find((r: Rule) => r.is_default);
+        if (defaultRule) {
+          setSelectedRuleId(defaultRule.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading rules:', error);
+    } finally {
+      setLoadingRules(false);
+    }
+  }
+
   async function loadDocuments(quotationId: string) {
     setLoadingDocuments(true);
     try {
@@ -138,20 +177,60 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
   }
 
   function handleAnalyze() {
-    if (!selectedQuotationId || selectedDocuments.size === 0) {
+    if (!selectedQuotationId || selectedDocuments.size === 0 || !selectedRuleId) {
       return;
     }
-    onAnalyze(selectedQuotationId, Array.from(selectedDocuments));
+    onAnalyze(selectedQuotationId, Array.from(selectedDocuments), selectedRuleId);
   }
 
   const selectedQuotation = quotations.find(q => q.id === selectedQuotationId);
 
   return (
     <div className="space-y-6">
+      {/* Rule Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>1. Select Comparison Rule</CardTitle>
+          <CardDescription>
+            Choose how documents should be compared and verified
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingRules ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Select value={selectedRuleId} onValueChange={setSelectedRuleId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a comparison rule" />
+              </SelectTrigger>
+              <SelectContent>
+                {rules.map((rule) => (
+                  <SelectItem key={rule.id} value={rule.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{rule.name}</span>
+                      {rule.is_default && (
+                        <Badge variant="outline" className="text-xs">Default</Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {selectedRuleId && rules.find(r => r.id === selectedRuleId)?.description && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {rules.find(r => r.id === selectedRuleId)?.description}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Quotation Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>1. Select Quotation</CardTitle>
+          <CardTitle>2. Select Quotation</CardTitle>
           <CardDescription>
             Choose a quotation to analyze its documents
           </CardDescription>
@@ -224,7 +303,7 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>2. Select Documents to Analyze</CardTitle>
+                <CardTitle>3. Select Documents to Analyze</CardTitle>
                 <CardDescription>
                   Choose at least 2 documents for cross-document comparison
                 </CardDescription>
@@ -289,7 +368,7 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
                 </div>
                 <Button
                   onClick={handleAnalyze}
-                  disabled={selectedDocuments.size < 2 || isAnalyzing}
+                  disabled={selectedDocuments.size < 2 || isAnalyzing || !selectedRuleId}
                   size="lg"
                   className="gap-2"
                 >
@@ -305,6 +384,14 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
                     </>
                   )}
                 </Button>
+              </div>
+            )}
+
+            {!selectedRuleId && selectedDocuments.size >= 2 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  ℹ️ Please select a comparison rule first.
+                </p>
               </div>
             )}
 

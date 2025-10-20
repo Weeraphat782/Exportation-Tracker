@@ -15,7 +15,8 @@ import {
   LayoutDashboard,
   Calendar,
   FileCheck,
-  Sparkles
+  Sparkles,
+  ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -217,6 +218,16 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
               >
                 <Sparkles className="h-5 w-5 mr-3" />
                 <span className="text-base">AI Settings</span>
+              </Link>
+              <Link 
+                href="/document-comparison/rules" 
+                className={cn(
+                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                  pathname?.startsWith("/document-comparison/rules") ? "bg-slate-700" : ""
+                )}
+              >
+                <ListChecks className="h-5 w-5 mr-3" />
+                <span className="text-base">Comparison Rules</span>
               </Link>
             </div>
           )}

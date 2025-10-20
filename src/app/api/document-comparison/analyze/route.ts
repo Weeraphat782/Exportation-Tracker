@@ -66,12 +66,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { document_ids, quotation_id, user_id } = body;
+    const { document_ids, quotation_id, user_id, rule_id } = body;
 
     console.log('Document comparison request:', { 
       document_ids_count: document_ids?.length,
       quotation_id,
-      user_id 
+      user_id,
+      rule_id
     });
 
     if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
@@ -95,6 +96,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!rule_id) {
+      return NextResponse.json(
+        { error: 'rule_id is required' },
+        { status: 400 }
+      );
+    }
+
     // Use Service Role Key to access settings
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -106,6 +114,28 @@ export async function POST(request: Request) {
         }
       }
     );
+
+    // Get comparison rule from database
+    console.log('🔍 Fetching rule from DB with ID:', rule_id);
+    const { data: rule, error: ruleError } = await supabase
+      .from('document_comparison_rules')
+      .select('*')
+      .eq('id', rule_id)
+      .single();
+
+    if (ruleError || !rule) {
+      console.error('❌ Rule fetch error:', ruleError);
+      return NextResponse.json(
+        { error: 'Comparison rule not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log('✅ Using rule:', rule.name);
+    console.log('📝 Rule ID:', rule.id);
+    console.log('📏 Instructions length from DB:', rule.comparison_instructions?.length || 0);
+    console.log('📄 Instructions preview (first 300 chars):', rule.comparison_instructions?.substring(0, 300));
+    console.log('📄 Instructions end (last 300 chars):', rule.comparison_instructions?.substring(Math.max(0, (rule.comparison_instructions?.length || 0) - 300)));
 
     // Get Gemini API key from settings table
     const { data: settingData } = await supabase
@@ -180,27 +210,16 @@ export async function POST(request: Request) {
           mimeType,
         };
 
-        // Extract fields from this document
-        // EXACT PROMPT from ai-doc-review-main - DO NOT MODIFY
+        // Extract fields from this document using rule's extraction fields
+        const extractionFields = rule.extraction_fields || [];
+        const fieldsTemplate = extractionFields.reduce((acc: Record<string, string>, field: string) => {
+          acc[field] = "";
+          return acc;
+        }, {});
+        
         const extractPrompt = `Extract the following fields from this document section called "${doc.file_name || doc.document_type}".
 Return STRICT JSON only (no prose) with keys (use empty string or null if not present):
-{
-  "consignor_name": "",
-  "consignor_address": "",
-  "consignee_name": "",
-  "consignee_address": "",
-  "hs_code": "",
-  "permit_number": "",
-  "po_number": "",
-  "country_of_origin": "",
-  "country_of_destination": "",
-  "quantity": "",
-  "total_value": "",
-  "shipping_marks": "",
-  "shipped_from": "",
-  "shipped_to": "",
-  "document_date": ""
-}`;
+${JSON.stringify(fieldsTemplate, null, 2)}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
         const extraction = await model.generateContent([
@@ -256,60 +275,71 @@ Return STRICT JSON only (no prose) with keys (use empty string or null if not pr
     // EXACT LOGIC from ai-doc-review-main - DO NOT MODIFY
     console.log('Phase 2: Performing cross-document analysis...');
     
+    // Helper function to convert document_type slug to display name
+    function getDocumentTypeDisplayName(slug: string): string {
+      const typeMap: Record<string, string> = {
+        'commercial-invoice': 'Commercial Invoice',
+        'packing-list': 'Packing List',
+        'tk-31': 'TK-31 Export Report',
+        'tk-32': 'TK-32 Export Permit',
+        'import-permit': 'Import Permit',
+        'export-permit': 'Export Permit',
+        'purchase-order': 'Purchase Order',
+        'bill-of-lading': 'Bill of Lading',
+        'certificate-of-origin': 'Certificate of Origin',
+        'other': 'Other Document'
+      };
+      return typeMap[slug] || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+    
     try {
       // Build list of all documents with their extracted data
       const allDocuments = documentsWithData.map(doc => ({
         id: doc.id,
-        node_name: doc.name,
-        document_type: doc.type,
+        file_name: doc.name,
+        document_type: getDocumentTypeDisplayName(doc.type), // Use display name
+        document_type_slug: doc.type, // Keep slug for reference
         extracted: extractedMap[doc.id] || {}
       }));
 
-      // EXACT PROMPT from ai-doc-review-main - DO NOT MODIFY
-      const comparisonPrompt = `You are performing a comprehensive cross-document verification for an export shipment.
+      // Use rule's comparison instructions
+      // Replace placeholders with actual data - use document_type for section headers
+      let comparisonPrompt = rule.comparison_instructions
+        .replace(/\{allDocuments\}/g, JSON.stringify(allDocuments, null, 2))
+        .replace(/\{documentCount\}/g, allDocuments.length.toString())
+        .replace(/\{documentList\}/g, allDocuments.map(d => `- ${d.document_type}`).join('\n'))
+        .replace(/\{firstDocumentName\}/g, allDocuments[0]?.document_type || 'Document Name');
 
-ALL DOCUMENTS AND THEIR EXTRACTED DATA:
-${JSON.stringify(allDocuments, null, 2)}
+      // Add critical checks evaluation if available
+      const criticalChecks = rule.critical_checks || [];
+      if (criticalChecks.length > 0) {
+        comparisonPrompt += `\n\n---\n\nCRITICAL CHECKS EVALUATION:\n\n`;
+        comparisonPrompt += `You MUST evaluate each of the following critical checks and provide structured feedback.\n\n`;
+        comparisonPrompt += `For EACH check below, you MUST include a dedicated section in your response:\n\n`;
+        
+        criticalChecks.forEach((check: string, index: number) => {
+          comparisonPrompt += `${index + 1}. ${check}\n`;
+        });
+        
+        comparisonPrompt += `\n\nFor each critical check, you MUST create a section like this:\n\n`;
+        comparisonPrompt += `### Critical Check: [Check Name]\n`;
+        comparisonPrompt += `**Status:** PASS | FAIL | WARNING\n`;
+        comparisonPrompt += `**Details:** [Provide specific values from each document]\n`;
+        comparisonPrompt += `**Issue:** [If FAIL or WARNING, explain what's wrong]\n\n`;
+        comparisonPrompt += `Example:\n`;
+        comparisonPrompt += `### Critical Check: Net Weight must match across documents\n`;
+        comparisonPrompt += `**Status:** FAIL\n`;
+        comparisonPrompt += `**Details:** TK32: 500,000g, Packing List: 471,000g, Invoice: 471,000g\n`;
+        comparisonPrompt += `**Issue:** Net weight in Packing List and Invoice (471kg) does not match TK32 (500kg). Discrepancy of 29kg.\n\n`;
+      }
 
-YOUR TASK:
-Compare all documents and identify discrepancies, missing data, and verifications across the entire document set.
-
-CRITICAL COMPARISONS TO PERFORM:
-1. Consignor/Consignee names and addresses - must match across all documents
-2. Total values - must match (e.g., Commercial Invoice grand total vs Export Permit total value)
-3. Quantities - must match across documents
-4. HS Codes, Permit numbers, PO numbers - must be consistent
-5. Shipping marks, origin/destination - must align
-6. Document dates - check for logical sequence
-
-OUTPUT FORMAT - CRITICAL: You MUST create a separate section for EACH document listed below:
-${allDocuments.map(d => `- ${d.node_name}`).join('\n')}
-
-For EACH document above, create a section in this EXACT format:
-
-## ${allDocuments[0]?.node_name || 'Document Name'}
-
-### ❌ Critical Issues - Must Fix
-- Use format: "Mismatch: <field> — '<value_in_this_doc>' vs '<value_in_other_doc>' in [Other Document Name]"
-- Use format: "Missing: <required field> — not found in this document"
-- If none, write "None identified."
-
-### ⚠️ Warnings & Recommendations
-- Use format: "Minor inconsistency: <field> — <brief description>"
-- Use format: "Verified: <field> — '<value>' consistent across all documents"
-- If none, write "None identified."
-
-REPEAT THE ABOVE SECTION FORMAT FOR EACH DOCUMENT.
-
-IMPORTANT RULES:
-- You MUST create separate ## sections for ALL ${allDocuments.length} documents
-- Each section must start with EXACTLY: ## [Document Name]
-- Perform all verifications yourself using the extracted data above
-- Do NOT tell the user to cross-check anything
-- Be specific about which documents have discrepancies
-- Keep bullets SHORT and actionable
-- No long paragraphs or prose
-- DO NOT combine multiple documents into one section`;
+      // DEBUG: Log the full prompt being sent to AI
+      console.log('=== FULL PROMPT SENT TO AI ===');
+      console.log('Prompt length:', comparisonPrompt.length);
+      console.log('Critical checks count:', criticalChecks.length);
+      console.log('First 2000 characters:', comparisonPrompt.substring(0, 2000));
+      console.log('Last 1000 characters:', comparisonPrompt.substring(Math.max(0, comparisonPrompt.length - 1000)));
+      console.log('=== END PROMPT ===');
 
       // Prepare all files for multimodal input
       const contents: Array<{ inlineData: { mimeType: string; data: string } } | string> = [];
@@ -332,29 +362,92 @@ IMPORTANT RULES:
       console.log('Full AI Feedback Length:', fullFeedback.length);
       console.log('Full AI Feedback Preview:', fullFeedback.substring(0, 500));
 
-      // Parse the response to extract per-document sections
+      // Extract all ## sections from AI response for debugging
+      const allSections = fullFeedback.match(/##\s+[^\n]+/g) || [];
+      console.log('All ## sections found in AI response:', allSections);
+      console.log('Document types we are looking for:', documentsWithData.map(d => getDocumentTypeDisplayName(d.type)));
+
+      // Parse the response to extract per-document sections BY DOCUMENT TYPE
       const documentSections: Record<string, string> = {};
       
       for (const doc of documentsWithData) {
-        // Try to extract the section for this document
-        // Escape special regex characters in document name
-        const escapedName = doc.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match by document_type display name (e.g., "Commercial Invoice", "Packing List")
+        let match = null;
+        const displayType = getDocumentTypeDisplayName(doc.type);
         
-        // Match from ## DocumentName until the next ## DocumentName or end of string
-        const regex = new RegExp(`##\\s*(?:\\[)?${escapedName}(?:\\])?[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
-        const match = fullFeedback.match(regex);
+        // Strategy 1: Match by display type exactly
+        const escapedType = displayType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex1 = new RegExp(`##\\s*(?:\\[)?${escapedType}(?:\\])?[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
+        match = fullFeedback.match(regex1);
+        
+        // Strategy 2: Flexible match - find any section containing the document type
+        if (!match) {
+          const regex2 = new RegExp(`##\\s*[^\\n]*${escapedType}[^\\n]*[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
+          match = fullFeedback.match(regex2);
+        }
+        
+        // Strategy 3: Match by keywords in document type
+        if (!match) {
+          const keywords = displayType.split(/\s+/).filter(k => k.length > 2);
+          if (keywords.length > 0) {
+            const keywordPattern = keywords.join('.*');
+            const regex3 = new RegExp(`##\\s*[^\\n]*${keywordPattern}[^\\n]*[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
+            match = fullFeedback.match(regex3);
+          }
+        }
         
         if (match) {
           documentSections[doc.id] = match[0];
-          console.log(`Successfully extracted section for ${doc.name}, length: ${match[0].length}`);
+          console.log(`✓ Successfully extracted section for ${displayType} (${doc.name}), length: ${match[0].length}`);
         } else {
-          console.log(`Failed to extract section for ${doc.name}, using fallback`);
+          console.log(`✗ Failed to extract section for ${displayType} (${doc.name}), using fallback`);
           // If we can't find a section, create a note
-          documentSections[doc.id] = `## ${doc.name}\n\n### ⚠️ Warnings & Recommendations\n- No specific feedback generated for this document in the review.`;
+          documentSections[doc.id] = `## ${displayType}\n\n### ⚠️ Warnings & Recommendations\n- No specific feedback generated for this document type in the review.\n- File: ${doc.name}`;
         }
       }
 
-      // Build results array
+      // Check if we successfully extracted any sections
+      const successfulExtractions = Object.values(documentSections).filter(s => !s.includes('No specific feedback')).length;
+      
+      // Parse critical checks results (same for both success and fallback)
+      const criticalChecksResults = [];
+      const criticalCheckPattern = /###\s*Critical Check:\s*([^\n]+)\n\*\*Status:\*\*\s*(PASS|FAIL|WARNING)[^\n]*\n\*\*Details:\*\*\s*([^\n]+)\n\*\*Issue:\*\*\s*([^\n]+)/gi;
+      let checkMatch;
+      
+      while ((checkMatch = criticalCheckPattern.exec(fullFeedback)) !== null) {
+        criticalChecksResults.push({
+          check_name: checkMatch[1].trim(),
+          status: checkMatch[2].trim().toUpperCase(),
+          details: checkMatch[3].trim(),
+          issue: checkMatch[4].trim(),
+        });
+      }
+      
+      console.log('Parsed critical checks:', criticalChecksResults.length);
+
+      // If extraction failed for all documents, use full feedback for first document
+      if (successfulExtractions === 0) {
+        console.log('⚠️ Failed to extract individual sections. Using full feedback as fallback.');
+        const results = documentsWithData.map((doc, index) => ({
+          document_id: doc.id,
+          document_name: doc.name,
+          document_type: doc.type,
+          // Show full feedback only for first document, others get empty
+          ai_feedback: index === 0 ? fullFeedback : `See full analysis in the first document (${documentsWithData[0].name})`,
+          sequence_order: index + 1,
+        }));
+        
+        return NextResponse.json({
+          success: true,
+          full_feedback: fullFeedback,
+          results,
+          extracted_data: extractedMap,
+          critical_checks_results: criticalChecksResults,
+          critical_checks_list: criticalChecks,
+        });
+      }
+      
+      // Build results array with extracted sections
       const results = documentsWithData.map((doc, index) => ({
         document_id: doc.id,
         document_name: doc.name,
@@ -370,6 +463,8 @@ IMPORTANT RULES:
         full_feedback: fullFeedback,
         results,
         extracted_data: extractedMap,
+        critical_checks_results: criticalChecksResults,
+        critical_checks_list: criticalChecks,
       });
 
     } catch (error) {
