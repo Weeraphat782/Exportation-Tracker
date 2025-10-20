@@ -1,0 +1,329 @@
+========================================
+EXPORT DOCUMENT CROSS-VERIFICATION RULE
+TK32 Primary Reference
+========================================
+
+=== 1. RULE NAME ===
+Export Document Cross Verification (TK32 Primary Reference)
+
+
+=== 2. DESCRIPTION ===
+This rule defines comprehensive verification procedures for eight key export-import documents: Import Permit, TK32 Export Permit, TK31 Export Report, Purchase Order, Packing List, Commercial Invoice, Draft Declaration, and Air Waybill.
+
+TK32 serves as the PRIMARY REFERENCE DOCUMENT for all verifications. All related documents must align with TK32 in terms of:
+- Product quantity (Net Weight)
+- Product value (Prices)
+- Key reference details (Permit numbers, PO numbers, Invoice numbers)
+- Party information (Exporter, Importer, Consignee, Consigner)
+- Destination and origin information
+
+The rule ensures consistency of critical details such as Net Weight, Product Value, Permit Numbers, PO Numbers, Invoice Numbers, Shipping Marks, Consignee/Consigner names and addresses, Country of Origin, and Destination across all documents. It also validates that quantities do not exceed authorized limits and that all addresses are spelled correctly with proper formatting.
+
+
+=== 3. EXTRACTION FIELDS ===
+(Copy these one by one into the Extraction Fields section)
+
+import_permit_date
+import_permit_authorization_no
+import_permit_number
+importer_name
+importer_address
+exporter_name
+exporter_address
+authorized_quantity
+export_quantity_net_weight
+destination_country
+destination_address
+license_holder_name
+permit_number
+product_name
+product_description
+buyer_name
+buyer_details
+seller_name
+po_number
+customer_po_number
+order_quantity
+consignee_name
+consignee_address
+consigner_name
+consigner_address
+net_weight
+total_weight
+total_net_weight
+gross_weight
+gross_weight_pallet_included
+shipping_mark
+port_loading
+port_destination
+airport
+country_of_origin
+pallet_count
+pallet_numbers
+box_size
+box_numbers
+box_count
+product_quantity
+product_price
+product_value
+total_value
+invoice_number
+invoice_date
+shipped_from
+shipped_to
+remarks
+declaration_number
+
+
+=== 4. CRITICAL CHECKS ===
+(Copy these one by one into the Critical Checks section)
+
+TK32 is the primary reference document.
+Total product quantity (Net Weight) in all documents must match TK32.
+Product prices in Commercial Invoice and TK32 must match.
+Import Permit Date and Authorization No. must match TK32.
+Import Permit Number must be correctly referenced and consistent across TK32, Invoice remarks, and AWB.
+PO Number must match across TK32, Purchase Order, Packing List, and Commercial Invoice.
+Invoice Number must match between Commercial Invoice, Draft Declaration, and Air Waybill.
+Gross Weight (Pallet Included) must be consistent across Packing List, Draft Declaration, and AWB.
+Consignee/Consigner names and addresses must be identical across all documents.
+Country of Origin and Destination must match TK32 and Import Permit.
+Shipping Mark must be identical across Packing List, Commercial Invoice, and AWB.
+Net Weight must not exceed authorized quantity in Import Permit.
+Exporter address must be spelled correctly and match across Import Permit, TK32, and Commercial Invoice.
+Importer address must be located in Switzerland with correct spelling and format.
+Pallet count must match between Packing List and Draft Declaration.
+
+
+=== 5. COMPARISON INSTRUCTIONS ===
+(Copy ALL of this into the Comparison Instructions field)
+
+You are performing a comprehensive cross-document verification for export-related documents.
+
+*** TK32 IS THE PRIMARY REFERENCE DOCUMENT ***
+
+All other documents (Import Permit, TK31, Purchase Order, Packing List, Commercial Invoice, Draft Declaration, and Air Waybill) must align with TK32 in terms of:
+- Product quantity (Net Weight)
+- Product value (Prices)
+- Key reference details (Permit numbers, PO numbers, Invoice numbers)
+
+---
+
+DOCUMENT-SPECIFIC VERIFICATION REQUIREMENTS:
+
+1. IMPORT PERMIT VERIFICATION:
+   - Verify that the Date and Authorization No. match those stated in TK32
+   - Check that the Importer's address is located in Switzerland, including correct spelling and format
+   - Verify that the Exporter's address is spelled correctly
+   - Check the authorized quantity in the Import Permit and confirm that TK32 does not exceed the allowed quantity
+
+2. TK32 VERIFICATION (PRIMARY REFERENCE):
+   - Ensure that the License Holder's name or Exporter's name matches the Import Permit
+   - Verify that the export quantity (Net Weight) matches the Import Permit and is used as the reference for all other documents
+   - Confirm that the destination country and address match the Import Permit
+   - Ensure the Permit Number on TK32 matches the Import Permit
+   - The price and quantity listed in other documents (such as the Commercial Invoice and Packing List) must match the details in TK32
+
+3. TK31 VERIFICATION (MONTHLY EXPORT SUMMARY):
+   - Verify that all TK32 shipments recorded in TK31 are correctly reflected in terms of quantity, product name, and buyer details
+   - Only cross-check TK32 entries appearing in TK31 (since TK31 contains multiple shipments)
+
+4. PURCHASE ORDER (PO) VERIFICATION:
+   - Confirm that the ordered quantity matches the amount stated in TK32 and does not exceed the authorized quantity
+   - Check that the addresses of both buyer and seller are correct and consistent with other documents
+
+5. PACKING LIST VERIFICATION:
+   - Verify that the Net Weight of the goods matches TK32
+   - Confirm that the Total Weight (excluding pallet weight) is consistent across all references in the document
+   - Check that the Consignee and Consigner names match TK32, Import Permit, and PO, including correct spelling
+   - Ensure the ordered quantity does not exceed the amount stated in TK32
+   - Verify the total quantity calculations for accuracy
+   - Confirm the Shipping Mark is correct and corresponds with the actual Port of Destination or Airport
+   - Verify that the Destination, Net Weight, and Gross Weight (including pallets) match TK32
+   - Check the Country of Origin for accuracy
+   - Ensure Pallet Numbers, Box Size, Box Numbers, and Box No./Pallets are consistent within the document
+   - Verify Gross Weight (Pallet Included) against the Shipping Mark
+   - Confirm that the Customer PO number matches the actual PO document
+
+6. COMMERCIAL INVOICE VERIFICATION:
+   - Verify that the Consigner and Consignee addresses are correct and match TK32, Import Permit, and PO
+   - Ensure the Country of Origin, Destination, and PO number correspond with the Packing List
+   - Confirm that the product quantity and product price match those listed in TK32 and do not exceed them
+   - Check the Remarks section to confirm that the Import Permit number matches TK32 and the actual Import Permit
+   - Verify Shipped From and Shipped To addresses
+   - Confirm that the Shipping Mark matches the one shown in the Packing List
+
+7. DRAFT DECLARATION VERIFICATION:
+   - Verify the Exporter's name is correct
+   - Confirm that the Invoice number matches the actual Commercial Invoice
+   - Check that the number of pallets matches the Packing List
+   - Verify the Net Weight matches the Packing List
+   - Confirm that the Gross Weight matches the Packing List, and ensure it includes pallet weight (THIS IS CRITICAL)
+
+8. AIR WAYBILL (AWB) VERIFICATION:
+   - Verify the Consigner and Consignee names and addresses for accuracy
+   - Ensure that the Net Weight and Gross Weight (Pallet Included) are consistent with the Draft Declaration, TK32, and Packing List
+   - Check that the Shipping Mark matches the Packing List
+   - Verify that the Invoice number is correct and consistent across documents
+   - Review the document for spelling accuracy and completeness
+   - Check that the Import Permit number is correct and matches the other documents
+
+---
+
+ANALYSIS REQUIREMENTS:
+
+- Be extremely strict and precise in your comparisons
+- ALWAYS provide SPECIFIC VALUES from EACH document when comparing
+- Flag ANY discrepancies with exact values (e.g., "TK32: 500kg vs Packing List: 471kg")
+- For matching fields, show the actual values (e.g., "PO Number: PO-12345 found in TK32, Invoice, Packing List")
+- If a document type is MISSING or NOT PROVIDED, use status "WARNING" and state "Document not provided" - DO NOT fail the check
+- If a field is missing in a document but the document exists, state which document is missing the field
+- Show exact spelling differences when names don't match (e.g., "TK32: ABC Co., Ltd. vs Invoice: ABC Company Limited")
+- ALWAYS compare against TK32 as the primary reference
+- For each field comparison, explicitly state: "✓ MATCHES" or "✗ DISCREPANCY FOUND" or "⚠️ MISSING"
+
+---
+
+CRITICAL OUTPUT FORMAT REQUIREMENTS:
+
+You MUST structure your response using markdown ## headers for EACH document type.
+
+For EVERY document type you analyze, create a dedicated section with this EXACT format:
+
+## Packing List
+
+### ✓ Matching Fields
+- [List fields that match TK32 exactly WITH SPECIFIC VALUES]
+- Example: "Net Weight: 500 kg (matches TK32)"
+- Example: "PO Number: PO-2508250 (found in TK32, Packing List)"
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies with EXACT VALUES from each document]
+- Example: "Net Weight: TK32: 500 kg, Packing List: 471 kg (DISCREPANCY: 29 kg difference)"
+- Example: "Consignee Name: TK32: 'Schibano Pharma AG', Packing List: 'Schibabo Pharma AG' (SPELLING ERROR)"
+
+### ⚠️ Warnings & Recommendations
+- [List any concerns, missing info, or recommendations]
+- Example: "Shipping Mark not clearly visible"
+- Example: "Box numbers should be verified for sequential order"
+
+---
+
+## TK-32 Export Permit
+
+### ✓ Matching Fields
+- [List fields that match exactly WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## Commercial Invoice
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## Purchase Order
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## TK-31 Export Report
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## Import Permit
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## Draft Declaration
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+## Air Waybill
+
+### ✓ Matching Fields
+- [List matching fields WITH VALUES]
+
+### ✗ Discrepancies Found
+- [List ALL discrepancies WITH EXACT VALUES]
+
+### ⚠️ Warnings & Recommendations
+- [List concerns]
+
+---
+
+IMPORTANT RULES:
+- Use ## (double hash) for document type section headers ONLY
+- Use ### (triple hash) for subsections (Matching Fields, Discrepancies, Warnings)
+- Use the EXACT document type names shown above
+- Each ## section must contain analysis for ONE specific document type only
+- ALWAYS include all three subsections (✓ Matching, ✗ Discrepancies, ⚠️ Warnings) even if some are empty
+- ALWAYS show SPECIFIC VALUES when stating matches or discrepancies
+- Examples of good feedback:
+  * ✅ "Net Weight: TK32: 500,000g, Packing List: 471,000g, Invoice: 471,000g (DISCREPANCY: 29kg difference)"
+  * ✅ "PO Number: PO-2508250 (found in TK32, Invoice, Packing List)"
+  * ✅ "Importer Name: TK32: 'Schibano Pharma AG', PO: 'Schibabo Pharma AG' (SPELLING ERROR)"
+  * ❌ "Net weight doesn't match" (TOO VAGUE)
+- If a document type is not available in the provided files, skip its section entirely
+- Start your response directly with the first ## section
+- For each Critical Check, provide a dedicated section at the END of your response in this format:
+
+### Critical Check: [Check Name from the Critical Checks list]
+**Status:** PASS | FAIL | WARNING
+**Details:** [Provide specific values from each document]
+**Issue:** [If FAIL or WARNING, explain what's wrong with specific values and document references]
+
+Example:
+### Critical Check: Total product quantity (Net Weight) in all documents must match TK32
+**Status:** FAIL
+**Details:** TK32: 500,000g (500kg), Packing List: 471,000g (471kg), Commercial Invoice: 471,000g (471kg), Import Permit: 500kg authorized
+**Issue:** Net Weight in Packing List and Commercial Invoice (471kg) does not match TK32 (500kg). Discrepancy of 29kg found. This exceeds acceptable tolerance and must be corrected before shipment.
+

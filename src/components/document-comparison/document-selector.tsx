@@ -26,6 +26,7 @@ interface Quotation {
   created_at: string;
   customer_name: string;
   status: string;
+  total_net_weight?: number; // in kg
 }
 
 interface Rule {
@@ -78,11 +79,12 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
         return;
       }
 
+      // Get quotations with pallets JSONB field
       const { data, error } = await supabase
         .from('quotations')
-        .select('id, company_name, destination, created_at, contact_person, status')
+        .select('id, company_name, destination, created_at, customer_name, status, pallets')
         .eq('user_id', user.id)
-        .in('status', ['draft', 'sent', 'accepted', 'rejected', 'docs_uploaded'])  // Show all except completed
+        .in('status', ['draft', 'sent', 'accepted', 'rejected', 'docs_uploaded'])
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -91,11 +93,29 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
         return;
       }
 
-      // Map contact_person to customer_name for compatibility
-      const mappedData = (data || []).map(q => ({
-        ...q,
-        customer_name: q.contact_person
-      }));
+      // Calculate total actual weight from pallets JSONB
+      const mappedData = (data || []).map(q => {
+        let totalNetWeight = 0;
+        
+        // pallets is a JSONB array with fields: length, width, height, weight, quantity
+        if (q.pallets && Array.isArray(q.pallets)) {
+          totalNetWeight = q.pallets.reduce((sum: number, pallet: any) => {
+            const weight = parseFloat(pallet.weight) || 0; // weight is already in kg
+            const quantity = parseInt(pallet.quantity) || 1;
+            return sum + (weight * quantity);
+          }, 0);
+        }
+
+        return {
+          id: q.id,
+          company_name: q.company_name,
+          destination: q.destination,
+          created_at: q.created_at,
+          customer_name: q.customer_name || 'N/A',
+          status: q.status,
+          total_net_weight: totalNetWeight
+        };
+      });
 
       setQuotations(mappedData as Quotation[]);
     } catch (error) {
@@ -246,19 +266,27 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
                 <SelectValue placeholder="Select a quotation..." />
               </SelectTrigger>
               <SelectContent>
-                {quotations.map((quotation) => (
-                  <SelectItem key={quotation.id} value={quotation.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{quotation.company_name} → {quotation.destination} ({quotation.customer_name})</span>
-                      <Badge 
-                        variant={quotation.status === 'draft' ? 'secondary' : 'default'}
-                        className="ml-2"
-                      >
-                        {quotation.status}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
+                {quotations.map((quotation) => {
+                  const netWeightDisplay = quotation.total_net_weight 
+                    ? `${quotation.total_net_weight.toFixed(0)} kg`
+                    : 'N/A';
+                  
+                  return (
+                    <SelectItem key={quotation.id} value={quotation.id}>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {quotation.customer_name} → {quotation.destination} ({netWeightDisplay})
+                        </span>
+                        <Badge 
+                          variant={quotation.status === 'draft' ? 'secondary' : 'default'}
+                          className="ml-2"
+                        >
+                          {quotation.status}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           )}
@@ -280,6 +308,14 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
                   <span className="font-medium">{selectedQuotation.customer_name}</span>
                 </div>
                 <div>
+                  <span className="text-muted-foreground">Total Net Weight:</span>{' '}
+                  <span className="font-medium">
+                    {selectedQuotation.total_net_weight 
+                      ? `${selectedQuotation.total_net_weight.toFixed(2)} kg`
+                      : 'N/A'}
+                  </span>
+                </div>
+                <div>
                   <span className="text-muted-foreground">Status:</span>{' '}
                   <Badge 
                     variant={selectedQuotation.status === 'draft' ? 'secondary' : 'default'}
@@ -287,7 +323,7 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
                     {selectedQuotation.status}
                   </Badge>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <span className="text-muted-foreground">Created:</span>{' '}
                   <span className="font-medium">{new Date(selectedQuotation.created_at).toLocaleDateString()}</span>
                 </div>
