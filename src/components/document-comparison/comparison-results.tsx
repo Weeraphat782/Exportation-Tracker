@@ -45,12 +45,14 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
     results.forEach(result => {
       const feedback = result.ai_feedback || '';
       
-      // Extract critical issues - multiple patterns for flexibility
+      // Extract critical issues/discrepancies - flexible patterns to match any AI output format
       const criticalPatterns = [
-        /###\s*❌\s*Critical Issues[\s\S]*?(?=###|$)/i,
-        /###\s*Critical Issues\s*-\s*Must Fix[\s\S]*?(?=###|$)/i,
-        /##\s*❌\s*Critical Issues[\s\S]*?(?=##|$)/i,
-        /#.*Critical Issues.*[\s\S]*?(?=#|$)/i
+        /###\s*[✗❌]\s*Discrepanc(?:ies|y)\s+Found[\s\S]*?(?=###|##|$)/i,
+        /###\s*[✗❌]\s*Critical\s+Issues[\s\S]*?(?=###|##|$)/i,
+        /###\s*Critical\s+Issues\s*-\s*Must\s+Fix[\s\S]*?(?=###|##|$)/i,
+        /###\s*Discrepanc(?:ies|y)[\s\S]*?(?=###|##|$)/i,
+        /##\s*[✗❌]\s*(?:Critical\s+Issues|Discrepanc(?:ies|y))[\s\S]*?(?=##|$)/i,
+        /#.*(?:Critical\s+Issues|Discrepanc(?:ies|y)).*[\s\S]*?(?=#|$)/i
       ];
       
       for (const pattern of criticalPatterns) {
@@ -61,6 +63,7 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
               const trimmed = l.trim();
               return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                      !trimmed.toLowerCase().includes('none identified') &&
+                     !trimmed.toLowerCase().includes('no discrepancies') &&
                      trimmed.length > 2;
             })
             .map(l => l.replace(/^[-*]\s*/, '').trim());
@@ -72,12 +75,13 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
         }
       }
       
-      // Extract warnings - multiple patterns for flexibility
+      // Extract warnings - flexible patterns to match any AI output format
       const warningPatterns = [
-        /###\s*⚠️\s*Warnings[\s\S]*?(?=###|$)/i,
-        /###\s*Warnings\s*&\s*Recommendations[\s\S]*?(?=###|$)/i,
-        /##\s*⚠️\s*Warnings[\s\S]*?(?=##|$)/i,
-        /#.*Warnings.*[\s\S]*?(?=#|$)/i
+        /###\s*[⚠️]\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+        /###\s*[⚠️]\s*Warnings?[\s\S]*?(?=###|##|$)/i,
+        /###\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+        /##\s*[⚠️]\s*Warnings?[\s\S]*?(?=##|$)/i,
+        /#.*Warnings?.*[\s\S]*?(?=#|$)/i
       ];
       
       for (const pattern of warningPatterns) {
@@ -88,6 +92,7 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
               const trimmed = l.trim();
               return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                      !trimmed.toLowerCase().includes('none identified') &&
+                     !trimmed.toLowerCase().includes('no warnings') &&
                      trimmed.length > 2;
             })
             .map(l => l.replace(/^[-*]\s*/, '').trim());
@@ -345,12 +350,14 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
           let criticalCount = 0;
           let warningCount = 0;
           
-          // Count critical issues
+          // Count critical issues/discrepancies - flexible patterns
           const criticalPatterns = [
-            /###\s*❌\s*Critical Issues[\s\S]*?(?=###|$)/i,
-            /###\s*Critical Issues\s*-\s*Must Fix[\s\S]*?(?=###|$)/i,
-            /##\s*❌\s*Critical Issues[\s\S]*?(?=##|$)/i,
-            /#.*Critical Issues.*[\s\S]*?(?=#|$)/i
+            /###\s*[✗❌]\s*Discrepanc(?:ies|y)\s+Found[\s\S]*?(?=###|##|$)/i,
+            /###\s*[✗❌]\s*Critical\s+Issues[\s\S]*?(?=###|##|$)/i,
+            /###\s*Critical\s+Issues\s*-\s*Must\s+Fix[\s\S]*?(?=###|##|$)/i,
+            /###\s*Discrepanc(?:ies|y)[\s\S]*?(?=###|##|$)/i,
+            /##\s*[✗❌]\s*(?:Critical\s+Issues|Discrepanc(?:ies|y))[\s\S]*?(?=##|$)/i,
+            /#.*(?:Critical\s+Issues|Discrepanc(?:ies|y)).*[\s\S]*?(?=#|$)/i
           ];
           
           for (const pattern of criticalPatterns) {
@@ -361,6 +368,7 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
                   const trimmed = l.trim();
                   return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                          !trimmed.toLowerCase().includes('none identified') &&
+                         !trimmed.toLowerCase().includes('no discrepancies') &&
                          trimmed.length > 2;
                 });
               criticalCount = lines.length;
@@ -368,12 +376,13 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
             }
           }
           
-          // Count warnings
+          // Count warnings - flexible patterns
           const warningPatterns = [
-            /###\s*⚠️\s*Warnings[\s\S]*?(?=###|$)/i,
-            /###\s*Warnings\s*&\s*Recommendations[\s\S]*?(?=###|$)/i,
-            /##\s*⚠️\s*Warnings[\s\S]*?(?=##|$)/i,
-            /#.*Warnings.*[\s\S]*?(?=#|$)/i
+            /###\s*[⚠️]\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+            /###\s*[⚠️]\s*Warnings?[\s\S]*?(?=###|##|$)/i,
+            /###\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+            /##\s*[⚠️]\s*Warnings?[\s\S]*?(?=##|$)/i,
+            /#.*Warnings?.*[\s\S]*?(?=#|$)/i
           ];
           
           for (const pattern of warningPatterns) {
@@ -384,6 +393,7 @@ export function ComparisonResults({ results, criticalChecksResults = [] }: Compa
                   const trimmed = l.trim();
                   return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                          !trimmed.toLowerCase().includes('none identified') &&
+                         !trimmed.toLowerCase().includes('no warnings') &&
                          trimmed.length > 2;
                 });
               warningCount = lines.length;
@@ -444,12 +454,14 @@ function DetailedFeedbackSection({ feedback }: { feedback: string; documentName?
   const criticalIssues: string[] = [];
   const warnings: string[] = [];
   
-  // Extract critical issues
+  // Extract critical issues/discrepancies - flexible patterns
   const criticalPatterns = [
-    /###\s*❌\s*Critical Issues[\s\S]*?(?=###|$)/i,
-    /###\s*Critical Issues\s*-\s*Must Fix[\s\S]*?(?=###|$)/i,
-    /##\s*❌\s*Critical Issues[\s\S]*?(?=##|$)/i,
-    /#.*Critical Issues.*[\s\S]*?(?=#|$)/i
+    /###\s*[✗❌]\s*Discrepanc(?:ies|y)\s+Found[\s\S]*?(?=###|##|$)/i,
+    /###\s*[✗❌]\s*Critical\s+Issues[\s\S]*?(?=###|##|$)/i,
+    /###\s*Critical\s+Issues\s*-\s*Must\s+Fix[\s\S]*?(?=###|##|$)/i,
+    /###\s*Discrepanc(?:ies|y)[\s\S]*?(?=###|##|$)/i,
+    /##\s*[✗❌]\s*(?:Critical\s+Issues|Discrepanc(?:ies|y))[\s\S]*?(?=##|$)/i,
+    /#.*(?:Critical\s+Issues|Discrepanc(?:ies|y)).*[\s\S]*?(?=#|$)/i
   ];
   
   for (const pattern of criticalPatterns) {
@@ -460,6 +472,7 @@ function DetailedFeedbackSection({ feedback }: { feedback: string; documentName?
           const trimmed = l.trim();
           return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                  !trimmed.toLowerCase().includes('none identified') &&
+                 !trimmed.toLowerCase().includes('no discrepancies') &&
                  trimmed.length > 2;
         })
         .map(l => l.replace(/^[-*]\s*/, '').trim());
@@ -468,12 +481,13 @@ function DetailedFeedbackSection({ feedback }: { feedback: string; documentName?
     }
   }
   
-  // Extract warnings
+  // Extract warnings - flexible patterns
   const warningPatterns = [
-    /###\s*⚠️\s*Warnings[\s\S]*?(?=###|$)/i,
-    /###\s*Warnings\s*&\s*Recommendations[\s\S]*?(?=###|$)/i,
-    /##\s*⚠️\s*Warnings[\s\S]*?(?=##|$)/i,
-    /#.*Warnings.*[\s\S]*?(?=#|$)/i
+    /###\s*[⚠️]\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+    /###\s*[⚠️]\s*Warnings?[\s\S]*?(?=###|##|$)/i,
+    /###\s*Warnings?\s*(?:&|and)?\s*Recommendations?[\s\S]*?(?=###|##|$)/i,
+    /##\s*[⚠️]\s*Warnings?[\s\S]*?(?=##|$)/i,
+    /#.*Warnings?.*[\s\S]*?(?=#|$)/i
   ];
   
   for (const pattern of warningPatterns) {
@@ -484,6 +498,7 @@ function DetailedFeedbackSection({ feedback }: { feedback: string; documentName?
           const trimmed = l.trim();
           return (trimmed.startsWith('-') || trimmed.startsWith('*')) && 
                  !trimmed.toLowerCase().includes('none identified') &&
+                 !trimmed.toLowerCase().includes('no warnings') &&
                  trimmed.length > 2;
         })
         .map(l => l.replace(/^[-*]\s*/, '').trim());
