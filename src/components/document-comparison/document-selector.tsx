@@ -19,6 +19,14 @@ interface Document {
   description?: string;
 }
 
+interface Pallet {
+  length?: number;
+  width?: number;
+  height?: number;
+  weight: number;
+  quantity: number;
+}
+
 interface Quotation {
   id: string;
   company_name: string;
@@ -26,6 +34,7 @@ interface Quotation {
   created_at: string;
   customer_name: string;
   status: string;
+  pallets?: Pallet[];
   total_net_weight?: number; // in kg
 }
 
@@ -99,9 +108,9 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
         
         // pallets is a JSONB array with fields: length, width, height, weight, quantity
         if (q.pallets && Array.isArray(q.pallets)) {
-          totalNetWeight = q.pallets.reduce((sum: number, pallet: any) => {
-            const weight = parseFloat(pallet.weight) || 0; // weight is already in kg
-            const quantity = parseInt(pallet.quantity) || 1;
+          totalNetWeight = q.pallets.reduce((sum: number, pallet: Pallet) => {
+            const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(String(pallet.weight)) || 0;
+            const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(String(pallet.quantity)) || 1;
             return sum + (weight * quantity);
           }, 0);
         }
