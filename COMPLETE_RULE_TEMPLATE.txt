@@ -327,3 +327,4 @@ Example:
 **Details:** TK32: 500,000g (500kg), Packing List: 471,000g (471kg), Commercial Invoice: 471,000g (471kg), Import Permit: 500kg authorized
 **Issue:** Net Weight in Packing List and Commercial Invoice (471kg) does not match TK32 (500kg). Discrepancy of 29kg found. This exceeds acceptable tolerance and must be corrected before shipment.
 
+

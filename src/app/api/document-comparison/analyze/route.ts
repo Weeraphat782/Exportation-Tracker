@@ -5,6 +5,29 @@ import { createClient } from '@supabase/supabase-js';
 export const maxDuration = 60; // 60 seconds
 export const dynamic = 'force-dynamic';
 
+// Simple rate limiting - global store for demo (in production, use Redis/database)
+const rateLimitStore = new Map<string, number>();
+const RATE_LIMIT_WINDOW = 10000; // 10 seconds between requests per user
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userKey = `user_${userId}`;
+
+  const lastRequestTime = rateLimitStore.get(userKey);
+  if (!lastRequestTime) {
+    rateLimitStore.set(userKey, now);
+    return true;
+  }
+
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < RATE_LIMIT_WINDOW) {
+    return false;
+  }
+
+  rateLimitStore.set(userKey, now);
+  return true;
+}
+
 // Interface for extracted document data
 interface ExtractedData {
   consignor_name?: string;
@@ -22,6 +45,59 @@ interface ExtractedData {
   shipped_from?: string;
   shipped_to?: string;
   document_date?: string;
+}
+
+// Type guard for error objects
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  );
+}
+
+function isErrorWithStatus(error: unknown): error is { status: number } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof (error as Record<string, unknown>).status === 'number'
+  );
+}
+
+// Helper function to implement exponential backoff retry
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      const isRetryableError =
+        (isErrorWithMessage(error) && (
+          error.message.includes('RESOURCE_EXHAUSTED') ||
+          error.message.includes('quota') ||
+          error.message.includes('rate_limit') ||
+          error.message.includes('429')
+        )) ||
+        (isErrorWithStatus(error) && (
+          error.status === 429 ||
+          error.status === 503
+        ));
+
+      if (!isRetryableError || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000; // Add jitter
+      console.log(`⏳ Retry attempt ${attempt + 1}/${maxRetries} after ${Math.round(delay)}ms delay`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Max retries exceeded');
 }
 
 // Helper function to download file from URL and convert to base64
@@ -68,7 +144,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { document_ids, quotation_id, user_id, rule_id } = body;
 
-    console.log('Document comparison request:', { 
+    console.log('Document comparison request:', {
       document_ids_count: document_ids?.length,
       quotation_id,
       user_id,
@@ -100,6 +176,23 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'rule_id is required' },
         { status: 400 }
+      );
+    }
+
+    // Check rate limiting
+    if (!checkRateLimit(user_id)) {
+      console.log(`🚫 Rate limit exceeded for user ${user_id}`);
+      return NextResponse.json(
+        {
+          error: 'Too many requests. Please wait a few seconds before trying again.',
+          retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000)
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil(RATE_LIMIT_WINDOW / 1000).toString()
+          }
+        }
       );
     }
 
@@ -151,7 +244,7 @@ export async function POST(request: Request) {
     if (typeof apiKey !== 'string') {
       apiKey = (apiKey as Record<string, unknown>)?.value as string || '';
     }
-    
+
     // Fallback to env variable if not in settings
     if (!apiKey) {
       apiKey = process.env.GEMINI_API_KEY || '';
@@ -185,7 +278,7 @@ export async function POST(request: Request) {
     // Phase 1: Download files and convert to base64, then extract key fields (PARALLEL)
     console.log('Phase 1: Downloading files and extracting data in parallel...');
     console.time('Phase 1');
-    
+
     const extractedMap: Record<string, ExtractedData> = {};
     const documentsWithData: Array<{
       id: string;
@@ -216,21 +309,25 @@ export async function POST(request: Request) {
           acc[field] = "";
           return acc;
         }, {});
-        
+
         const extractPrompt = `Extract the following fields from this document section called "${doc.file_name || doc.document_type}".
 Return STRICT JSON only (no prose) with keys (use empty string or null if not present):
 ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-        const extraction = await model.generateContent([
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data,
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const extraction = await retryWithBackoff(
+          () => model.generateContent([
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
             },
-          },
-          extractPrompt,
-        ]);
+            extractPrompt,
+          ]),
+          3, // max retries
+          2000 // base delay 2 seconds
+        );
 
         let extracted: ExtractedData = {};
         try {
@@ -239,7 +336,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         } catch {
           extracted = {};
         }
-        
+
         console.log(`✓ Extracted data from ${doc.file_name}`);
         return { docData, extracted };
       } catch (error) {
@@ -259,7 +356,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
     // Wait for all documents to be processed
     const results = await Promise.all(processPromises);
-    
+
     // Populate arrays from results
     results.forEach(({ docData, extracted }) => {
       if (docData.base64Data) {
@@ -267,14 +364,14 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         extractedMap[docData.id] = extracted;
       }
     });
-    
+
     console.timeEnd('Phase 1');
     console.log(`✓ Processed ${documentsWithData.length} documents`);
 
     // Phase 2: Generate comprehensive cross-document comparison
     // EXACT LOGIC from ai-doc-review-main - DO NOT MODIFY
     console.log('Phase 2: Performing cross-document analysis...');
-    
+
     // Helper function to convert document_type slug to display name
     function getDocumentTypeDisplayName(slug: string): string {
       const typeMap: Record<string, string> = {
@@ -291,7 +388,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
       };
       return typeMap[slug] || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
-    
+
     try {
       // Build list of all documents with their extracted data
       const allDocuments = documentsWithData.map(doc => ({
@@ -316,11 +413,11 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         comparisonPrompt += `\n\n---\n\nCRITICAL CHECKS EVALUATION:\n\n`;
         comparisonPrompt += `You MUST evaluate each of the following critical checks and provide structured feedback.\n\n`;
         comparisonPrompt += `For EACH check below, you MUST include a dedicated section in your response:\n\n`;
-        
+
         criticalChecks.forEach((check: string, index: number) => {
           comparisonPrompt += `${index + 1}. ${check}\n`;
         });
-        
+
         comparisonPrompt += `\n\nFor each critical check, you MUST create a section like this:\n\n`;
         comparisonPrompt += `### Critical Check: [Check Name]\n`;
         comparisonPrompt += `**Status:** PASS | FAIL | WARNING\n`;
@@ -353,10 +450,14 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
       }
       contents.push(comparisonPrompt);
 
-      // Generate comprehensive review
+      // Generate comprehensive review with retry logic
       console.log('Sending request to Gemini AI...');
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-      const response = await model.generateContent(contents);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const response = await retryWithBackoff(
+        () => model.generateContent(contents),
+        3, // max retries
+        3000 // base delay 3 seconds (longer for complex requests)
+      );
       const fullFeedback = response.response.text();
 
       console.log('Full AI Feedback Length:', fullFeedback.length);
@@ -369,23 +470,23 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       // Parse the response to extract per-document sections BY DOCUMENT TYPE
       const documentSections: Record<string, string> = {};
-      
+
       for (const doc of documentsWithData) {
         // Match by document_type display name (e.g., "Commercial Invoice", "Packing List")
         let match = null;
         const displayType = getDocumentTypeDisplayName(doc.type);
-        
+
         // Strategy 1: Match by display type exactly
         const escapedType = displayType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex1 = new RegExp(`##\\s*(?:\\[)?${escapedType}(?:\\])?[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
         match = fullFeedback.match(regex1);
-        
+
         // Strategy 2: Flexible match - find any section containing the document type
         if (!match) {
           const regex2 = new RegExp(`##\\s*[^\\n]*${escapedType}[^\\n]*[\\s\\S]*?(?=(?:\\n##\\s+(?!#))|$)`, 'i');
           match = fullFeedback.match(regex2);
         }
-        
+
         // Strategy 3: Match by keywords in document type
         if (!match) {
           const keywords = displayType.split(/\s+/).filter(k => k.length > 2);
@@ -395,7 +496,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
             match = fullFeedback.match(regex3);
           }
         }
-        
+
         if (match) {
           documentSections[doc.id] = match[0];
           console.log(`✓ Successfully extracted section for ${displayType} (${doc.name}), length: ${match[0].length}`);
@@ -408,12 +509,12 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       // Check if we successfully extracted any sections
       const successfulExtractions = Object.values(documentSections).filter(s => !s.includes('No specific feedback')).length;
-      
+
       // Parse critical checks results (same for both success and fallback)
       const criticalChecksResults = [];
       const criticalCheckPattern = /###\s*Critical Check:\s*([^\n]+)\n\*\*Status:\*\*\s*(PASS|FAIL|WARNING)[^\n]*\n\*\*Details:\*\*\s*([^\n]+)\n\*\*Issue:\*\*\s*([^\n]+)/gi;
       let checkMatch;
-      
+
       while ((checkMatch = criticalCheckPattern.exec(fullFeedback)) !== null) {
         criticalChecksResults.push({
           check_name: checkMatch[1].trim(),
@@ -422,7 +523,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
           issue: checkMatch[4].trim(),
         });
       }
-      
+
       console.log('Parsed critical checks:', criticalChecksResults.length);
 
       // If extraction failed for all documents, use full feedback for first document
@@ -436,7 +537,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
           ai_feedback: index === 0 ? fullFeedback : `See full analysis in the first document (${documentsWithData[0].name})`,
           sequence_order: index + 1,
         }));
-        
+
         return NextResponse.json({
           success: true,
           full_feedback: fullFeedback,
@@ -446,7 +547,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
           critical_checks_list: criticalChecks,
         });
       }
-      
+
       // Build results array with extracted sections
       const results = documentsWithData.map((doc, index) => ({
         document_id: doc.id,
@@ -458,8 +559,8 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       console.log('Analysis completed successfully');
 
-      return NextResponse.json({
-        success: true,
+    return NextResponse.json({
+      success: true,
         full_feedback: fullFeedback,
         results,
         extracted_data: extractedMap,
@@ -467,11 +568,45 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         critical_checks_list: criticalChecks,
       });
 
-    } catch (error) {
-      console.error('Failed to process cross-document comparison:', error);
+  } catch (error) {
+      console.error('❌ Failed to process cross-document comparison:', error);
+
+      // Provide more specific error messages based on error type
+      let errorMessage = 'Failed to process cross-document comparison. Please try again.';
+      let statusCode = 500;
+
+      if (error instanceof Error) {
+        // Check for common Gemini API errors
+        if (error.message.includes('API_KEY_INVALID') || error.message.includes('PERMISSION_DENIED')) {
+          errorMessage = 'AI service authentication failed. Please check your API key configuration.';
+          statusCode = 401;
+        } else if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('quota') || error.message.includes('429')) {
+          errorMessage = 'AI service quota exceeded. The system will automatically retry, or please try again in a few minutes. Consider upgrading your plan for higher limits.';
+          statusCode = 429;
+        } else if (error.message.includes('INVALID_ARGUMENT')) {
+          errorMessage = 'Invalid document data provided. Please ensure all documents are valid and not corrupted.';
+          statusCode = 400;
+        } else if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+          errorMessage = 'Document analysis timed out. Please try with fewer documents or smaller files.';
+          statusCode = 408;
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          errorMessage = 'Network error occurred while processing documents. Please check your internet connection and try again.';
+          statusCode = 503;
+        } else if (error.message.includes('Max retries exceeded')) {
+          errorMessage = 'AI service is temporarily unavailable after multiple retry attempts. Please try again later.';
+          statusCode = 503;
+        }
+
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+
       return NextResponse.json(
-        { error: 'Failed to process cross-document comparison. Please try again.' },
-        { status: 500 }
+        { error: errorMessage },
+        { status: statusCode }
       );
     }
 
@@ -482,5 +617,4 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
       { status: 500 }
     );
   }
-}
-
+} 
