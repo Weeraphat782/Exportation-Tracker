@@ -36,7 +36,19 @@ export default function RulesPage() {
         return;
       }
 
-      const response = await fetch(`/api/document-comparison/rules?user_id=${user.id}`);
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError('Authentication session expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`/api/document-comparison/rules?user_id=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setRules(data);
@@ -62,8 +74,18 @@ export default function RulesPage() {
     }
 
     try {
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Authentication session expired. Please log in again.');
+        return;
+      }
+
       const response = await fetch(`/api/document-comparison/rules/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
       });
 
       if (response.ok) {

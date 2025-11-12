@@ -61,9 +61,19 @@ export default function NewRulePage() {
         return;
       }
 
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Authentication session expired. Please log in again.');
+        return;
+      }
+
       const response = await fetch('/api/document-comparison/rules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           user_id: user.id,
           name: name.trim(),

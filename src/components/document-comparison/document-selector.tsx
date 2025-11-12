@@ -138,13 +138,24 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
     setLoadingRules(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         console.error('User not authenticated');
         return;
       }
 
-      const response = await fetch(`/api/document-comparison/rules?user_id=${user.id}`);
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('Authentication session expired');
+        return;
+      }
+
+      const response = await fetch(`/api/document-comparison/rules?user_id=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setRules(data);

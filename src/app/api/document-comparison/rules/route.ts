@@ -13,14 +13,25 @@ export async function GET(request: Request) {
       );
     }
 
+    // Use authenticated client to work with RLS policies
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       }
     );
 
@@ -70,14 +81,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // Use authenticated client to work with RLS policies
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       }
     );
 

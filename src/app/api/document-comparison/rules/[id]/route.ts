@@ -1,6 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+function createAuthenticatedClient(request: Request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('Authentication required');
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+  } catch {
+    throw new Error('Authentication failed');
+  }
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -8,16 +32,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
+    const supabase = createAuthenticatedClient(request);
 
     const { data: rule, error } = await supabase
       .from('document_comparison_rules')
@@ -58,16 +73,7 @@ export async function PUT(
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
+    const supabase = createAuthenticatedClient(request);
 
     const { data: rule, error } = await supabase
       .from('document_comparison_rules')
@@ -107,16 +113,7 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
+    const supabase = createAuthenticatedClient(request);
 
     // Check if it's a default rule (shouldn't be deleted)
     const { data: rule } = await supabase

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Plus, X, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 interface Rule {
@@ -36,7 +37,18 @@ export default function EditRulePage({ params }: { params: Promise<{ id: string 
 
   const loadRule = useCallback(async () => {
     try {
-      const response = await fetch(`/api/document-comparison/rules/${id}`);
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('Authentication session expired');
+        return;
+      }
+
+      const response = await fetch(`/api/document-comparison/rules/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setRule(data);
@@ -95,9 +107,19 @@ export default function EditRulePage({ params }: { params: Promise<{ id: string 
     setSaving(true);
 
     try {
+      // Get the current session to include JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Authentication session expired. Please log in again.');
+        return;
+      }
+
       const response = await fetch(`/api/document-comparison/rules/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),
