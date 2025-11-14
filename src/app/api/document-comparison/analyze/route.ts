@@ -28,6 +28,14 @@ function checkRateLimit(userId: string): boolean {
   return true;
 }
 
+// Interface for document object
+interface DocumentData {
+  id: string;
+  file_name: string;
+  file_url: string;
+  document_type: string;
+}
+
 // Interface for extracted document data
 interface ExtractedData {
   consignor_name?: string;
@@ -142,25 +150,54 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { document_ids, quotation_id, user_id, rule_id } = body;
+    const {
+      document_ids,
+      quotation_id,
+      user_id,
+      rule_id,
+      analysis_mode = 'quotation',
+      document_urls
+    } = body;
 
     console.log('Document comparison request:', {
+      analysis_mode,
       document_ids_count: document_ids?.length,
+      document_urls_count: document_urls?.length,
       quotation_id,
       user_id,
       rule_id
     });
 
-    if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
+    // Validate based on analysis mode
+    if (analysis_mode === 'uploaded') {
+      if (!document_urls || !Array.isArray(document_urls) || document_urls.length === 0) {
+        return NextResponse.json(
+          { error: 'document_urls array is required for uploaded mode' },
+          { status: 400 }
+        );
+      }
+      if (!quotation_id) {
+        return NextResponse.json(
+          { error: 'quotation_id is required for uploaded mode' },
+          { status: 400 }
+        );
+      }
+    } else if (analysis_mode === 'quotation') {
+      if (!document_ids || !Array.isArray(document_ids) || document_ids.length === 0) {
+        return NextResponse.json(
+          { error: 'document_ids array is required for quotation mode' },
+          { status: 400 }
+        );
+      }
+      if (!quotation_id) {
+        return NextResponse.json(
+          { error: 'quotation_id is required for quotation mode' },
+          { status: 400 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: 'document_ids array is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!quotation_id) {
-      return NextResponse.json(
-        { error: 'quotation_id is required' },
+        { error: "Invalid analysis_mode. Must be 'quotation' or 'uploaded'" },
         { status: 400 }
       );
     }
@@ -257,18 +294,55 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get documents from database
-    const { data: documents, error: documentsError } = await supabase
-      .from('document_submissions')
-      .select('*')
-      .in('id', document_ids)
-      .eq('quotation_id', quotation_id);
+    // Get documents based on analysis mode
+    let documents;
 
-    if (documentsError || !documents || documents.length === 0) {
-      return NextResponse.json(
-        { error: 'Failed to fetch documents' },
-        { status: 404 }
-      );
+    if (analysis_mode === 'uploaded') {
+      // 📁 UPLOADED MODE: Create mock documents from document_urls
+      console.log('📁 Using uploaded mode - creating mock documents from URLs');
+
+      // Helper function to extract filename from URL
+      const extractFileNameFromUrl = (url: string): string => {
+        try {
+          const urlParts = url.split('/');
+          const lastPart = urlParts[urlParts.length - 1];
+          // Remove query parameters and decode
+          const fileName = decodeURIComponent(lastPart.split('?')[0]);
+          return fileName || 'uploaded_file';
+        } catch {
+          return 'uploaded_file';
+        }
+      };
+
+      // Create mock documents from URLs
+      documents = document_urls.map((url: string, index: number) => ({
+        id: `uploaded_${index}`,
+        file_name: extractFileNameFromUrl(url),
+        file_url: url,
+        document_type: 'other', // Default type - could be enhanced to detect from filename
+      }));
+
+      console.log(`✓ Created ${documents.length} mock documents for uploaded analysis`);
+
+    } else {
+      // 📋 ORIGINAL QUOTATION MODE: Get documents from database
+      console.log('📋 Using quotation mode - fetching from database');
+
+      const { data: docs, error: documentsError } = await supabase
+        .from('document_submissions')
+        .select('*')
+        .in('id', document_ids)
+        .eq('quotation_id', quotation_id);
+
+      if (documentsError || !docs || docs.length === 0) {
+        return NextResponse.json(
+          { error: 'Failed to fetch documents from database' },
+          { status: 404 }
+        );
+      }
+
+      documents = docs;
+      console.log(`✓ Fetched ${documents.length} documents from database`);
     }
 
     // Initialize Google GenAI client
@@ -289,7 +363,7 @@ export async function POST(request: Request) {
     }> = [];
 
     // Process all documents in parallel for faster processing
-    const processPromises = documents.map(async (doc) => {
+    const processPromises = documents.map(async (doc: DocumentData) => {
       try {
         console.log(`Downloading file: ${doc.file_name}`);
         const base64Data = await downloadAndConvertToBase64(doc.file_url);
