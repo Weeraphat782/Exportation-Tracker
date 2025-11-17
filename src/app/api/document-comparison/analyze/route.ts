@@ -34,6 +34,17 @@ interface DocumentData {
   file_name: string;
   file_url: string;
   document_type: string;
+  base64Data?: string;
+  mimeType?: string;
+}
+
+// Interface for uploaded document from Document Comparison System
+interface UploadedDocument {
+  id: string;
+  name: string;
+  type: string;
+  base64Data: string;
+  mimeType: string;
 }
 
 // Interface for extracted document data
@@ -315,7 +326,7 @@ export async function POST(request: Request) {
       console.log('📁 Using uploaded mode - processing documents from request data');
 
       // Convert the received documents to the format expected by the processing logic
-      documentList = documents.map((doc: any, index: number) => ({
+      documentList = documents.map((doc: UploadedDocument, index: number) => ({
         id: doc.id || `uploaded_${index}`,
         file_name: doc.name,
         file_url: `data:${doc.mimeType};base64,${doc.base64Data}`, // Create data URL for processing
