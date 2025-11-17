@@ -109,8 +109,20 @@ async function retryWithBackoff<T>(
 }
 
 // Helper function to download file from URL and convert to base64
+// Supports both regular URLs and data URLs
 async function downloadAndConvertToBase64(url: string): Promise<string> {
   try {
+    // Check if it's a data URL
+    if (url.startsWith('data:')) {
+      // Extract base64 data from data URL
+      const base64Data = url.split(',')[1];
+      if (base64Data) {
+        return base64Data;
+      }
+      throw new Error('Invalid data URL format');
+    }
+
+    // Regular URL download
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to download file: ${response.statusText}`);
@@ -156,7 +168,8 @@ export async function POST(request: Request) {
       user_id,
       rule_id,
       analysis_mode = 'quotation',
-      document_urls
+      document_urls,
+      documents  // New parameter for uploaded mode with file data
     } = body;
 
     console.log('Document comparison request:', {
@@ -170,9 +183,9 @@ export async function POST(request: Request) {
 
     // Validate based on analysis mode
     if (analysis_mode === 'uploaded') {
-      if (!document_urls || !Array.isArray(document_urls) || document_urls.length === 0) {
+      if (!documents || !Array.isArray(documents) || documents.length === 0) {
         return NextResponse.json(
-          { error: 'document_urls array is required for uploaded mode' },
+          { error: 'documents array is required for uploaded mode' },
           { status: 400 }
         );
       }
@@ -298,31 +311,21 @@ export async function POST(request: Request) {
     let documents;
 
     if (analysis_mode === 'uploaded') {
-      // 📁 UPLOADED MODE: Create mock documents from document_urls
-      console.log('📁 Using uploaded mode - creating mock documents from URLs');
+      // 📁 UPLOADED MODE: Use documents data sent directly
+      console.log('📁 Using uploaded mode - processing documents from request data');
 
-      // Helper function to extract filename from URL
-      const extractFileNameFromUrl = (url: string): string => {
-        try {
-          const urlParts = url.split('/');
-          const lastPart = urlParts[urlParts.length - 1];
-          // Remove query parameters and decode
-          const fileName = decodeURIComponent(lastPart.split('?')[0]);
-          return fileName || 'uploaded_file';
-        } catch {
-          return 'uploaded_file';
-        }
-      };
-
-      // Create mock documents from URLs
-      documents = document_urls.map((url: string, index: number) => ({
-        id: `uploaded_${index}`,
-        file_name: extractFileNameFromUrl(url),
-        file_url: url,
-        document_type: 'other', // Default type - could be enhanced to detect from filename
+      // Convert the received documents to the format expected by the processing logic
+      documents = documents.map((doc: any, index: number) => ({
+        id: doc.id || `uploaded_${index}`,
+        file_name: doc.name,
+        file_url: `data:${doc.mimeType};base64,${doc.base64Data}`, // Create data URL for processing
+        document_type: doc.type || 'other',
+        // Store base64 data for later use
+        base64Data: doc.base64Data,
+        mimeType: doc.mimeType,
       }));
 
-      console.log(`✓ Created ${documents.length} mock documents for uploaded analysis`);
+      console.log(`✓ Prepared ${documents.length} documents for uploaded analysis`);
 
     } else {
       // 📋 ORIGINAL QUOTATION MODE: Get documents from database
@@ -365,9 +368,23 @@ export async function POST(request: Request) {
     // Process all documents in parallel for faster processing
     const processPromises = documents.map(async (doc: DocumentData) => {
       try {
-        console.log(`Downloading file: ${doc.file_name}`);
-        const base64Data = await downloadAndConvertToBase64(doc.file_url);
-        const mimeType = getMimeType(doc.file_name);
+        console.log(`Processing file: ${doc.file_name}`);
+
+        // For uploaded mode, use existing base64Data; for quotation mode, download
+        let base64Data: string;
+        let mimeType: string;
+
+        if (analysis_mode === 'uploaded' && doc.base64Data) {
+          // Use existing base64 data for uploaded mode
+          base64Data = doc.base64Data;
+          mimeType = doc.mimeType || getMimeType(doc.file_name);
+          console.log(`Using existing base64 data for ${doc.file_name}`);
+        } else {
+          // Download for quotation mode or fallback
+          base64Data = await downloadAndConvertToBase64(doc.file_url);
+          mimeType = getMimeType(doc.file_name);
+          console.log(`Downloaded file: ${doc.file_name}`);
+        }
 
         const docData = {
           id: doc.id,
