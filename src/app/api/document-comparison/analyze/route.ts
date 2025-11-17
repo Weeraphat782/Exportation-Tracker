@@ -308,14 +308,14 @@ export async function POST(request: Request) {
     }
 
     // Get documents based on analysis mode
-    let documents;
+    let documentList;
 
     if (analysis_mode === 'uploaded') {
       // 📁 UPLOADED MODE: Use documents data sent directly
       console.log('📁 Using uploaded mode - processing documents from request data');
 
       // Convert the received documents to the format expected by the processing logic
-      documents = documents.map((doc: any, index: number) => ({
+      documentList = documents.map((doc: any, index: number) => ({
         id: doc.id || `uploaded_${index}`,
         file_name: doc.name,
         file_url: `data:${doc.mimeType};base64,${doc.base64Data}`, // Create data URL for processing
@@ -325,7 +325,7 @@ export async function POST(request: Request) {
         mimeType: doc.mimeType,
       }));
 
-      console.log(`✓ Prepared ${documents.length} documents for uploaded analysis`);
+      console.log(`✓ Prepared ${documentList.length} documents for uploaded analysis`);
 
     } else {
       // 📋 ORIGINAL QUOTATION MODE: Get documents from database
@@ -344,8 +344,8 @@ export async function POST(request: Request) {
         );
       }
 
-      documents = docs;
-      console.log(`✓ Fetched ${documents.length} documents from database`);
+      documentList = docs;
+      console.log(`✓ Fetched ${documentList.length} documents from database`);
     }
 
     // Initialize Google GenAI client
@@ -366,7 +366,7 @@ export async function POST(request: Request) {
     }> = [];
 
     // Process all documents in parallel for faster processing
-    const processPromises = documents.map(async (doc: DocumentData) => {
+    const processPromises = documentList.map(async (doc: DocumentData) => {
       try {
         console.log(`Processing file: ${doc.file_name}`);
 
