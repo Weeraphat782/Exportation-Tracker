@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "exportation-quotation-manager": {
+      "command": "python",
+      "args": ["-m", "src.quotation_server"],
+      "cwd": "C:\\Users\\Jirut\\Exportation Without Typhoon\\Tr\\mcp-server",
+      "env": {
+        "PYTHONPATH": "C:\\Users\\Jirut\\Exportation Without Typhoon\\Tr\\mcp-server\\src"
+      }
+    }
+  }
+}
