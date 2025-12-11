@@ -28,7 +28,15 @@ function checkRateLimit(userId: string): boolean {
   return true;
 }
 
-
+// Interface for document object
+interface DocumentData {
+  id: string;
+  file_name: string;
+  file_url: string;
+  document_type: string;
+  base64Data?: string;
+  mimeType?: string;
+}
 
 // Interface for uploaded document from Document Comparison System
 interface UploadedDocument {
@@ -368,10 +376,8 @@ export async function POST(request: Request) {
       mimeType: string;
     }> = [];
 
-    // Process documents sequentially to avoid hitting rate limits (especially for Free Tier)
-    console.log('Processing documents sequentially...');
-
-    for (const doc of documentList) {
+    // Process all documents in parallel for faster processing
+    const processPromises = documentList.map(async (doc: DocumentData) => {
       try {
         console.log(`Processing file: ${doc.file_name}`);
 
@@ -411,10 +417,6 @@ Return STRICT JSON only (no prose) with keys (use empty string or null if not pr
 ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-        // Add a small delay before making the request to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
         const extraction = await retryWithBackoff(
           () => model.generateContent([
             {
@@ -425,7 +427,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
             },
             extractPrompt,
           ]),
-          5, // max retries (increased for stability)
+          3, // max retries
           2000 // base delay 2 seconds
         );
 
@@ -438,33 +440,32 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         }
 
         console.log(`✓ Extracted data from ${doc.file_name}`);
-
-        // Add result to lists
-        if (docData.base64Data) {
-          documentsWithData.push(docData);
-          extractedMap[docData.id] = extracted;
-        }
-
+        return { docData, extracted };
       } catch (error) {
         console.error(`Error processing document ${doc.id}:`, error);
-        // Continue with other documents even if one fails
-        // We don't add failed documents to documentsWithData to avoid issues in Phase 2
-        // We don't add failed documents to documentsWithData to avoid issues in Phase 2
-        // or we could add them with empty data if needed. 
-        // For now, let's skip adding them to documentsWithData to be safe, 
-        // or add them but handle missing data in Phase 2.
-        // The original code added them to results but filtered in the forEach.
-        // Let's stick to the original behavior:
-        // Original code: returned object, then filtered in forEach.
-        // Here we just don't push to documentsWithData if it fails or has no base64.
+        return {
+          docData: {
+            id: doc.id,
+            name: doc.file_name || doc.document_type,
+            type: doc.document_type,
+            base64Data: '',
+            mimeType: 'application/pdf',
+          },
+          extracted: {}
+        };
       }
-    }
+    });
 
-    // Original code had:
-    // const results = await Promise.all(processPromises);
-    // results.forEach(...)
-    // We have already populated documentsWithData and extractedMap inside the loop.
+    // Wait for all documents to be processed
+    const results = await Promise.all(processPromises);
 
+    // Populate arrays from results
+    results.forEach(({ docData, extracted }) => {
+      if (docData.base64Data) {
+        documentsWithData.push(docData);
+        extractedMap[docData.id] = extracted;
+      }
+    });
 
     console.timeEnd('Phase 1');
     console.log(`✓ Processed ${documentsWithData.length} documents`);
@@ -553,10 +554,10 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       // Generate comprehensive review with retry logic
       console.log('Sending request to Gemini AI...');
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       const response = await retryWithBackoff(
         () => model.generateContent(contents),
-        5, // max retries (increased for stability)
+        3, // max retries
         3000 // base delay 3 seconds (longer for complex requests)
       );
       const fullFeedback = response.response.text();
@@ -660,8 +661,8 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       console.log('Analysis completed successfully');
 
-      return NextResponse.json({
-        success: true,
+    return NextResponse.json({
+      success: true,
         full_feedback: fullFeedback,
         results,
         extracted_data: extractedMap,
@@ -669,7 +670,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         critical_checks_list: criticalChecks,
       });
 
-    } catch (error) {
+  } catch (error) {
       console.error('❌ Failed to process cross-document comparison:', error);
 
       // Provide more specific error messages based on error type
