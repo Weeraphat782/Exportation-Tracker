@@ -13,12 +13,37 @@ import {
 } from 'recharts';
 import dynamic from 'next/dynamic';
 
-// Dynamically import react-simple-maps components
-const ComposableMap = dynamic(() => import('react-simple-maps').then(mod => mod.ComposableMap), { ssr: false });
-const Geographies = dynamic(() => import('react-simple-maps').then(mod => mod.Geographies), { ssr: false });
-const Geography = dynamic(() => import('react-simple-maps').then(mod => mod.Geography), { ssr: false });
-const ZoomableGroup = dynamic(() => import('react-simple-maps').then(mod => mod.ZoomableGroup), { ssr: false });
-const Marker = dynamic(() => import('react-simple-maps').then(mod => mod.Marker), { ssr: false });
+// Loading component for maps
+const MapLoadingFallback = () => (
+  <div className="flex items-center justify-center h-[380px] bg-gray-100 rounded-md">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+      <p className="text-sm text-muted-foreground">กำลังโหลดแผนที่...</p>
+    </div>
+  </div>
+);
+
+// Dynamically import react-simple-maps components with loading states
+const ComposableMap = dynamic(
+  () => import('react-simple-maps').then(mod => mod.ComposableMap),
+  { ssr: false, loading: MapLoadingFallback }
+);
+const Geographies = dynamic(
+  () => import('react-simple-maps').then(mod => mod.Geographies),
+  { ssr: false }
+);
+const Geography = dynamic(
+  () => import('react-simple-maps').then(mod => mod.Geography),
+  { ssr: false }
+);
+const ZoomableGroup = dynamic(
+  () => import('react-simple-maps').then(mod => mod.ZoomableGroup),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import('react-simple-maps').then(mod => mod.Marker),
+  { ssr: false }
+);
 
 // Define colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];

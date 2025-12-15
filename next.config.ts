@@ -20,6 +20,27 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  // Generate unique build ID to prevent chunk mismatch
+  generateBuildId: async () => {
+    // Use timestamp to ensure unique build ID
+    return `build-${Date.now()}`;
+  },
+  // Headers for better caching strategy
+  async headers() {
+    return [
+      {
+        // Apply to all static chunks
+        source: '/_next/static/chunks/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            // Long cache but with revalidation - helps with chunk issues
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
