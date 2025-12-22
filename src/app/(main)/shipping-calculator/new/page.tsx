@@ -12,7 +12,7 @@ import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler } f
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ArrowLeft, Plus, Trash, Minus } from 'lucide-react';
-import { 
+import {
     calculateVolumeWeight,
     // getTotalVolumeWeight, // Removed unused import
     // getTotalActualWeight, // Removed unused import
@@ -21,17 +21,17 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from '@/components/ui/separator';
 import {
-  getDestinations,
-  getFreightRates,
-  getCompanies,
-  saveQuotation as dbSaveQuotation,
-  updateQuotation as dbUpdateQuotation,
-  getQuotationById as dbGetQuotationById,
-  Destination,
-  FreightRate,
-  Company,
-  Quotation,
-  NewQuotationData
+    getDestinations,
+    getFreightRates,
+    getCompanies,
+    saveQuotation as dbSaveQuotation,
+    updateQuotation as dbUpdateQuotation,
+    getQuotationById as dbGetQuotationById,
+    Destination,
+    FreightRate,
+    Company,
+    Quotation,
+    NewQuotationData
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -39,11 +39,11 @@ import { toast } from 'sonner';
 
 // --- Pallet Schema ---
 const palletSchema = z.object({
-  length: z.number().min(0, { message: 'Must be 0 or positive' }),
-  width: z.number().min(0, { message: 'Must be 0 or positive' }),
-  height: z.number().min(0, { message: 'Must be 0 or positive' }),
-  weight: z.number().min(0, { message: 'Must be 0 or positive' }),
-  quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }),
+    length: z.number().min(0, { message: 'Must be 0 or positive' }),
+    width: z.number().min(0, { message: 'Must be 0 or positive' }),
+    height: z.number().min(0, { message: 'Must be 0 or positive' }),
+    weight: z.number().min(0, { message: 'Must be 0 or positive' }),
+    quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }),
 });
 
 // --- Additional Charge Schema ---
@@ -57,17 +57,17 @@ const additionalChargeSchema = z.object({
 // Ensure this schema matches the QuotationFormValues type below
 // Fields managed by useForm defaults don't need .optional() or .default() here
 const quotationFormSchema = z.object({
-  companyId: z.string().min(1, { message: 'Company is required' }),
-  customerName: z.string().min(1, { message: 'Customer name is required' }),
-  contactPerson: z.string().min(1, { message: 'Contact person is required' }),
-  contractNo: z.string().optional(), // Still optional
-  destinationId: z.string().min(1, { message: 'Destination is required' }),
-  pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }),
-  deliveryServiceRequired: z.boolean(), // Default handled by useForm
-  deliveryVehicleType: z.enum(['4wheel', '6wheel']), // Default handled by useForm
-  clearanceCost: z.number().min(0, { message: 'Clearance cost must be 0 or greater' }).optional(), // Added clearance cost field
-  additionalCharges: z.array(additionalChargeSchema), // Default handled by useForm
-  notes: z.string().optional(), // Still optional
+    companyId: z.string().min(1, { message: 'Company is required' }),
+    customerName: z.string().min(1, { message: 'Customer name is required' }),
+    contactPerson: z.string().min(1, { message: 'Contact person is required' }),
+    contractNo: z.string().optional(), // Still optional
+    destinationId: z.string().min(1, { message: 'Destination is required' }),
+    pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }),
+    deliveryServiceRequired: z.boolean(), // Default handled by useForm
+    deliveryVehicleType: z.enum(['4wheel', '6wheel']), // Default handled by useForm
+    clearanceCost: z.number().min(0, { message: 'Clearance cost must be 0 or greater' }).optional(), // Added clearance cost field
+    additionalCharges: z.array(additionalChargeSchema), // Default handled by useForm
+    notes: z.string().optional(), // Still optional
 });
 
 // Define the type based on the schema
@@ -75,26 +75,26 @@ type QuotationFormValues = z.infer<typeof quotationFormSchema>;
 
 // Add type definitions near other interfaces
 interface PalletType {
-  length: number;
-  width: number;
-  height: number;
-  weight: number;
-  quantity?: number;
-  id?: string; // Make id optional since it's not used in existing code
+    length: number;
+    width: number;
+    height: number;
+    weight: number;
+    quantity?: number;
+    id?: string; // Make id optional since it's not used in existing code
 }
 
 interface AdditionalChargeType {
-  description: string;
-  amount: number;
-  id?: string; // Make id optional since it's not used in existing code
+    description: string;
+    amount: number;
+    id?: string; // Make id optional since it's not used in existing code
 }
 
 // Add this helper function after existing utility functions
 const formatNumber = (num: number) => {
-  if (Math.floor(num) === num) {
-    return num.toFixed(0);
-  }
-  return num.toFixed(2);
+    if (Math.floor(num) === num) {
+        return num.toFixed(0);
+    }
+    return num.toFixed(2);
 };
 
 // --- Helper Function: Calculate single pallet cost ---
@@ -132,39 +132,39 @@ function calculateSinglePalletFreightCost(
 }
 
 // --- Helper Component for Pallet Input ---
-const PalletItem = ({ 
-    index, 
+const PalletItem = ({
+    index,
     removePallet,
     destinationId,
     freightRates,
-}: { 
-    index: number; 
+}: {
+    index: number;
     removePallet: (index: number) => void;
     destinationId: string | undefined;
     freightRates: FreightRate[];
 }) => {
     const { control, watch } = useFormContext<QuotationFormValues>();
     const pallet = watch(`pallets.${index}`);
-    
+
     // Calculate these values directly to ensure they update immediately when pallet dimensions change
     const length = pallet.length || 0;
     const width = pallet.width || 0;
     const height = pallet.height || 0;
     const weight = pallet.weight || 0;
-    
+
     // Calculate volume weight directly - this will update whenever any dimension changes
     const volumeWeight = React.useMemo(() => {
         return calculateVolumeWeight(length, width, height);
     }, [length, width, height]);
-    
+
     const chargeableWeight = React.useMemo(() => {
         return Math.max(volumeWeight, weight);
     }, [volumeWeight, weight]);
-    
+
     // Only calculate freight cost if destination is selected
     const { applicableRate, freightCost } = React.useMemo(() => {
         if (!destinationId) return { applicableRate: null, freightCost: 0 };
-        
+
         const getApplicableRateFromDb = (destId: string, weight: number): FreightRate | null => {
             const applicableRates = freightRates.filter(
                 (rate) =>
@@ -174,14 +174,14 @@ const PalletItem = ({
             );
             return applicableRates.length > 0 ? applicableRates[0] : null;
         };
-        
+
         const foundRate = getApplicableRateFromDb(destinationId, chargeableWeight);
         const rateValue = foundRate?.base_rate ?? 0;
         const cost = Math.round(chargeableWeight * rateValue);
-        
+
         return { applicableRate: foundRate, freightCost: cost };
     }, [chargeableWeight, destinationId, freightRates]);
-    
+
     // Total cost for this item
     const totalItemCost = React.useMemo(() => {
         return freightCost;
@@ -195,10 +195,10 @@ const PalletItem = ({
         <div className="border rounded-md p-4 my-2 bg-gray-50 shadow-sm">
             <div className="flex justify-between items-center mb-3">
                 <div className="font-semibold text-md">Pallet {index + 1}</div>
-                <Button 
-                    type="button" 
+                <Button
+                    type="button"
                     variant="ghost"
-                    size="sm" 
+                    size="sm"
                     onClick={() => removePallet(index)}
                     className="text-red-600 hover:bg-red-100 px-2 py-1 h-auto"
                     disabled={watch('pallets')?.length <= 1}
@@ -206,94 +206,94 @@ const PalletItem = ({
                     <Trash className="h-4 w-4" />
                 </Button>
             </div>
-        
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 <FormField
                     control={control}
                     name={`pallets.${index}.length`}
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs">Length (cm)</FormLabel>
-                        <FormControl>
-                        <Input 
-                            {...field} 
-                            type="number" 
-                            placeholder="0" 
-                            value={field.value || ''} 
-                            onChange={(e) => {
-                                // Update field value
-                                field.onChange(parseFloat(e.target.value) || 0);
-                            }}
-                            className="h-9"
-                        />
-                        </FormControl>
-                    </FormItem>
+                        <FormItem>
+                            <FormLabel className="text-xs">Length (cm)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value || ''}
+                                    onChange={(e) => {
+                                        // Update field value
+                                        field.onChange(parseFloat(e.target.value) || 0);
+                                    }}
+                                    className="h-9"
+                                />
+                            </FormControl>
+                        </FormItem>
                     )}
                 />
                 <FormField
                     control={control}
                     name={`pallets.${index}.width`}
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs">Width (cm)</FormLabel>
-                        <FormControl>
-                            <Input 
-                                {...field} 
-                                type="number" 
-                                placeholder="0" 
-                                value={field.value || ''} 
-                                onChange={(e) => {
-                                    // Update field value
-                                    field.onChange(parseFloat(e.target.value) || 0);
-                                }}
-                                className="h-9"
-                            />
-                        </FormControl>
-                    </FormItem>
+                        <FormItem>
+                            <FormLabel className="text-xs">Width (cm)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value || ''}
+                                    onChange={(e) => {
+                                        // Update field value
+                                        field.onChange(parseFloat(e.target.value) || 0);
+                                    }}
+                                    className="h-9"
+                                />
+                            </FormControl>
+                        </FormItem>
                     )}
                 />
                 <FormField
                     control={control}
                     name={`pallets.${index}.height`}
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs">Height (cm)</FormLabel>
-                        <FormControl>
-                            <Input 
-                                {...field} 
-                                type="number" 
-                                placeholder="0" 
-                                value={field.value || ''} 
-                                onChange={(e) => {
-                                    // Update field value
-                                    field.onChange(parseFloat(e.target.value) || 0);
-                                }}
-                                className="h-9"
-                            />
-                        </FormControl>
-                    </FormItem>
+                        <FormItem>
+                            <FormLabel className="text-xs">Height (cm)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value || ''}
+                                    onChange={(e) => {
+                                        // Update field value
+                                        field.onChange(parseFloat(e.target.value) || 0);
+                                    }}
+                                    className="h-9"
+                                />
+                            </FormControl>
+                        </FormItem>
                     )}
                 />
                 <FormField
                     control={control}
                     name={`pallets.${index}.weight`}
                     render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs">Weight (kg)</FormLabel>
-                        <FormControl>
-                            <Input 
-                                {...field} 
-                                type="number" 
-                                placeholder="0" 
-                                value={field.value || ''} 
-                                onChange={(e) => {
-                                    // Update field value
-                                    field.onChange(parseFloat(e.target.value) || 0);
-                                }}
-                                className="h-9"
-                            />
-                        </FormControl>
-                    </FormItem>
+                        <FormItem>
+                            <FormLabel className="text-xs">Weight (kg)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value || ''}
+                                    onChange={(e) => {
+                                        // Update field value
+                                        field.onChange(parseFloat(e.target.value) || 0);
+                                    }}
+                                    className="h-9"
+                                />
+                            </FormControl>
+                        </FormItem>
                     )}
                 />
             </div>
@@ -328,7 +328,7 @@ const AdditionalChargeItem = ({
                     <FormItem className="flex-grow">
                         <FormLabel className="text-xs">Name</FormLabel>
                         <FormControl>
-                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9"/>
+                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
                         </FormControl>
                     </FormItem>
                 )}
@@ -340,7 +340,7 @@ const AdditionalChargeItem = ({
                     <FormItem className="flex-grow">
                         <FormLabel className="text-xs">Description</FormLabel>
                         <FormControl>
-                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9"/>
+                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
                         </FormControl>
                     </FormItem>
                 )}
@@ -352,16 +352,16 @@ const AdditionalChargeItem = ({
                     <FormItem>
                         <FormLabel className="text-xs">Amount (THB)</FormLabel>
                         <FormControl>
-                            <Input 
-                                {...field} 
-                                type="number" 
-                                placeholder="0.00" 
-                                value={field.value || ''} 
+                            <Input
+                                {...field}
+                                type="number"
+                                placeholder="0.00"
+                                value={field.value || ''}
                                 onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
                                     // Force recalculation immediately after amount changes
                                     setTimeout(() => trigger(), 0);
-                                }} 
+                                }}
                                 className="h-9 w-28"
                             />
                         </FormControl>
@@ -398,87 +398,87 @@ interface CalculationResult {
 
 // Add this function before the NewQuotationPage component
 function calculateTotalFreightCost(
-  pallets: PalletType[] = [], 
-  additionalCharges: AdditionalChargeType[] = [],
-  options: { clearanceCost?: number; deliveryRequired?: boolean; deliveryType?: string; deliveryRates?: Record<string, number>; destinationId?: string; freightRates?: FreightRate[] } = {}
+    pallets: PalletType[] = [],
+    additionalCharges: AdditionalChargeType[] = [],
+    options: { clearanceCost?: number; deliveryRequired?: boolean; deliveryType?: string; deliveryRates?: Record<string, number>; destinationId?: string; freightRates?: FreightRate[] } = {}
 ): CalculationResult {
-  // Calculate total volume (in cubic centimeters)
-  const totalVolumeCm3 = pallets.reduce((acc, pallet) => {
-    const volume = (pallet.length * pallet.width * pallet.height * (pallet.quantity || 1));
-    return acc + volume;
-  }, 0);
-
-  // Calculate total weight
-  const totalWeight = pallets.reduce((acc, pallet) => {
-    return acc + (pallet.weight * (pallet.quantity || 1));
-  }, 0);
-
-  // Calculate volume weight using the same formula as in PalletItem (divide by 6000 instead of volume * 167)
-  // This ensures consistency between individual pallet calculations and total calculations
-  const totalVolumeWeight = totalVolumeCm3 / 6000;
-  
-  // Round the values to integers if they are close to whole numbers
-  const roundedTotalVolumeWeight = Math.abs(totalVolumeWeight - Math.round(totalVolumeWeight)) < 0.01 
-    ? Math.round(totalVolumeWeight) 
-    : totalVolumeWeight;
-  
-  // Get the chargeable weight (max of volume weight or actual weight)
-  const totalChargeableWeight = Math.max(roundedTotalVolumeWeight, totalWeight);
-
-  // Calculate freight cost for each pallet using the proper rates and sum them
-  let totalFreightCost = 0;
-  
-  // If we have freight rates and destination, calculate properly
-  if (options.freightRates && options.freightRates.length > 0 && options.destinationId) {
-    // Sum up individual pallet freight costs
-    totalFreightCost = pallets.reduce((acc, pallet) => {
-      const { freightCost } = calculateSinglePalletFreightCost(pallet, options.destinationId, options.freightRates || []);
-      return acc + freightCost;
+    // Calculate total volume (in cubic centimeters)
+    const totalVolumeCm3 = pallets.reduce((acc, pallet) => {
+        const volume = (pallet.length * pallet.width * pallet.height * (pallet.quantity || 1));
+        return acc + volume;
     }, 0);
-  } else {
-    // Fallback calculation if proper rates aren't available
-    totalFreightCost = totalChargeableWeight * 50; // Example rate per kg
-  }
-  
-      // Use provided clearance cost or default to 0 (no clearance cost)
-    const clearanceCost = options.clearanceCost || 0;
-  
-  // Calculate delivery cost based on settings
-  let deliveryCost = 0;
-  if (options.deliveryRequired) {
-    // Only apply delivery cost if delivery is required
-    if (options.deliveryType && options.deliveryRates && options.deliveryRates[options.deliveryType]) {
-      // Use the specific rate for the selected vehicle type
-      deliveryCost = options.deliveryRates[options.deliveryType];
-    } else {
-      // Fallback default if rates aren't provided
-      deliveryCost = 3000;
-    }
-  } // If deliveryRequired is false, deliveryCost remains 0
-  
-  // Calculate subtotal (before additional charges)
-  const subTotal = totalFreightCost + clearanceCost + deliveryCost;
-  
-  // Calculate total additional charges
-  const totalAdditionalCharges = additionalCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
-  
-  // Calculate final total cost
-  const finalTotalCost = subTotal + totalAdditionalCharges;
 
-  // Return all fields needed for the interface
-  return {
-    totalVolume: totalVolumeCm3 / 1000000, // Convert to cubic meters for display
-    totalWeight,
-    totalVolumeWeight: roundedTotalVolumeWeight, // Use the rounded value
-    totalActualWeight: totalWeight, // Aliasing for backward compatibility
-    totalChargeableWeight,
-    totalFreightCost,
-    clearanceCost,
-    deliveryCost,
-    subTotal,
-    totalAdditionalCharges,
-    finalTotalCost
-  };
+    // Calculate total weight
+    const totalWeight = pallets.reduce((acc, pallet) => {
+        return acc + (pallet.weight * (pallet.quantity || 1));
+    }, 0);
+
+    // Calculate volume weight using the same formula as in PalletItem (divide by 6000 instead of volume * 167)
+    // This ensures consistency between individual pallet calculations and total calculations
+    const totalVolumeWeight = totalVolumeCm3 / 6000;
+
+    // Round the values to integers if they are close to whole numbers
+    const roundedTotalVolumeWeight = Math.abs(totalVolumeWeight - Math.round(totalVolumeWeight)) < 0.01
+        ? Math.round(totalVolumeWeight)
+        : totalVolumeWeight;
+
+    // Get the chargeable weight (max of volume weight or actual weight)
+    const totalChargeableWeight = Math.max(roundedTotalVolumeWeight, totalWeight);
+
+    // Calculate freight cost for each pallet using the proper rates and sum them
+    let totalFreightCost = 0;
+
+    // If we have freight rates and destination, calculate properly
+    if (options.freightRates && options.freightRates.length > 0 && options.destinationId) {
+        // Sum up individual pallet freight costs
+        totalFreightCost = pallets.reduce((acc, pallet) => {
+            const { freightCost } = calculateSinglePalletFreightCost(pallet, options.destinationId, options.freightRates || []);
+            return acc + freightCost;
+        }, 0);
+    } else {
+        // Fallback calculation if proper rates aren't available
+        totalFreightCost = totalChargeableWeight * 50; // Example rate per kg
+    }
+
+    // Use provided clearance cost or default to 0 (no clearance cost)
+    const clearanceCost = options.clearanceCost || 0;
+
+    // Calculate delivery cost based on settings
+    let deliveryCost = 0;
+    if (options.deliveryRequired) {
+        // Only apply delivery cost if delivery is required
+        if (options.deliveryType && options.deliveryRates && options.deliveryRates[options.deliveryType]) {
+            // Use the specific rate for the selected vehicle type
+            deliveryCost = options.deliveryRates[options.deliveryType];
+        } else {
+            // Fallback default if rates aren't provided
+            deliveryCost = 3000;
+        }
+    } // If deliveryRequired is false, deliveryCost remains 0
+
+    // Calculate subtotal (before additional charges)
+    const subTotal = totalFreightCost + clearanceCost + deliveryCost;
+
+    // Calculate total additional charges
+    const totalAdditionalCharges = additionalCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
+
+    // Calculate final total cost
+    const finalTotalCost = subTotal + totalAdditionalCharges;
+
+    // Return all fields needed for the interface
+    return {
+        totalVolume: totalVolumeCm3 / 1000000, // Convert to cubic meters for display
+        totalWeight,
+        totalVolumeWeight: roundedTotalVolumeWeight, // Use the rounded value
+        totalActualWeight: totalWeight, // Aliasing for backward compatibility
+        totalChargeableWeight,
+        totalFreightCost,
+        clearanceCost,
+        deliveryCost,
+        subTotal,
+        totalAdditionalCharges,
+        finalTotalCost
+    };
 }
 
 // --- Main Page Component ---
@@ -528,15 +528,15 @@ function ShippingCalculatorPageContent() {
     });
 
     // Destructure methods and formState
-    const { 
-        control, 
-        handleSubmit, 
-        getValues, 
-        watch, 
-        reset, 
+    const {
+        control,
+        handleSubmit,
+        getValues,
+        watch,
+        reset,
         trigger, // Added trigger for manual validation
-        formState: { errors, isValid /*, isDirty*/ } 
-    } = form; 
+        formState: { errors, isValid /*, isDirty*/ }
+    } = form;
 
     // Field Arrays
     const { fields: palletFields, append: appendPallet, remove: removePallet } = useFieldArray({
@@ -596,9 +596,9 @@ function ShippingCalculatorPageContent() {
                     toast.error("Failed to load companies.");
                 }
 
-                 // 4. Finish loading only after all fetches and state sets are done
-                 console.log("Effect 1: All data fetched, setting isLoading to false.");
-                 setIsLoading(false);
+                // 4. Finish loading only after all fetches and state sets are done
+                console.log("Effect 1: All data fetched, setting isLoading to false.");
+                setIsLoading(false);
 
             } catch (error: unknown) {
                 console.error('Error fetching initial data:', error);
@@ -633,12 +633,12 @@ function ShippingCalculatorPageContent() {
                 if (isEditMode && quotationId && userId) {
                     console.log(`Effect 2: Fetching existing quotation ${quotationId}`);
                     const fetchedQuotation = await dbGetQuotationById(quotationId);
-                    
+
                     if (fetchedQuotation && fetchedQuotation.user_id === userId) {
                         console.log("Effect 2: Existing quotation found, resetting form.");
                         // Store existing quotation for status preservation
                         setExistingQuotation(fetchedQuotation);
-                        
+
                         // Use more specific type if possible, otherwise suppress error
                         // Assuming dbGetQuotationById returns Quotation | null
                         const typedExistingQuotation = fetchedQuotation as Quotation;
@@ -655,7 +655,7 @@ function ShippingCalculatorPageContent() {
                                     height: Number(p.height) || 0,
                                     weight: Number(p.weight) || 0,
                                     quantity: Number(p.quantity) || 1
-                                  }))
+                                }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
@@ -665,7 +665,7 @@ function ShippingCalculatorPageContent() {
                                     name: c.name || '',
                                     description: c.description || '',
                                     amount: Number(c.amount) || 0
-                                  }))
+                                }))
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
                         });
@@ -678,7 +678,7 @@ function ShippingCalculatorPageContent() {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
                     // Clear existing quotation for new mode
                     setExistingQuotation(null);
-                    
+
                     reset({
                         companyId: '',
                         customerName: '',
@@ -694,17 +694,17 @@ function ShippingCalculatorPageContent() {
                     });
                 }
             } catch (error: unknown) {
-                 // Use unknown and check type
-                 console.error('Error setting form defaults:', error);
-                 const errorMessage = error instanceof Error ? error.message : "Could not set default values for the form.";
-                 toast.error("Form Setup Error", { description: errorMessage });
+                // Use unknown and check type
+                console.error('Error setting form defaults:', error);
+                const errorMessage = error instanceof Error ? error.message : "Could not set default values for the form.";
+                toast.error("Form Setup Error", { description: errorMessage });
             }
         };
 
         setFormDefaults();
 
-    // Depend on isLoading, isEditMode, quotationId, and potentially userId if needed for fetching
-    // Crucially, DO NOT depend on reset, companies, destinations here to avoid loops
+        // Depend on isLoading, isEditMode, quotationId, and potentially userId if needed for fetching
+        // Crucially, DO NOT depend on reset, companies, destinations here to avoid loops
     }, [isLoading, isEditMode, quotationId, userId, router, reset]); // Add reset dependency
 
     // --- Delivery Rates ---
@@ -719,25 +719,25 @@ function ShippingCalculatorPageContent() {
         const subscription = watch((value, { name /*, type*/ }) => {
             // Skip if still loading initial data
             if (isLoading) return;
-            
+
             const formValues = value as QuotationFormValues;
             const { pallets, additionalCharges, destinationId, deliveryServiceRequired, deliveryVehicleType, clearanceCost } = formValues;
-            
+
             // Skip if missing basic required values
             if (!pallets?.length) return;
-            
+
             // Always force calculation when pallet fields change
             const isPalletChange = name && name.startsWith('pallets');
-            
+
             // For complete calculation including costs, we need a destination
             if (!destinationId) {
                 console.log("Skipping total cost calculation - no destination selected");
                 return;
             }
-            
+
             // Skip if nothing relevant has changed and it's not a direct pallet change
             if (
-                !isPalletChange && 
+                !isPalletChange &&
                 JSON.stringify(pallets) === JSON.stringify(lastCalculatedValues.pallets) &&
                 JSON.stringify(additionalCharges) === JSON.stringify(lastCalculatedValues.additionalCharges) &&
                 destinationId === lastCalculatedValues.destinationId &&
@@ -746,37 +746,37 @@ function ShippingCalculatorPageContent() {
             ) {
                 return;
             }
-            
+
             // If we reach here, calculate costs - even for the first pallet
             console.log("Recalculating costs due to field change:", name);
-            
+
             // Update last calculated values
             setLastCalculatedValues({
                 pallets: pallets || [],
                 additionalCharges: additionalCharges || [],
                 destinationId
             });
-            
+
             // Calculate total costs
             const calculationResult = calculateTotalFreightCost(
                 pallets || [],
                 additionalCharges || [],
-                { 
+                {
                     clearanceCost: clearanceCost || 0, // Use form value or 0 if undefined
-                    deliveryRequired: deliveryServiceRequired, 
+                    deliveryRequired: deliveryServiceRequired,
                     deliveryType: deliveryVehicleType,
                     deliveryRates: deliveryRates,
                     destinationId: destinationId,
                     freightRates: freightRates
                 }
             );
-            
+
             // Set calculation result
             setCalculationResult(calculationResult);
         });
-        
+
         return () => subscription.unsubscribe();
-    // Add deliveryRates to dependency array (it's memoized now)
+        // Add deliveryRates to dependency array (it's memoized now)
     }, [watch, isLoading, lastCalculatedValues, watchedDeliveryRequired, watchedDeliveryVehicle, deliveryRates, freightRates]);
 
     // --- Generate Data for DB --- 
@@ -787,7 +787,7 @@ function ShippingCalculatorPageContent() {
             console.error("Cannot generate quotation data: missing user ID or calculation results");
             return null;
         }
-        
+
         // Find company and destination names for snapshot
         const selectedCompany = companies.find(c => c.id === formData.companyId);
         const selectedDestination = destinations.find(d => d.id === formData.destinationId);
@@ -816,11 +816,11 @@ function ShippingCalculatorPageContent() {
             total_volume_weight: calculationResult.totalVolumeWeight,
             total_actual_weight: calculationResult.totalActualWeight,
             chargeable_weight: calculationResult.totalChargeableWeight,
-            // Preserve existing status if in edit mode, otherwise set to 'sent'
-            status: isEditMode && existingQuotation ? existingQuotation.status : 'sent',
+            // Preserve existing status if in edit mode, otherwise set to 'draft' by default
+            status: isEditMode && existingQuotation ? existingQuotation.status : 'draft',
             company_name: selectedCompany?.name || formData.companyId,
-            destination: selectedDestination 
-                ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}` 
+            destination: selectedDestination
+                ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
                 : formData.destinationId
         };
         return dataForDB;
@@ -841,27 +841,27 @@ function ShippingCalculatorPageContent() {
 
             // Check prerequisites
             if (!userId) {
-                toast.error("Authentication Error", { 
+                toast.error("Authentication Error", {
                     id: loadingToastId,
-                    description: "User not logged in. Please log in and try again." 
+                    description: "User not logged in. Please log in and try again."
                 });
                 return;
             }
-            
+
             if (!calculationResult) {
-                toast.error("Calculation Error", { 
+                toast.error("Calculation Error", {
                     id: loadingToastId,
-                    description: "Calculation results are missing. Please ensure all required fields are filled." 
+                    description: "Calculation results are missing. Please ensure all required fields are filled."
                 });
                 return;
             }
 
             const formData = getValues();
-            
+
             // Log form values to help debug
             console.log("Form values being saved:", formData);
             console.log("Calculation results:", calculationResult);
-            
+
             // Use the updated function to get the full data object
             const quotationDataForDB = generateQuotationDataForDB(formData);
 
@@ -874,19 +874,19 @@ function ShippingCalculatorPageContent() {
             }
 
             let savedQuotation: Quotation | null = null;
-            
+
             if (isEditMode && quotationId) {
                 // Prepare update data - Omit fields not meant for update
-                const { 
+                const {
                     /* user_id: ignoredUserId, */
                     /* company_name: ignoredCompName, */
                     /* destination: ignoredDestName, */
-                    ...updateDataForDB 
+                    ...updateDataForDB
                 } = quotationDataForDB;
 
                 // Pass the rest of the data for update
-                savedQuotation = await dbUpdateQuotation(quotationId, updateDataForDB); 
-                
+                savedQuotation = await dbUpdateQuotation(quotationId, updateDataForDB);
+
                 if (!savedQuotation) {
                     throw new Error("Failed to update quotation. The database operation returned null.");
                 }
@@ -894,7 +894,7 @@ function ShippingCalculatorPageContent() {
                 // Save new quotation using the full data object
                 try {
                     savedQuotation = await dbSaveQuotation(quotationDataForDB);
-                    
+
                     if (!savedQuotation) {
                         throw new Error("Failed to save quotation. The database operation returned null.");
                     }
@@ -911,10 +911,10 @@ function ShippingCalculatorPageContent() {
                 description: `Quotation ${savedQuotation.id} saved.`, // Clearer message
                 action: {
                     label: "View List",
-                    onClick: () => router.push('/shipping-calculator'), 
+                    onClick: () => router.push('/shipping-calculator'),
                 },
             });
-            
+
             // Prepare quotation data for preview
             const previewData = {
                 ...savedQuotation,
@@ -934,19 +934,19 @@ function ShippingCalculatorPageContent() {
                 contactPerson: savedQuotation.contact_person,
                 freightRate: (calculationResult.totalFreightCost / calculationResult.totalChargeableWeight) || 0
             };
-            
+
             // Store in sessionStorage for preview
             sessionStorage.setItem('quotationData', JSON.stringify(previewData));
-            
+
             // Navigate to preview
             router.push(`/shipping-calculator/preview?id=${savedQuotation.id}`);
-            
+
         } catch (error: unknown) {
             console.error('Error saving quotation:', error);
-            
+
             // Get a more descriptive error message if possible
             const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-            
+
             // Show a toast with the error
             toast.error(isEditMode ? "Update Failed" : "Save Failed", {
                 description: errorMessage,
@@ -961,7 +961,7 @@ function ShippingCalculatorPageContent() {
         console.log("Form submitted via Enter key (not recommended):", data);
         // Add type assertion for data if needed, though SubmitHandler should match
         // const typedData = data as QuotationFormValues;
-        toast.info("Submit Action", { description: "Please use the 'Submit Quotation' button."}) 
+        toast.info("Submit Action", { description: "Please use the 'Submit Quotation' button." })
     };
 
     // --- Loading State --- (Simplify back to just isLoading)
@@ -973,7 +973,7 @@ function ShippingCalculatorPageContent() {
             </div>
         );
     }
-        
+
     // --- Render Form ---
     return (
         <FormProvider {...form} key={quotationId || 'new'}>
@@ -997,7 +997,7 @@ function ShippingCalculatorPageContent() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <FormField
-                                control={control} 
+                                control={control}
                                 name="companyId"
                                 render={({ field }) => (
                                     <FormItem>
@@ -1092,12 +1092,12 @@ function ShippingCalculatorPageContent() {
                         </CardHeader>
                         <CardContent>
                             {palletFields.map((field, index) => (
-                                <PalletItem 
-                                    key={field.id} 
-                                    index={index} 
+                                <PalletItem
+                                    key={field.id}
+                                    index={index}
                                     removePallet={removePallet}
-                                    destinationId={watchedDestinationId} 
-                                    freightRates={freightRates} 
+                                    destinationId={watchedDestinationId}
+                                    freightRates={freightRates}
                                 />
                             ))}
                             <Button
@@ -1142,7 +1142,7 @@ function ShippingCalculatorPageContent() {
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    id="deliveryServiceRequired" 
+                                                    id="deliveryServiceRequired"
                                                 />
                                             </FormControl>
                                             <label htmlFor="deliveryServiceRequired" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -1173,7 +1173,7 @@ function ShippingCalculatorPageContent() {
                                         )}
                                     />
                                 )}
-                                
+
                                 {/* Clearance Cost Section */}
                                 <div className="space-y-2 pt-4">
                                     <div className="flex items-center justify-between">
@@ -1218,16 +1218,16 @@ function ShippingCalculatorPageContent() {
                                         )}
                                     />
                                 </div>
-                                
+
                                 <div className="space-y-2 pt-4">
                                     <h3 className="font-medium mb-1">Additional Charges</h3>
                                     {chargeFields.map((field, index) => (
                                         <AdditionalChargeItem key={field.id} index={index} removeCharge={removeCharge} />
                                     ))}
                                     {chargeFields.length === 0 && <p className="text-xs text-gray-500 italic">No additional charges added.</p>}
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => appendCharge({ name: '', description: '', amount: 0 })}
                                         className="mt-2 w-full flex items-center justify-center gap-1 text-xs"
@@ -1259,15 +1259,15 @@ function ShippingCalculatorPageContent() {
                                             <div className="flex justify-between text-sm"><span>Clearance Cost:</span> <span className="font-medium">{calculationResult.clearanceCost.toFixed(2)}</span></div>
                                         )}
                                         <div className="flex justify-between text-sm">
-                                            <span>Delivery Cost:</span> 
+                                            <span>Delivery Cost:</span>
                                             <span className="font-medium">
                                                 {watchedDeliveryRequired ? calculationResult.deliveryCost.toFixed(2) : '0.00'}
                                             </span>
                                         </div>
-                                        <Separator className="my-2"/>
+                                        <Separator className="my-2" />
                                         <div className="flex justify-between font-medium text-sm"><span>Subtotal:</span> <span>{calculationResult.subTotal.toFixed(2)}</span></div>
                                         <div className="flex justify-between text-sm"><span>Additional Charges:</span> <span className="font-medium">{calculationResult.totalAdditionalCharges.toFixed(2)}</span></div>
-                                        <Separator className="my-2 border-blue-300"/>
+                                        <Separator className="my-2 border-blue-300" />
                                         <div className="flex justify-between text-xl font-bold text-blue-900">
                                             <span>Total Cost:</span>
                                             <span>{calculationResult.finalTotalCost.toFixed(2)}</span>
@@ -1286,12 +1286,12 @@ function ShippingCalculatorPageContent() {
                     <Button type="button" variant="outline" onClick={() => router.push('/shipping-calculator')} disabled={isSaving}>
                         Cancel
                     </Button>
-                    <Button 
-                        type="button" 
-                        onClick={handleSave} 
+                    <Button
+                        type="button"
+                        onClick={handleSave}
                         disabled={isSaving || !isValid} // Disable if saving or form is invalid
                     >
-                        {isSaving ? 'Submitting...' : (isEditMode ? 'Update Quotation' : 'Submit Quotation')}
+                        {isSaving ? 'Saving...' : (isEditMode ? 'Update Quotation' : 'Save as Draft')}
                     </Button>
                 </CardFooter>
             </form>

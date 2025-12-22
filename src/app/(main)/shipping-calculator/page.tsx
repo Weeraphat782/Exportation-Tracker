@@ -35,7 +35,7 @@ export default function ShippingCalculatorPage() {
   // First useEffect - only for auth checking
   useEffect(() => {
     console.log("ShippingCalculator: Checking authentication");
-    
+
     // Simple check for user data in localStorage
     function checkLocalAuth() {
       try {
@@ -49,7 +49,7 @@ export default function ShippingCalculatorPage() {
             return true;
           }
         }
-        
+
         // Also check our auth_session
         const authSession = localStorage.getItem('auth_session');
         if (authSession) {
@@ -60,28 +60,28 @@ export default function ShippingCalculatorPage() {
             return true;
           }
         }
-        
+
         return false;
       } catch (err) {
         console.error("ShippingCalculator: Error checking local auth", err);
         return false;
       }
     }
-    
+
     // Check Supabase session as a fallback
     async function checkSupabaseAuth() {
       try {
         const { data } = await supabase.auth.getSession();
         if (data && data.session) {
           console.log("ShippingCalculator: Supabase session found for", data.session.user.email);
-          
+
           // Save to localStorage for future checks
           localStorage.setItem('user', JSON.stringify({
             email: data.session.user.email,
             id: data.session.user.id,
             isAuthenticated: true
           }));
-          
+
           setAuthChecked(true);
           return true;
         }
@@ -91,13 +91,13 @@ export default function ShippingCalculatorPage() {
         return false;
       }
     }
-    
+
     // First try local auth (faster)
     if (checkLocalAuth()) {
       console.log("ShippingCalculator: User is authenticated via local storage");
       return;
     }
-    
+
     // If local auth fails, try Supabase
     checkSupabaseAuth().then(isAuthenticated => {
       if (!isAuthenticated) {
@@ -111,9 +111,9 @@ export default function ShippingCalculatorPage() {
   useEffect(() => {
     // Only load data after authentication is confirmed
     if (!authChecked) return;
-    
+
     console.log("ShippingCalculator: Loading quotation data from Supabase");
-    
+
     // Get user data from localStorage
     let userId = '';
     try {
@@ -125,13 +125,13 @@ export default function ShippingCalculatorPage() {
     } catch (error) {
       console.error('Error getting user information:', error);
     }
-    
+
     if (!userId) {
       console.error('User ID not found, cannot load quotations');
       setLoading(false);
       return;
     }
-    
+
     // Load from Supabase
     async function loadQuotationsFromDB() {
       try {
@@ -150,12 +150,12 @@ export default function ShippingCalculatorPage() {
         }
       } catch {
         console.error('Error loading quotations from database:');
-        setQuotations([]); 
+        setQuotations([]);
       } finally {
         setLoading(false);
       }
     }
-    
+
     loadQuotationsFromDB();
   }, [authChecked]);
 
@@ -173,12 +173,12 @@ export default function ShippingCalculatorPage() {
       // Handle different date formats and fix timezone issue
       if (dateString.includes('T')) {
         // If it's a full datetime string, parse normally
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }).format(date);
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }).format(date);
       } else {
         // If it's just a date string (YYYY-MM-DD), parse as local date to avoid timezone issues
         const [year, month, day] = dateString.split('-').map(Number);
@@ -195,7 +195,7 @@ export default function ShippingCalculatorPage() {
   };
 
   const getStatusBadgeVariant = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'draft':
         return 'warning';
       case 'sent':
@@ -214,7 +214,7 @@ export default function ShippingCalculatorPage() {
   };
 
   const getStatusText = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'draft':
         return 'Draft';
       case 'sent':
@@ -235,18 +235,18 @@ export default function ShippingCalculatorPage() {
   const handleDeleteQuotation = async (id: string) => {
     // ขอการยืนยันก่อนลบ
     const isConfirmed = window.confirm(`คุณต้องการลบใบเสนอราคา ${id} ใช่หรือไม่?`);
-    
+
     if (!isConfirmed) {
       return; // ยกเลิกการลบถ้าไม่ยืนยัน
     }
-    
+
     // Remove quotation from UI immediately for responsive feel
     setQuotations(quotations.filter(q => q.id !== id));
-    
+
     // Delete from Supabase
     try {
       const success = await dbDeleteQuotation(id);
-      
+
       if (!success) {
         console.error('Failed to delete quotation from database');
         // Restore UI if database delete fails
@@ -257,7 +257,7 @@ export default function ShippingCalculatorPage() {
         }
       } else {
         console.log('Quotation deleted successfully from database');
-        
+
         // Also remove from localStorage for sync
         try {
           const savedQuotations = localStorage.getItem('quotations');
@@ -281,18 +281,18 @@ export default function ShippingCalculatorPage() {
     if (quotation) {
       // คำนวณ freight cost ใหม่ตามน้ำหนักที่มี
       const chargeableWeight = quotation.chargeable_weight || 0;
-      
+
       // ถ้ามี total_cost แต่ไม่มี freight cost ให้ประมาณค่า
       // โดยอ้างอิงจากค่า total_cost หักลบค่าอื่นๆ
       let totalFreightCost = quotation.total_freight_cost || 0;
-      
+
       if (totalFreightCost === 0 && chargeableWeight > 0) {
         // ประมาณฟรีทคอสต์จาก total_cost
         // ลบค่า clearance_cost และ delivery_cost (ถ้ามี)
         const clearanceCost = quotation.clearance_cost || 0;
-        const deliveryCost = quotation.delivery_service_required ? 
+        const deliveryCost = quotation.delivery_service_required ?
           (quotation.delivery_vehicle_type === '4wheel' ? 3500 : 6500) : 0;
-        
+
         // คำนวณผลรวมของ additional charges
         let additionalChargesTotal = 0;
         if (Array.isArray(quotation.additional_charges)) {
@@ -301,14 +301,14 @@ export default function ShippingCalculatorPage() {
             return sum + amount;
           }, 0);
         }
-        
+
         // ประมาณฟรีทคอสต์
         totalFreightCost = quotation.total_cost - clearanceCost - deliveryCost - additionalChargesTotal;
-        
+
         // กรณีคำนวณแล้วติดลบ ให้กำหนดเป็น 0
         totalFreightCost = Math.max(0, totalFreightCost);
       }
-      
+
       // เพิ่มค่า freight cost และข้อมูลอื่นๆ ที่จำเป็น
       const enhancedQuotation = {
         ...quotation,
@@ -317,10 +317,10 @@ export default function ShippingCalculatorPage() {
         totalActualWeight: quotation.total_actual_weight || 0,
         chargeableWeight: chargeableWeight,
         clearanceCost: quotation.clearance_cost || 0,
-        deliveryCost: quotation.delivery_service_required ? 
+        deliveryCost: quotation.delivery_service_required ?
           (quotation.delivery_vehicle_type === '4wheel' ? 3500 : 6500) : 0
       };
-      
+
       // Set the quotation data in sessionStorage for the preview page
       sessionStorage.setItem('quotationData', JSON.stringify(enhancedQuotation));
       router.push(`/shipping-calculator/preview?id=${id}`);
@@ -343,7 +343,7 @@ export default function ShippingCalculatorPage() {
     try {
       // Fix timezone issue by ensuring we save the date as-is without timezone conversion
       const dateToSave = selectedShippingDate; // Keep as string format YYYY-MM-DD
-      
+
       // Update quotation shipping date in the database
       const result = await updateQuotation(quotationForShipping, {
         shipping_date: dateToSave
@@ -351,14 +351,14 @@ export default function ShippingCalculatorPage() {
 
       if (result) {
         // Update local state
-        setQuotations(prev => 
-          prev.map(q => 
-            q.id === quotationForShipping 
-              ? { ...q, shipping_date: dateToSave } 
+        setQuotations(prev =>
+          prev.map(q =>
+            q.id === quotationForShipping
+              ? { ...q, shipping_date: dateToSave }
               : q
           )
         );
-        
+
         toast.success('Shipping Date Assigned', {
           description: `Shipping date has been assigned successfully.`
         });
@@ -394,14 +394,14 @@ export default function ShippingCalculatorPage() {
 
       if (result) {
         // Update local state
-        setQuotations(prev => 
-          prev.map(q => 
-            q.id === selectedQuotationId 
-              ? { ...q, status: 'completed', completed_at: completedDate.toISOString() } 
+        setQuotations(prev =>
+          prev.map(q =>
+            q.id === selectedQuotationId
+              ? { ...q, status: 'completed', completed_at: completedDate.toISOString() }
               : q
           )
         );
-        
+
         toast.success('Quotation Completed', {
           description: `Quotation has been marked as completed.`
         });
@@ -417,14 +417,43 @@ export default function ShippingCalculatorPage() {
     }
   };
 
+  const handleSubmitQuotation = async (id: string) => {
+    // Optimistic UI update
+    const previousQuotations = [...quotations];
+    setQuotations(prev =>
+      prev.map(q =>
+        q.id === id ? { ...q, status: 'sent' } : q // Assuming 'sent' is the active status
+      )
+    );
+
+    try {
+      const result = await updateQuotation(id, { status: 'sent' });
+
+      if (result) {
+        toast.success('Quotation Submitted', {
+          description: 'Quotation moved to Active list.'
+        });
+      } else {
+        // Revert on failure
+        setQuotations(previousQuotations);
+        toast.error('Failed to submit quotation');
+      }
+    } catch (error) {
+      console.error('Error submitting quotation:', error);
+      setQuotations(previousQuotations);
+      toast.error('An error occurred');
+    }
+  };
+
   // Separate quotations by status
-  const activeQuotations = quotations.filter(quotation => quotation.status !== 'completed');
+  const draftQuotations = quotations.filter(quotation => quotation.status === 'draft');
+  const activeQuotations = quotations.filter(quotation => quotation.status !== 'completed' && quotation.status !== 'draft');
   const completedQuotations = quotations.filter(quotation => quotation.status === 'completed');
 
   // Filter function for search
   const filterQuotations = (quotationsList: Quotation[]) => {
     if (!searchTerm) return quotationsList;
-    
+
     const searchTermLower = searchTerm.toLowerCase();
     return quotationsList.filter(quotation => (
       (quotation.id?.toLowerCase().includes(searchTermLower)) ||
@@ -433,6 +462,7 @@ export default function ShippingCalculatorPage() {
     ));
   };
 
+  const filteredDraftQuotations = filterQuotations(draftQuotations);
   const filteredActiveQuotations = filterQuotations(activeQuotations);
   const filteredCompletedQuotations = filterQuotations(completedQuotations);
 
@@ -486,7 +516,7 @@ export default function ShippingCalculatorPage() {
                     if (quotation.total_actual_weight) {
                       return `${quotation.total_actual_weight} kg`;
                     }
-                    
+
                     // Calculate from pallets if no stored value
                     if (quotation.pallets && quotation.pallets.length > 0) {
                       const calculatedWeight = quotation.pallets.reduce((total, pallet) => {
@@ -496,7 +526,7 @@ export default function ShippingCalculatorPage() {
                       }, 0);
                       return calculatedWeight > 0 ? `${calculatedWeight} kg` : '-';
                     }
-                    
+
                     return '-';
                   })()}
                 </TableCell>
@@ -529,8 +559,8 @@ export default function ShippingCalculatorPage() {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1 sm:gap-2">
                     {/* View Quotation Button */}
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => handleViewQuotation(quotation.id)}
                       title="View quotation"
@@ -538,7 +568,7 @@ export default function ShippingCalculatorPage() {
                     >
                       <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
-                    
+
                     {/* Actions Dropdown Menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -558,7 +588,15 @@ export default function ShippingCalculatorPage() {
                             View Documents
                           </Link>
                         </DropdownMenuItem>
-                        
+
+                        {/* Submit Draft */}
+                        {quotation.status === 'draft' && (
+                          <DropdownMenuItem onClick={() => handleSubmitQuotation(quotation.id)}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Submit (Make Active)
+                          </DropdownMenuItem>
+                        )}
+
                         {/* Create Booking Email */}
                         <DropdownMenuItem asChild>
                           <Link href={`/email-booking/${quotation.id}`} className="flex items-center">
@@ -566,7 +604,7 @@ export default function ShippingCalculatorPage() {
                             Create Booking Email
                           </Link>
                         </DropdownMenuItem>
-                        
+
                         {/* Create Debit Note */}
                         <DropdownMenuItem asChild>
                           <Link href={`/debit-note/${quotation.id}`} className="flex items-center">
@@ -574,9 +612,9 @@ export default function ShippingCalculatorPage() {
                             Create Debit Note
                           </Link>
                         </DropdownMenuItem>
-                        
+
                         <DropdownMenuSeparator />
-                        
+
                         {/* Share Upload Link */}
                         <DropdownMenuItem
                           onClick={() => {
@@ -590,7 +628,7 @@ export default function ShippingCalculatorPage() {
                           <Share2 className="h-4 w-4 mr-2" />
                           Share Upload Link
                         </DropdownMenuItem>
-                        
+
                         {/* Mark as Completed */}
                         {showCompleteButton && quotation.status !== 'completed' && (
                           <DropdownMenuItem
@@ -600,9 +638,9 @@ export default function ShippingCalculatorPage() {
                             Mark as Completed
                           </DropdownMenuItem>
                         )}
-                        
+
                         <DropdownMenuSeparator />
-                        
+
                         {/* Delete */}
                         <DropdownMenuItem
                           onClick={() => handleDeleteQuotation(quotation.id)}
@@ -648,14 +686,14 @@ export default function ShippingCalculatorPage() {
           </div>
           {/* Search Input */}
           <div className="relative mt-4">
-             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /> 
-             <Input 
-                type="search"
-                placeholder="Search by ID, Company, or Customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full sm:w-1/2 lg:w-1/3 text-sm"
-              />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search by ID, Company, or Customer..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-full sm:w-1/2 lg:w-1/3 text-sm"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
@@ -678,10 +716,14 @@ export default function ShippingCalculatorPage() {
               </Button>
             </div>
           ) : (
-            <Tabs defaultValue="active" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs defaultValue="drafts" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="drafts" className="flex items-center gap-2">
+                  <FileArchive className="h-4 w-4" />
+                  Drafts ({filteredDraftQuotations.length})
+                </TabsTrigger>
                 <TabsTrigger value="active" className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
+                  <FileText className="h-4 w-4" />
                   Active ({filteredActiveQuotations.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed" className="flex items-center gap-2">
@@ -689,11 +731,15 @@ export default function ShippingCalculatorPage() {
                   Completed ({filteredCompletedQuotations.length})
                 </TabsTrigger>
               </TabsList>
-              
+
+              <TabsContent value="drafts" className="mt-4">
+                {renderQuotationsTable(filteredDraftQuotations, true)}
+              </TabsContent>
+
               <TabsContent value="active" className="mt-4">
                 {renderQuotationsTable(filteredActiveQuotations, true)}
               </TabsContent>
-              
+
               <TabsContent value="completed" className="mt-4">
                 {renderQuotationsTable(filteredCompletedQuotations, false)}
               </TabsContent>
@@ -711,7 +757,7 @@ export default function ShippingCalculatorPage() {
               Select the shipping date for this quotation. This will be displayed in the Calendar.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="space-y-2">
               <Label htmlFor="shipping-date">Shipping Date</Label>
@@ -724,12 +770,12 @@ export default function ShippingCalculatorPage() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <div className="flex justify-between w-full">
               <div>
                 {quotations.find(q => q.id === quotationForShipping)?.shipping_date && (
-                  <Button 
+                  <Button
                     variant="destructive"
                     onClick={async () => {
                       setIsUpdating(true);
@@ -738,10 +784,10 @@ export default function ShippingCalculatorPage() {
                           shipping_date: null
                         });
                         if (result) {
-                          setQuotations(prev => 
-                            prev.map(q => 
-                              q.id === quotationForShipping 
-                                ? { ...q, shipping_date: null } 
+                          setQuotations(prev =>
+                            prev.map(q =>
+                              q.id === quotationForShipping
+                                ? { ...q, shipping_date: null }
                                 : q
                             )
                           );
@@ -764,8 +810,8 @@ export default function ShippingCalculatorPage() {
                 <Button variant="outline" onClick={() => setIsShippingDateDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={handleSaveShippingDate} 
+                <Button
+                  onClick={handleSaveShippingDate}
                   disabled={isUpdating || !selectedShippingDate}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -786,20 +832,20 @@ export default function ShippingCalculatorPage() {
               This will mark the quotation as completed. The completion date will be set to today.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-muted-foreground" />
               <span>Completion Date: {completedDate.toLocaleDateString()}</span>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleCompleteQuotation} 
+            <Button
+              onClick={handleCompleteQuotation}
               disabled={isUpdating}
               className="bg-green-600 hover:bg-green-700"
             >
