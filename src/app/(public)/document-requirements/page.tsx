@@ -147,8 +147,9 @@ function DocumentRequirementsContent() {
                                                 {loadingTemplate[doc.id] ? (
                                                     <span className="animate-spin mr-2">⏳</span>
                                                 ) : (
+                                                    <Download size={16} className="mr-2" />
                                                 )}
-                                                Preview Template
+                                                Preview
                                             </Button>
                                         </div>
                                     ))}
