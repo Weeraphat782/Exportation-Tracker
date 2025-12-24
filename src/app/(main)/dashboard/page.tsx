@@ -7,8 +7,8 @@ import { Package, FileCheck, Building, Globe, Clock, DollarSign, ZoomIn, ZoomOut
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
-import { 
-  PieChart, Pie, Cell, CartesianGrid, Tooltip as RechartsTooltip, 
+import {
+  PieChart, Pie, Cell, CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 } from 'recharts';
 import dynamic from 'next/dynamic';
@@ -19,6 +19,13 @@ const Geographies = dynamic(() => import('react-simple-maps').then(mod => mod.Ge
 const Geography = dynamic(() => import('react-simple-maps').then(mod => mod.Geography), { ssr: false });
 const ZoomableGroup = dynamic(() => import('react-simple-maps').then(mod => mod.ZoomableGroup), { ssr: false });
 const Marker = dynamic(() => import('react-simple-maps').then(mod => mod.Marker), { ssr: false });
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Copy, Link as LinkIcon, FileText as FileTextIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Define colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -180,13 +187,72 @@ export default function DashboardPage() {
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // State for map zoom and position
   const [position, setPosition] = useState({ coordinates: [0, 0], zoom: 1 });
   const [tooltipContent, setTooltipContent] = useState("");
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState(false);
-  
+
+  // Document Checklist Generator State
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [destination, setDestination] = useState('');
+  const docTypes = [
+    { id: 'commercial-invoice', label: 'Commercial Invoice' },
+    { id: 'packing-list', label: 'Packing List' },
+    { id: 'purchase-order', label: 'Purchase Order' },
+    { id: 'msds', label: 'MSDS' },
+    { id: 'import-permit', label: 'Import Permit' },
+    { id: 'tk-10', label: 'TK 10' },
+    { id: 'tk-11', label: 'TK 11' },
+    { id: 'tk-31', label: 'TK 31' },
+    { id: 'tk-32', label: 'TK 32' },
+    { id: 'company-registration', label: 'Company Registration' },
+    { id: 'company-declaration', label: 'Company Declaration' },
+    { id: 'id-card-copy', label: 'ID Card Copy' },
+    { id: 'additional-file', label: 'Additional File' },
+  ];
+
+  const [selectedDocs, setSelectedDocs] = useState<string[]>(docTypes.map(d => d.id));
+  const [generatedLink, setGeneratedLink] = useState('');
+
+  const handleGenerateLink = () => {
+    if (!clientName) {
+      toast.error('Please enter a client name');
+      return;
+    }
+
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams();
+    params.append('client', clientName);
+    if (destination) params.append('destination', destination);
+    if (selectedDocs.length > 0) params.append('items', selectedDocs.join(','));
+
+    const link = `${baseUrl}/document-requirements?${params.toString()}`;
+    setGeneratedLink(link);
+    toast.success('Link generated!');
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedLink);
+    toast.success('Link copied to clipboard');
+  };
+
+  const handleQuickCopy = () => {
+    // Generate link with all documents selected and default client name
+    const baseUrl = window.location.origin;
+    const params = new URLSearchParams();
+    params.append('client', 'Valued Client'); // Default Name
+    // Use all docTypes for default
+    const allDocs = docTypes.map(d => d.id).join(',');
+    params.append('items', allDocs);
+
+    const link = `${baseUrl}/document-requirements?${params.toString()}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Default link copied to clipboard!');
+  };
+
   // Function to handle zoom
   const handleZoomIn = () => {
     if (position.zoom >= 4) return;
@@ -207,41 +273,41 @@ export default function DashboardPage() {
   const handleMoveEnd = (position: MapPosition) => {
     setPosition(position);
   };
-  
+
   // Debug data when it changes
   useEffect(() => {
     // Debug country data when it's loaded
     if (countryDistribution.length > 0) {
       console.log("Country distribution data:", countryDistribution);
-      
+
       // Check for problematic entries
       countryDistribution.forEach((country, index) => {
         if (!country.country || country.country === 'Unknown') {
           console.warn(`Found problematic country at index ${index}:`, country);
         }
       });
-      
+
       console.log("Map data:", worldMapData);
     }
   }, [countryDistribution, worldMapData]);
-  
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Get total quotations
         const { count: totalQuotations, error: quotationsError } = await supabase
           .from('quotations')
           .select('*', { count: 'exact', head: true });
-        
+
         if (quotationsError) throw quotationsError;
-        
+
         // Get total documents
         const { count: totalDocuments, error: documentsError } = await supabase
           .from('document_submissions')
           .select('*', { count: 'exact', head: true });
-          
+
         if (documentsError) throw documentsError;
 
         // Update basic stats
@@ -255,17 +321,17 @@ export default function DashboardPage() {
           const { data: companiesData, error: companiesError } = await supabase
             .from('quotations')
             .select('company_name, total_cost');
-            
+
           if (companiesError) throw companiesError;
-          
+
           if (companiesData && companiesData.length > 0) {
             // Process company statistics
             const companyStats: Record<string, CompanyStats> = {};
-            
+
             companiesData.forEach(quotation => {
               const company_name = quotation.company_name || 'Unknown';
               const total_value = quotation.total_cost || 0;
-              
+
               if (!companyStats[company_name]) {
                 companyStats[company_name] = {
                   company_name,
@@ -273,16 +339,16 @@ export default function DashboardPage() {
                   total_value: 0
                 };
               }
-              
+
               companyStats[company_name].count += 1;
               companyStats[company_name].total_value += total_value;
             });
-            
+
             // Convert to array and sort
             const topCompaniesArray = Object.values(companyStats)
               .sort((a, b) => b.count - a.count)
               .slice(0, 5); // Top 5
-              
+
             setTopCompanies(topCompaniesArray);
           }
         } catch (companyError) {
@@ -295,25 +361,25 @@ export default function DashboardPage() {
           const { data: statusData, error: statusError } = await supabase
             .from('quotations')
             .select('status');
-            
+
           if (statusError) throw statusError;
-          
+
           if (statusData && statusData.length > 0) {
             const statusStats: Record<string, StatusStats> = {};
-            
+
             statusData.forEach(item => {
               const status = item.status || 'Unknown';
-              
+
               if (!statusStats[status]) {
                 statusStats[status] = {
                   status,
                   count: 0
                 };
               }
-              
+
               statusStats[status].count += 1;
             });
-            
+
             const statusArray = Object.values(statusStats).sort((a, b) => b.count - a.count);
             setStatusBreakdown(statusArray);
           }
@@ -326,19 +392,19 @@ export default function DashboardPage() {
           const { data: countryData, error: countryError } = await supabase
             .from('destinations')
             .select('country, id');
-            
+
           if (countryError) throw countryError;
-          
+
           const { data: quotationsWithDest, error: quotDestError } = await supabase
             .from('quotations')
             .select('destination_id');
-            
+
           if (quotDestError) throw quotDestError;
-          
+
           if (countryData && quotationsWithDest) {
             // Count quotations per country
             const countryQuotations: Record<string, number> = {};
-            
+
             // First build a map of destination ID to country
             const destToCountry: Record<string, string> = {};
             countryData.forEach(dest => {
@@ -346,40 +412,40 @@ export default function DashboardPage() {
                 destToCountry[dest.id] = dest.country;
               }
             });
-            
+
             // Then count quotations per country
             quotationsWithDest.forEach(quot => {
               if (!quot.destination_id) return;
-              
+
               // Only add to country quotations if we have a valid country name (not 'Unknown')
               const country = destToCountry[quot.destination_id];
-              
+
               // Skip if country is undefined or 'Unknown'
               if (!country || country === 'Unknown') return;
-              
+
               if (!countryQuotations[country]) {
                 countryQuotations[country] = 0;
               }
-              
+
               countryQuotations[country] += 1;
             });
-            
+
             // Convert to array for charting
             const countryArray = Object.entries(countryQuotations)
               .map(([country, count]) => ({ country, count }))
               .filter(item => {
                 // Strict filtering - only include entries with valid country names
                 return (
-                  item.country && 
-                  item.country !== 'Unknown' && 
+                  item.country &&
+                  item.country !== 'Unknown' &&
                   item.country.trim() !== '' &&
                   countryToCode[item.country] // Must have a valid country code
                 );
               })
               .sort((a, b) => b.count - a.count);
-              
+
             setCountryDistribution(countryArray);
-            
+
             // Create data for world map
             const mapData: MapData[] = [];
             countryArray.forEach(item => {
@@ -391,7 +457,7 @@ export default function DashboardPage() {
                 });
               }
             });
-            
+
             setWorldMapData(mapData);
           }
         } catch (countryError) {
@@ -403,28 +469,28 @@ export default function DashboardPage() {
           const { data: financialData, error: financialError } = await supabase
             .from('quotations')
             .select('created_at, total_cost');
-            
+
           if (financialError) throw financialError;
-          
+
           if (financialData && financialData.length > 0) {
             // Group by month
             const monthlyMetrics: Record<string, { total: number, count: number }> = {};
-            
+
             financialData.forEach(item => {
               if (!item.created_at) return;
-              
+
               const date = new Date(item.created_at);
               const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
               const value = item.total_cost || 0;
-              
+
               if (!monthlyMetrics[monthYear]) {
                 monthlyMetrics[monthYear] = { total: 0, count: 0 };
               }
-              
+
               monthlyMetrics[monthYear].total += value;
               monthlyMetrics[monthYear].count += 1;
             });
-            
+
             // Convert to array and calculate averages
             const metricsArray = Object.entries(monthlyMetrics)
               .map(([month, data]) => ({
@@ -433,7 +499,7 @@ export default function DashboardPage() {
                 avg_shipment_value: data.count > 0 ? data.total / data.count : 0
               }))
               .sort((a, b) => a.month.localeCompare(b.month));
-              
+
             setFinancialMetrics(metricsArray);
           }
         } catch (financialError) {
@@ -468,7 +534,7 @@ export default function DashboardPage() {
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
-            label={({ name, percent }: { name: string; percent: number }) => 
+            label={({ name, percent }: { name: string; percent: number }) =>
               `${name}: ${(percent * 100).toFixed(0)}%`
             }
           >
@@ -528,7 +594,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
       </div>
       {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
-      
+
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <Card>
@@ -543,7 +609,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">All quotations in the system</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
@@ -557,7 +623,40 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
+      {/* Quick Tools */}
+      <div className="mb-8">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
+          <CardHeader>
+            <div className="flex items-center">
+              <LinkIcon className="h-5 w-5 mr-2 text-blue-600" />
+              <CardTitle className="text-blue-800">Quick Tools</CardTitle>
+            </div>
+            <CardDescription>Useful utilities for quick tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              <Button
+                onClick={() => setIsGeneratorOpen(true)}
+                className="bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+              >
+                <FileTextIcon className="mr-2 h-4 w-4" />
+                Create Document Checklist Link
+              </Button>
+
+              <Button
+                onClick={handleQuickCopy}
+                className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Default Link (Fast)
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+
       {/* Financial Metrics */}
       <div className="mb-8">
         <Card>
@@ -579,7 +678,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
+
+
       {/* Status & Country Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Quotation Status Breakdown */}
@@ -601,7 +702,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        
+
         {/* Country Distribution - Interactive Map */}
         <Card>
           <CardHeader>
@@ -611,14 +712,14 @@ export default function DashboardPage() {
                 <CardTitle>Country Distribution</CardTitle>
               </div>
               <div className="flex gap-1">
-                <button 
+                <button
                   onClick={handleZoomIn}
                   className="p-1 rounded bg-gray-100 hover:bg-gray-200"
                   title="Zoom in"
                 >
                   <ZoomIn size={16} />
                 </button>
-                <button 
+                <button
                   onClick={handleZoomOut}
                   className="p-1 rounded bg-gray-100 hover:bg-gray-200"
                   title="Zoom out"
@@ -635,20 +736,20 @@ export default function DashboardPage() {
             ) : countryDistribution.length === 0 ? (
               <p className="text-center py-10">No country data available</p>
             ) : (
-              <div className="relative h-[380px] w-full overflow-hidden border rounded-md shadow-md" 
-                   style={{backgroundColor: MAP_COLORS.ocean}}
-                   onMouseLeave={() => setShowTooltip(false)}
-                   onMouseMove={(event: React.MouseEvent) => {
-                     // Only update tooltip position if tooltip is showing
-                     if (showTooltip) {
-                       // Update tooltip position on mouse move
-                       const rect = event.currentTarget.getBoundingClientRect();
-                       const x = event.clientX - rect.left;
-                       const y = event.clientY - rect.top;
-                       
-                       setTooltipPosition({ x, y });
-                     }
-                   }}>
+              <div className="relative h-[380px] w-full overflow-hidden border rounded-md shadow-md"
+                style={{ backgroundColor: MAP_COLORS.ocean }}
+                onMouseLeave={() => setShowTooltip(false)}
+                onMouseMove={(event: React.MouseEvent) => {
+                  // Only update tooltip position if tooltip is showing
+                  if (showTooltip) {
+                    // Update tooltip position on mouse move
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+
+                    setTooltipPosition({ x, y });
+                  }
+                }}>
                 {/* Map container */}
                 <div className="absolute inset-0">
                   <ComposableMap
@@ -674,14 +775,16 @@ export default function DashboardPage() {
                       ]}
                     >
                       <Geographies geography="/world-110m.json">
-                        {({ geographies }: { geographies: Array<{
-                          rsmKey: string;
-                          properties: {
-                            NAME?: string;
-                            ISO_A2?: string;
-                            [key: string]: unknown;
-                          }
-                        }> }) =>
+                        {({ geographies }: {
+                          geographies: Array<{
+                            rsmKey: string;
+                            properties: {
+                              NAME?: string;
+                              ISO_A2?: string;
+                              [key: string]: unknown;
+                            }
+                          }>
+                        }) =>
                           geographies.map((geo: {
                             rsmKey: string;
                             properties: {
@@ -692,28 +795,28 @@ export default function DashboardPage() {
                           }) => {
                             // Find matching country by ISO code
                             const countryCode = geo.properties?.ISO_A2?.toLowerCase();
-                            
+
                             // Find if any of our countries match this code - with strict checking
                             const matchingCountry = countryDistribution.find(
-                              c => c.country && 
-                                   c.country !== 'Unknown' && 
-                                   countryToCode[c.country]?.toLowerCase() === countryCode
+                              c => c.country &&
+                                c.country !== 'Unknown' &&
+                                countryToCode[c.country]?.toLowerCase() === countryCode
                             );
-                            
+
                             // Get max value for color scaling
                             const maxValue = Math.max(...countryDistribution.map(c => c.count), 1);
-                            
+
                             // Determine if country has shipments
                             const hasShipments = !!matchingCountry;
-                            
+
                             // Get country name from geo properties
                             const geoCountryName = geo.properties.NAME || "Unknown";
-                            
+
                             // Color based on shipment count
-                            const fillColor = hasShipments 
+                            const fillColor = hasShipments
                               ? getColorByValue(matchingCountry.count, maxValue)
                               : MAP_COLORS.defaultCountry;
-                            
+
                             return (
                               <Geography
                                 key={geo.rsmKey}
@@ -745,15 +848,15 @@ export default function DashboardPage() {
                                   if (geoCountryName === "Unknown" || !hasShipments || !matchingCountry) {
                                     return;
                                   }
-                                  
+
                                   // ONLY show tooltips for countries that have confirmed shipments
                                   safeSetTooltipContent(`${geoCountryName}: ${matchingCountry.count} shipment(s)`);
-                                  
+
                                   // Position tooltip using mouse coordinates
                                   const rect = event.currentTarget.getBoundingClientRect();
                                   const x = event.clientX - rect.left;
                                   const y = event.clientY - rect.top;
-                                  
+
                                   setTooltipPosition({ x, y });
                                   setShowTooltip(true);
                                 }}
@@ -764,7 +867,7 @@ export default function DashboardPage() {
                                     const rect = event.currentTarget.getBoundingClientRect();
                                     const x = event.clientX - rect.left;
                                     const y = event.clientY - rect.top;
-                                    
+
                                     setTooltipPosition({ x, y });
                                   }
                                 }}
@@ -777,27 +880,27 @@ export default function DashboardPage() {
                           })
                         }
                       </Geographies>
-                      
+
                       {/* Add markers for countries with shipments */}
                       {countryDistribution
-                        .filter(country => 
+                        .filter(country =>
                           // Only include countries with valid names and coordinates
-                          country.country && 
-                          country.country !== 'Unknown' && 
+                          country.country &&
+                          country.country !== 'Unknown' &&
                           countryCoordinates[country.country]
                         )
                         .map((country) => {
                           const coords = countryCoordinates[country.country];
                           if (!coords) return null;
-                          
+
                           // Scale marker size based on count
                           const maxCount = Math.max(...countryDistribution.map(c => c.count));
                           const size = Math.max(5, Math.min(14, (country.count / maxCount) * 14));
-                          
+
                           // Store the country name and count to avoid undefined values
                           const countryName = country.country;
                           const shipmentCount = country.count;
-                          
+
                           return (
                             <Marker key={countryName} coordinates={coords}>
                               <circle
@@ -816,25 +919,25 @@ export default function DashboardPage() {
                                   if (!countryName || countryName === "Unknown") {
                                     return;
                                   }
-                                  
+
                                   // Make circle larger on hover
                                   (event.target as SVGCircleElement).setAttribute('r', `${size * 1.7}`);
                                   (event.target as SVGCircleElement).setAttribute('fill', '#ff2500');
                                   (event.target as SVGCircleElement).setAttribute('stroke-width', '2.5');
                                   (event.target as SVGCircleElement).setAttribute('filter', 'drop-shadow(0px 3px 5px rgba(0,0,0,0.5))');
-                                  
+
                                   // Make sure we never display undefined
                                   const tooltipText = typeof countryName === 'string' && countryName !== ''
-                                    ? `${countryName}: ${shipmentCount} shipment(s)` 
+                                    ? `${countryName}: ${shipmentCount} shipment(s)`
                                     : `Country: ${shipmentCount} shipment(s)`;
-                                  
+
                                   safeSetTooltipContent(tooltipText);
-                                  
+
                                   // Position tooltip using mouse coordinates
                                   const rect = event.currentTarget.getBoundingClientRect();
                                   const x = event.clientX - rect.left;
                                   const y = event.clientY - rect.top;
-                                  
+
                                   setTooltipPosition({ x, y });
                                   setShowTooltip(true);
                                 }}
@@ -845,7 +948,7 @@ export default function DashboardPage() {
                                     const rect = event.currentTarget.getBoundingClientRect();
                                     const x = event.clientX - rect.left;
                                     const y = event.clientY - rect.top;
-                                    
+
                                     setTooltipPosition({ x, y });
                                   }
                                 }}
@@ -855,7 +958,7 @@ export default function DashboardPage() {
                                   (event.target as SVGCircleElement).setAttribute('fill', MAP_COLORS.markers);
                                   (event.target as SVGCircleElement).setAttribute('stroke-width', '2');
                                   (event.target as SVGCircleElement).setAttribute('filter', 'drop-shadow(0px 2px 3px rgba(0,0,0,0.4))');
-                                  
+
                                   safeSetTooltipContent("");
                                   setShowTooltip(false);
                                 }}
@@ -866,17 +969,17 @@ export default function DashboardPage() {
                     </ZoomableGroup>
                   </ComposableMap>
                 </div>
-                
+
                 {/* Controls */}
                 <div className="absolute bottom-4 right-4 flex gap-2 z-10">
-                  <button 
+                  <button
                     onClick={handleZoomIn}
                     className="p-2 rounded-full bg-white shadow hover:bg-gray-100 transition-colors"
                     title="Zoom in"
                   >
                     <ZoomIn size={16} className="text-gray-700" />
                   </button>
-                  <button 
+                  <button
                     onClick={handleZoomOut}
                     className="p-2 rounded-full bg-white shadow hover:bg-gray-100 transition-colors"
                     title="Zoom out"
@@ -884,10 +987,10 @@ export default function DashboardPage() {
                     <ZoomOut size={16} className="text-gray-700" />
                   </button>
                 </div>
-                
+
                 {/* Custom tooltip */}
                 {showTooltip && (
-                  <div 
+                  <div
                     className="absolute z-50 px-4 py-2 bg-black text-white text-sm rounded-md shadow-lg pointer-events-none"
                     style={{
                       left: `${tooltipPosition.x}px`,
@@ -909,7 +1012,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Top Companies */}
       <div className="mb-8">
         <Card>
@@ -926,7 +1029,7 @@ export default function DashboardPage() {
                 <TabsTrigger value="volume">By Export Count</TabsTrigger>
                 <TabsTrigger value="value">By Value</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="volume">
                 <Table>
                   <TableHeader>
@@ -959,7 +1062,7 @@ export default function DashboardPage() {
                   </TableBody>
                 </Table>
               </TabsContent>
-              
+
               <TabsContent value="value">
                 <Table>
                   <TableHeader>
@@ -996,6 +1099,96 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Document Checklist Generator Dialog */}
+      <Dialog open={isGeneratorOpen} onOpenChange={setIsGeneratorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generate Document Checklist</DialogTitle>
+            <DialogDescription>
+              Create a read-only link for clients to see required documents.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-name">Client Name / Reference</Label>
+              <Input
+                id="client-name"
+                placeholder="e.g. Acme Corp / Order #123"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dest">Destination (Optional)</Label>
+              <Input
+                id="dest"
+                placeholder="e.g. USA"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Required Documents</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {docTypes.map((doc) => (
+                  <div key={doc.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`doc-${doc.id}`}
+                      checked={selectedDocs.includes(doc.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDocs([...selectedDocs, doc.id]);
+                        } else {
+                          setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`doc-${doc.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {doc.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {generatedLink && (
+              <div className="mt-4 p-3 bg-slate-100 rounded-md break-all">
+                <p className="text-xs text-muted-foreground mb-1">Generated Link:</p>
+                <code className="text-xs block mb-2">{generatedLink}</code>
+                <Button size="sm" onClick={copyToClipboard} className="w-full">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Link
+                </Button>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="ghost" onClick={() => setIsGeneratorOpen(false)}>
+              Close
+            </Button>
+            {!generatedLink && (
+              <Button onClick={handleGenerateLink}>
+                Generate Link
+              </Button>
+            )}
+            {generatedLink && (
+              <Button variant="outline" onClick={() => {
+                setGeneratedLink('');
+                setClientName('');
+                setDestination('');
+                setIsGeneratorOpen(false);
+              }}>
+                Done
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
