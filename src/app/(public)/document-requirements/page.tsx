@@ -3,10 +3,10 @@
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, CheckCircle, Download } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import Image from 'next/image';
 import { getDocumentTemplate } from '@/lib/db';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 // Document categories and types (Matched with documents-upload/page.tsx)
 const DOCUMENT_CATEGORIES = [
