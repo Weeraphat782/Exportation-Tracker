@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
@@ -569,6 +569,36 @@ export default function ShippingCalculatorPage() {
                       <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
 
+                    {/* View Documents Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      title="View Documents"
+                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Link href={`/document-submissions?quotation=${quotation.id}`}>
+                        <FileArchive className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Link>
+                    </Button>
+
+                    {/* Share Upload Link Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
+                        navigator.clipboard.writeText(url);
+                        toast.success('Link Copied', {
+                          description: 'Document upload link copied to clipboard!'
+                        });
+                      }}
+                      title="Share Upload Link"
+                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+
                     {/* Actions Dropdown Menu */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -581,14 +611,6 @@ export default function ShippingCalculatorPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {/* Document Submissions */}
-                        <DropdownMenuItem asChild>
-                          <Link href={`/document-submissions?quotation=${quotation.id}`} className="flex items-center">
-                            <FileArchive className="h-4 w-4 mr-2" />
-                            View Documents
-                          </Link>
-                        </DropdownMenuItem>
-
                         {/* Submit Draft */}
                         {quotation.status === 'draft' && (
                           <DropdownMenuItem onClick={() => handleSubmitQuotation(quotation.id)}>
@@ -615,18 +637,12 @@ export default function ShippingCalculatorPage() {
 
                         <DropdownMenuSeparator />
 
-                        {/* Share Upload Link */}
-                        <DropdownMenuItem
-                          onClick={() => {
-                            const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
-                            navigator.clipboard.writeText(url);
-                            toast.success('Link Copied', {
-                              description: 'Document upload link copied to clipboard!'
-                            });
-                          }}
-                        >
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share Upload Link
+                        {/* Clone Quotation */}
+                        <DropdownMenuItem asChild>
+                          <Link href={`/shipping-calculator/new?clone_from=${quotation.id}`} className="flex items-center">
+                            <Copy className="h-4 w-4 mr-2" />
+                            Clone Quotation
+                          </Link>
                         </DropdownMenuItem>
 
                         {/* Mark as Completed */}

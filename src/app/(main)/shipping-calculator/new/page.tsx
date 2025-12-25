@@ -317,7 +317,7 @@ const AdditionalChargeItem = ({
     index: number;
     removeCharge: (index: number) => void;
 }) => {
-    const { control, trigger } = useFormContext<QuotationFormValues>();
+    const { control } = useFormContext<QuotationFormValues>();
 
     return (
         <div className="flex items-end gap-2 mb-2">
@@ -359,8 +359,6 @@ const AdditionalChargeItem = ({
                                 value={field.value || ''}
                                 onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
-                                    // Force recalculation immediately after amount changes
-                                    setTimeout(() => trigger(), 0);
                                 }}
                                 className="h-9 w-28"
                             />
@@ -486,6 +484,7 @@ function ShippingCalculatorPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const quotationId = searchParams.get('id');
+    const cloneFromId = searchParams.get('clone_from');
     const isEditMode = !!quotationId;
 
     const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -498,7 +497,8 @@ function ShippingCalculatorPageContent() {
     const [existingQuotation, setExistingQuotation] = useState<Quotation | null>(null);
 
     // Update the useEffect for recalculating costs to prevent infinite loops
-    const [lastCalculatedValues, setLastCalculatedValues] = useState<{
+    // Use useRef instead of useState for lastCalculatedValues to avoid effect re-runs
+    const lastCalculatedValues = React.useRef<{
         pallets: PalletType[],
         additionalCharges: AdditionalChargeType[],
         destinationId?: string
@@ -669,10 +669,153 @@ function ShippingCalculatorPageContent() {
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
                         });
+
+                        // Force initial calculation after setting defaults
+                        console.log("Effect 2: Triggering initial calculation.");
+                        const initialCalculation = calculateTotalFreightCost(
+                            Array.isArray(typedExistingQuotation.pallets) ? typedExistingQuotation.pallets.map(p => ({
+                                length: Number(p.length) || 0,
+                                width: Number(p.width) || 0,
+                                height: Number(p.height) || 0,
+                                weight: Number(p.weight) || 0,
+                                quantity: Number(p.quantity) || 1
+                            })) : [],
+                            Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
+                                name: c.name || '',
+                                description: c.description || '',
+                                amount: Number(c.amount) || 0
+                            })) : [],
+                            {
+                                clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
+                                deliveryRequired: typedExistingQuotation.delivery_service_required,
+                                deliveryType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                                deliveryRates: { '4wheel': 3500, '6wheel': 6500 }, // Hardcoded for now as per useMemo below
+                                destinationId: typedExistingQuotation.destination_id || undefined,
+                                freightRates: freightRates
+                            }
+                        );
+                        setCalculationResult(initialCalculation);
+
+                        // Update last calculated values to prevent double calculation
+                        // IMPORTANT: Use JSON.parse(JSON.stringify(...)) to create a deep copy and break reference links
+                        // This prevents react-hook-form mutations from implicitly updating our "last known" state
+                        lastCalculatedValues.current = {
+                            pallets: JSON.parse(JSON.stringify(
+                                Array.isArray(typedExistingQuotation.pallets) ? typedExistingQuotation.pallets.map(p => ({
+                                    length: Number(p.length) || 0,
+                                    width: Number(p.width) || 0,
+                                    height: Number(p.height) || 0,
+                                    weight: Number(p.weight) || 0,
+                                    quantity: Number(p.quantity) || 1
+                                })) : []
+                            )),
+                            additionalCharges: JSON.parse(JSON.stringify(
+                                Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
+                                    name: c.name || '',
+                                    description: c.description || '',
+                                    amount: Number(c.amount) || 0
+                                })) : []
+                            )),
+                            destinationId: typedExistingQuotation.destination_id
+                        };
                     } else {
                         console.log("Effect 2: Quotation not found or access denied, redirecting.");
                         toast.error("Quotation not found or access denied.");
                         router.push('/shipping-calculator');
+                    }
+                } else if (cloneFromId && userId) {
+                    // --- CLONE MODE ---
+                    console.log(`Effect 2: Cloning from quotation ${cloneFromId}`);
+                    const fetchedQuotation = await dbGetQuotationById(cloneFromId);
+
+                    if (fetchedQuotation) { // We might not check user_id strict equality for cloning if sharing is allowed, but safe to check
+                        console.log("Effect 2: Source quotation found for cloning.");
+
+                        // Do NOT set existingQuotation, so it saves as new
+                        setExistingQuotation(null);
+
+                        const typedExistingQuotation = fetchedQuotation as Quotation;
+
+                        // Reset form with fetched data
+                        reset({
+                            companyId: typedExistingQuotation.company_id || '',
+                            customerName: typedExistingQuotation.customer_name || '',
+                            contactPerson: typedExistingQuotation.contact_person || '',
+                            contractNo: typedExistingQuotation.contract_no || '',
+                            destinationId: typedExistingQuotation.destination_id || '',
+                            pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
+                                ? typedExistingQuotation.pallets.map(p => ({
+                                    length: Number(p.length) || 0,
+                                    width: Number(p.width) || 0,
+                                    height: Number(p.height) || 0,
+                                    weight: Number(p.weight) || 0,
+                                    quantity: Number(p.quantity) || 1
+                                }))
+                                : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
+                            deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
+                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                            clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
+                            additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
+                                ? typedExistingQuotation.additional_charges.map(c => ({
+                                    name: c.name || '',
+                                    description: c.description || '',
+                                    amount: Number(c.amount) || 0
+                                }))
+                                : [{ name: '', description: '', amount: 0 }],
+                            notes: typedExistingQuotation.notes || '',
+                        });
+
+                        // Force initial calculation
+                        console.log("Effect 2: Triggering initial calculation for Clone.");
+                        const initialCalculation = calculateTotalFreightCost(
+                            Array.isArray(typedExistingQuotation.pallets) ? typedExistingQuotation.pallets.map(p => ({
+                                length: Number(p.length) || 0,
+                                width: Number(p.width) || 0,
+                                height: Number(p.height) || 0,
+                                weight: Number(p.weight) || 0,
+                                quantity: Number(p.quantity) || 1
+                            })) : [],
+                            Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
+                                name: c.name || '',
+                                description: c.description || '',
+                                amount: Number(c.amount) || 0
+                            })) : [],
+                            {
+                                clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
+                                deliveryRequired: typedExistingQuotation.delivery_service_required,
+                                deliveryType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                                deliveryRates: { '4wheel': 3500, '6wheel': 6500 },
+                                destinationId: typedExistingQuotation.destination_id || undefined,
+                                freightRates: freightRates
+                            }
+                        );
+                        setCalculationResult(initialCalculation);
+
+                        // Update lastCalculatedValues for deep copy
+                        lastCalculatedValues.current = {
+                            pallets: JSON.parse(JSON.stringify(
+                                Array.isArray(typedExistingQuotation.pallets) ? typedExistingQuotation.pallets.map(p => ({
+                                    length: Number(p.length) || 0,
+                                    width: Number(p.width) || 0,
+                                    height: Number(p.height) || 0,
+                                    weight: Number(p.weight) || 0,
+                                    quantity: Number(p.quantity) || 1
+                                })) : []
+                            )),
+                            additionalCharges: JSON.parse(JSON.stringify(
+                                Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
+                                    name: c.name || '',
+                                    description: c.description || '',
+                                    amount: Number(c.amount) || 0
+                                })) : []
+                            )),
+                            destinationId: typedExistingQuotation.destination_id
+                        };
+
+                        toast.success("Quotation Cloned", { description: "Data copied from existing quotation. Ready to edit." });
+
+                    } else {
+                        toast.error("Source quotation not found.");
                     }
                 } else {
                     console.log("Effect 2: New quotation mode, resetting to blank defaults.");
@@ -703,9 +846,8 @@ function ShippingCalculatorPageContent() {
 
         setFormDefaults();
 
-        // Depend on isLoading, isEditMode, quotationId, and potentially userId if needed for fetching
-        // Crucially, DO NOT depend on reset, companies, destinations here to avoid loops
-    }, [isLoading, isEditMode, quotationId, userId, router, reset]); // Add reset dependency
+        // Depend on isLoading, isEditMode, quotationId, cloneFromId, and potentially userId
+    }, [isLoading, isEditMode, quotationId, cloneFromId, userId, router, reset]); // Add cloneFromId dependency
 
     // --- Delivery Rates ---
     // Wrap deliveryRates in useMemo
@@ -738,9 +880,9 @@ function ShippingCalculatorPageContent() {
             // Skip if nothing relevant has changed and it's not a direct pallet change
             if (
                 !isPalletChange &&
-                JSON.stringify(pallets) === JSON.stringify(lastCalculatedValues.pallets) &&
-                JSON.stringify(additionalCharges) === JSON.stringify(lastCalculatedValues.additionalCharges) &&
-                destinationId === lastCalculatedValues.destinationId &&
+                JSON.stringify(pallets) === JSON.stringify(lastCalculatedValues.current.pallets) &&
+                JSON.stringify(additionalCharges) === JSON.stringify(lastCalculatedValues.current.additionalCharges) &&
+                destinationId === lastCalculatedValues.current.destinationId &&
                 deliveryServiceRequired === watchedDeliveryRequired &&
                 deliveryVehicleType === watchedDeliveryVehicle
             ) {
@@ -751,11 +893,13 @@ function ShippingCalculatorPageContent() {
             console.log("Recalculating costs due to field change:", name);
 
             // Update last calculated values
-            setLastCalculatedValues({
-                pallets: pallets || [],
-                additionalCharges: additionalCharges || [],
+            // IMPORTANT: Deep copy here is CRITICAL. Without it, we store a reference that RHF mutates,
+            // making the NEXT comparison (current vs last) always return true (equal), thus skipping calculation.
+            lastCalculatedValues.current = {
+                pallets: pallets ? JSON.parse(JSON.stringify(pallets)) : [],
+                additionalCharges: additionalCharges ? JSON.parse(JSON.stringify(additionalCharges)) : [],
                 destinationId
-            });
+            };
 
             // Calculate total costs
             const calculationResult = calculateTotalFreightCost(
@@ -777,7 +921,7 @@ function ShippingCalculatorPageContent() {
 
         return () => subscription.unsubscribe();
         // Add deliveryRates to dependency array (it's memoized now)
-    }, [watch, isLoading, lastCalculatedValues, watchedDeliveryRequired, watchedDeliveryVehicle, deliveryRates, freightRates]);
+    }, [watch, isLoading, watchedDeliveryRequired, watchedDeliveryVehicle, deliveryRates, freightRates]);
 
     // --- Generate Data for DB --- 
     // This function now creates the full data object required for insertion
