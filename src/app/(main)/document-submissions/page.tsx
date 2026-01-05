@@ -11,7 +11,7 @@ import { formatFileSize } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import JSZip from 'jszip';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -80,43 +82,45 @@ export default function DocumentSubmissionsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [expandedQuotations, setExpandedQuotations] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isZipping, setIsZipping] = useState(false);
 
   // Add AI analysis hook
   const { isAnalyzing, analyzeDocument, processAllDocuments } = useDocumentAnalysis();
-  
+
   // Add state for tracking which document is being analyzed
   const [analyzingDocuments, setAnalyzingDocuments] = useState<Set<string>>(new Set());
 
   // Load data function (moved up for reuse)
   const loadData = async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          console.error('User not authenticated');
-          setSubmissions([]);
-          setQuotations([]);
-          setLoading(false);
-          return;
-        }
-        
-        const userId = user.id;
-        const [submissionsData, quotationsData] = await Promise.all([
-          getDocumentSubmissions(),
-          getQuotations(userId)
-        ]);
-        
-        // Type cast to ensure compatibility with our local interface
-        setSubmissions(submissionsData as unknown as DocumentSubmission[]);
-        setQuotations(quotationsData || []);
-      } catch (error) {
-        console.error('Error loading data:', error);
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error('User not authenticated');
         setSubmissions([]);
         setQuotations([]);
-      } finally {
         setLoading(false);
+        return;
       }
+
+      const userId = user.id;
+      const [submissionsData, quotationsData] = await Promise.all([
+        getDocumentSubmissions(),
+        getQuotations(userId)
+      ]);
+
+      // Type cast to ensure compatibility with our local interface
+      setSubmissions(submissionsData as unknown as DocumentSubmission[]);
+      setQuotations(quotationsData || []);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setSubmissions([]);
+      setQuotations([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Check URL parameters for quotation ID when component mounts
@@ -124,11 +128,11 @@ export default function DocumentSubmissionsPage() {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const quotationParam = urlParams.get('quotation');
-      
+
       if (quotationParam) {
         // Auto-select the quotation from URL parameter
         setSelectedQuotation(quotationParam);
-        
+
         // Auto-expand this quotation
         setExpandedQuotations(prev => ({
           ...prev,
@@ -146,18 +150,18 @@ export default function DocumentSubmissionsPage() {
   // Filter submissions based on search, quotation, and category
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
-    
+
     return submissions.filter((submission) => {
       // Filter by search term if present
       if (searchTerm && !submission.original_file_name.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
-      
+
       // Filter by selected quotation if any
       if (selectedQuotation !== 'all' && submission.quotation_id !== selectedQuotation) {
         return false;
       }
-      
+
       return true;
     });
   }, [submissions, searchTerm, selectedQuotation]);
@@ -202,12 +206,12 @@ export default function DocumentSubmissionsPage() {
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
 
-    const a = document.createElement('a');
+      const a = document.createElement('a');
       a.href = blobUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       // Clean up the object URL
       URL.revokeObjectURL(blobUrl);
@@ -222,23 +226,96 @@ export default function DocumentSubmissionsPage() {
     }
   };
 
+  // Bulk download function
+  const handleBulkDownload = async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsZipping(true);
+    try {
+      const zip = new JSZip();
+      const selectedDocs = submissions.filter(s => selectedIds.has(s.id));
+
+      // We need to fetch each file as a blob
+      const downloadPromises = selectedDocs.map(async (doc) => {
+        try {
+          const response = await fetch(doc.file_url);
+          if (!response.ok) throw new Error(`Failed to fetch ${doc.file_name}`);
+          const blob = await response.blob();
+
+          // Add to zip. If multiple files have the same name, we append ID to avoid overlap
+          // But usually original_file_name should be used
+          const fileName = doc.original_file_name || doc.file_name || `file_${doc.id.substring(0, 5)}`;
+          zip.file(fileName, blob);
+        } catch (err) {
+          console.error(`Error adding ${doc.original_file_name} to zip:`, err);
+        }
+      });
+
+      await Promise.all(downloadPromises);
+
+      // Generate ZIP blob
+      const content = await zip.generateAsync({ type: 'blob' });
+
+      // Trigger download
+      const zipUrl = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = zipUrl;
+      a.download = `documents_${new Date().getTime()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(zipUrl);
+
+      console.log('Bulk download ZIP generated and triggered');
+    } catch (error) {
+      console.error('Bulk download failed:', error);
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
+  const toggleSelectAll = (quotationId: string, checked: boolean) => {
+    const quotationSubmissions = submissionsByQuotation[quotationId] || [];
+    const newSelectedIds = new Set(selectedIds);
+
+    quotationSubmissions.forEach(sub => {
+      if (checked) {
+        newSelectedIds.add(sub.id);
+      } else {
+        newSelectedIds.delete(sub.id);
+      }
+    });
+
+    setSelectedIds(newSelectedIds);
+  };
+
+  const toggleSelectOne = (id: string, checked: boolean) => {
+    const newSelectedIds = new Set(selectedIds);
+    if (checked) {
+      newSelectedIds.add(id);
+    } else {
+      newSelectedIds.delete(id);
+    }
+    setSelectedIds(newSelectedIds);
+  };
+
   // Update document status
   const handleStatusChange = async (id: string, status: 'pending' | 'approved' | 'rejected') => {
     try {
       const update: DocumentSubmissionUpdate = {
         status,
       };
-      
+
       const result = await updateDocumentSubmission(id, update);
 
       if (result) {
         // Update submissions list with proper typing
-        setSubmissions(prevSubmissions => 
-          prevSubmissions.map(sub => 
+        setSubmissions(prevSubmissions =>
+          prevSubmissions.map(sub =>
             sub.id === id ? { ...sub, status } : sub
           )
         );
-        
+
         if (selectedSubmission && selectedSubmission.id === id) {
           setSelectedSubmission({ ...selectedSubmission, status });
         }
@@ -271,7 +348,7 @@ export default function DocumentSubmissionsPage() {
     } catch {
       // If an error occurs during formatting, return the original string.
       // The error variable _e is intentionally unused here.
-      return dateString; 
+      return dateString;
     }
   };
 
@@ -282,8 +359,8 @@ export default function DocumentSubmissionsPage() {
 
   // Count documents by category for a quotation
   const countDocumentsByCategory = (quotationId: string, categoryId: string) => {
-    return submissions.filter(s => 
-      s.quotation_id === quotationId && 
+    return submissions.filter(s =>
+      s.quotation_id === quotationId &&
       s.document_type === categoryId
     ).length;
   };
@@ -291,7 +368,7 @@ export default function DocumentSubmissionsPage() {
   // Get unique quotation IDs from submissions
   const quotationOptions = useMemo(() => {
     if (!quotations || !Array.isArray(quotations)) return [];
-    
+
     return quotations.map((quotation) => ({
       value: quotation.id,
       label: `${quotation.company_name} - ${quotation.id.slice(0, 8)}`
@@ -307,14 +384,14 @@ export default function DocumentSubmissionsPage() {
   // Confirm delete document
   const confirmDelete = async () => {
     if (!deletingId) return;
-    
+
     setDeleteLoading(true);
     try {
       const success = await deleteDocumentSubmission(deletingId);
-      
+
       if (success) {
         // Update UI by removing the deleted document
-        setSubmissions(prevSubmissions => 
+        setSubmissions(prevSubmissions =>
           prevSubmissions.filter(sub => sub.id !== deletingId)
         );
         setIsDeleteModalOpen(false);
@@ -352,7 +429,7 @@ export default function DocumentSubmissionsPage() {
 
     try {
       console.log(`Starting AI analysis for: ${submission.original_file_name}`);
-      
+
       const result = await analyzeDocument(
         submission.id,
         submission.file_url,
@@ -363,16 +440,16 @@ export default function DocumentSubmissionsPage() {
       if (result.success) {
         console.log(`AI analysis completed for: ${submission.original_file_name}`);
         console.log(`Generated description: ${result.description}`);
-        
+
         // Immediately update the local state for better UX
-        setSubmissions(prevSubmissions => 
-          prevSubmissions.map(sub => 
-            sub.id === submission.id 
+        setSubmissions(prevSubmissions =>
+          prevSubmissions.map(sub =>
+            sub.id === submission.id
               ? { ...sub, description: result.description }
               : sub
           )
         );
-        
+
         // Also refresh from database to ensure data consistency
         await loadData();
       } else {
@@ -408,23 +485,44 @@ export default function DocumentSubmissionsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Document Submissions</h1>
-        <Button
-          onClick={handleProcessAllDocuments}
-          disabled={isAnalyzing}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <Bot className="h-4 w-4 mr-2" />
-              Generate AI Descriptions
-            </>
+        <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <Button
+              onClick={handleBulkDownload}
+              disabled={isZipping}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isZipping ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating ZIP...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Selected ({selectedIds.size})
+                </>
+              )}
+            </Button>
           )}
-        </Button>
+          <Button
+            onClick={handleProcessAllDocuments}
+            disabled={isAnalyzing}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Bot className="h-4 w-4 mr-2" />
+                Generate AI Descriptions
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Filters - Modified to remove category filter */}
@@ -487,7 +585,7 @@ export default function DocumentSubmissionsPage() {
             if (!quotationInfo) return null;
 
             const isExpanded = expandedQuotations[quotationId] || false;
-            
+
             return (
               <Card key={quotationId} className="overflow-hidden">
                 <CardHeader className="bg-muted/50 py-4">
@@ -500,9 +598,9 @@ export default function DocumentSubmissionsPage() {
                         Quotation: {quotationId.substring(0, 8)}... • Created: {formatDate(quotationInfo.created_at)} • Documents: {quotationSubmissions.length}
                       </CardDescription>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => toggleExpand(quotationId)}
                       className="ml-4"
                     >
@@ -520,7 +618,7 @@ export default function DocumentSubmissionsPage() {
                     </Button>
                   </div>
                 </CardHeader>
-                
+
                 {isExpanded && (
                   <CardContent className="p-0">
                     <Tabs defaultValue="all" className="w-full">
@@ -540,12 +638,18 @@ export default function DocumentSubmissionsPage() {
                           Shipment QR & Photo
                         </TabsTrigger>
                       </TabsList>
-                      
+
                       <TabsContent value="all" className="p-0">
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader>
                               <TableRow>
+                                <TableHead className="w-[50px]">
+                                  <Checkbox
+                                    checked={quotationSubmissions.length > 0 && quotationSubmissions.every(s => selectedIds.has(s.id))}
+                                    onCheckedChange={(checked) => toggleSelectAll(quotationId, !!checked)}
+                                  />
+                                </TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Document Type</TableHead>
                                 <TableHead>File Name</TableHead>
@@ -556,6 +660,12 @@ export default function DocumentSubmissionsPage() {
                             <TableBody>
                               {quotationSubmissions.map((submission) => (
                                 <TableRow key={submission.id}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedIds.has(submission.id)}
+                                      onCheckedChange={(checked) => toggleSelectOne(submission.id, !!checked)}
+                                    />
+                                  </TableCell>
                                   <TableCell>{formatDate(submission.submitted_at)}</TableCell>
                                   <TableCell>{submission.document_type}</TableCell>
                                   <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
@@ -635,13 +745,28 @@ export default function DocumentSubmissionsPage() {
                           </Table>
                         </div>
                       </TabsContent>
-                      
+
                       {DOCUMENT_CATEGORIES.map(category => (
                         <TabsContent key={category.id} value={category.id} className="p-0">
                           <div className="overflow-x-auto">
                             <Table>
                               <TableHeader>
                                 <TableRow>
+                                  <TableHead className="w-[50px]">
+                                    <Checkbox
+                                      checked={quotationSubmissions.filter(s => s.document_type === category.id).length > 0 &&
+                                        quotationSubmissions.filter(s => s.document_type === category.id).every(s => selectedIds.has(s.id))}
+                                      onCheckedChange={(checked) => {
+                                        const categoryDocs = quotationSubmissions.filter(s => s.document_type === category.id);
+                                        const newSelectedIds = new Set(selectedIds);
+                                        categoryDocs.forEach(s => {
+                                          if (checked) newSelectedIds.add(s.id);
+                                          else newSelectedIds.delete(s.id);
+                                        });
+                                        setSelectedIds(newSelectedIds);
+                                      }}
+                                    />
+                                  </TableHead>
                                   <TableHead>Date</TableHead>
                                   <TableHead>Document Type</TableHead>
                                   <TableHead>File Name</TableHead>
@@ -654,6 +779,12 @@ export default function DocumentSubmissionsPage() {
                                   .filter(submission => submission.document_type === category.id)
                                   .map((submission) => (
                                     <TableRow key={submission.id}>
+                                      <TableCell>
+                                        <Checkbox
+                                          checked={selectedIds.has(submission.id)}
+                                          onCheckedChange={(checked) => toggleSelectOne(submission.id, !!checked)}
+                                        />
+                                      </TableCell>
                                       <TableCell>{formatDate(submission.submitted_at)}</TableCell>
                                       <TableCell>{submission.document_type}</TableCell>
                                       <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
@@ -770,8 +901,8 @@ export default function DocumentSubmissionsPage() {
                                         <div className="p-1">
                                           <Card className="overflow-hidden">
                                             <CardContent className="flex aspect-square items-center justify-center p-0 relative">
-                                              <Image 
-                                                src={url} 
+                                              <Image
+                                                src={url}
                                                 alt={`Shipment Photo ${index + 1}`}
                                                 layout="fill"
                                                 objectFit="contain"
@@ -844,21 +975,21 @@ export default function DocumentSubmissionsPage() {
                 <h3 className="text-sm font-medium text-gray-500">File Name</h3>
                 <p className="truncate">{selectedSubmission.file_name}</p>
               </div>
-              
+
               {selectedSubmission.notes && (
                 <div className="col-span-2">
                   <h3 className="text-sm font-medium text-gray-500">Notes</h3>
                   <p className="text-gray-700 whitespace-pre-wrap">{selectedSubmission.notes}</p>
                 </div>
               )}
-              
+
               {selectedSubmission.file_url.endsWith('.pdf') ? (
                 <div className="col-span-2 mt-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
                   <div className="border rounded-md p-2">
-                    <iframe 
+                    <iframe
                       src={`${selectedSubmission.file_url}#view=FitH`}
-                      className="w-full h-64" 
+                      className="w-full h-64"
                       title={selectedSubmission.file_name}
                     />
                   </div>
@@ -867,8 +998,8 @@ export default function DocumentSubmissionsPage() {
                 <div className="col-span-2 mt-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
                   <div className="border rounded-md p-2 relative w-full h-64">
-                    <Image 
-                      src={selectedSubmission.file_url} 
+                    <Image
+                      src={selectedSubmission.file_url}
                       alt={selectedSubmission.file_name}
                       layout="fill"
                       objectFit="contain"
@@ -876,10 +1007,10 @@ export default function DocumentSubmissionsPage() {
                   </div>
                 </div>
               ) : null}
-              
+
               <div className="col-span-2 flex justify-center gap-2 mt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.original_file_name)}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -889,23 +1020,23 @@ export default function DocumentSubmissionsPage() {
             </div>
             <DialogFooter className="gap-2 flex-wrap sm:justify-between">
               <div className="space-x-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleCloseModal}
                 >
                   Close
                 </Button>
               </div>
               <div className="space-x-2">
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={() => handleStatusChange(selectedSubmission.id, 'rejected')}
                   disabled={selectedSubmission.status === 'rejected'}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject
                 </Button>
-                <Button 
+                <Button
                   variant="default"
                   onClick={() => handleStatusChange(selectedSubmission.id, 'approved')}
                   disabled={selectedSubmission.status === 'approved'}
@@ -954,13 +1085,13 @@ export default function DocumentSubmissionsPage() {
       <Dialog open={isImagePreviewModalOpen} onOpenChange={handleCloseImagePreview}>
         <DialogContent className="max-w-3xl p-0">
           {previewImageUrl && (
-            <Image 
-                src={previewImageUrl} 
-                alt="Shipment Photo Preview" 
-                width={1200} 
-                height={800} 
-                objectFit="contain" 
-                className="rounded-md"
+            <Image
+              src={previewImageUrl}
+              alt="Shipment Photo Preview"
+              width={1200}
+              height={800}
+              objectFit="contain"
+              className="rounded-md"
             />
           )}
         </DialogContent>

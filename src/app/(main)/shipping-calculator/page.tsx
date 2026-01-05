@@ -490,6 +490,7 @@ export default function ShippingCalculatorPage() {
               <TableHead className="min-w-[120px] text-xs sm:text-sm">Company</TableHead>
               <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>
+              <TableHead className="min-w-[120px] text-xs sm:text-sm">Internal Remark</TableHead>
               <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>
               <TableHead className="min-w-[100px] text-xs sm:text-sm">Shipping Date</TableHead>
@@ -505,6 +506,9 @@ export default function ShippingCalculatorPage() {
                 <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>
                 <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>
                 <TableCell className="text-xs sm:text-sm">{quotation.destination}</TableCell>
+                <TableCell className="text-xs sm:text-sm italic text-blue-600 max-w-[150px] truncate" title={quotation.internal_remark || ''}>
+                  {quotation.internal_remark || '-'}
+                </TableCell>
                 <TableCell>
                   <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
                     {getStatusText(quotation.status)}

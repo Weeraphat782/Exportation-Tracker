@@ -52,6 +52,7 @@ interface Pallet {
   height: number | string;
   weight: number | string;
   quantity: number | string;
+  overridden_rate?: number | string;
 }
 
 interface AdditionalCharge {
@@ -65,6 +66,7 @@ export interface Quotation {
   created_at: string;
   user_id: string;
   company_id: string;
+  opportunity_id?: string | null; // Added field
   customer_name: string;
   contact_person: string;
   contract_no?: string | null;
@@ -83,16 +85,17 @@ export interface Quotation {
   completed_at?: string | null;
   shipment_photo_url?: string[] | null;
   shipment_photo_uploaded_at?: string | null;
-  
+
   // Additional cost breakdown fields
   total_freight_cost?: number | null; // Allow null
   clearance_cost?: number | null; // Allow null
   delivery_cost?: number | null; // Allow null
-  
+
   // Weight calculation fields
   total_actual_weight?: number | null; // Allow null
   total_volume_weight?: number | null; // Allow null
   chargeable_weight?: number | null; // Allow null
+  internal_remark?: string | null; // Added field
 }
 
 export interface DocumentSubmission {
@@ -141,8 +144,8 @@ export async function getProfile(userId: string) {
 
     return data as Profile;
   } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  error: any
   ) {
     console.error('Error in getProfile:', error);
     return null;
@@ -439,7 +442,7 @@ export async function getFreightRateById(id: string) {
     }
 
     return data as Pick<FreightRate, 'id' | 'destination_id' | 'min_weight' | 'max_weight' | 'base_rate' | 'effective_date' | 'user_id'> & {
-       destinations: Pick<Destination, 'country' | 'port'>[] | null;
+      destinations: Pick<Destination, 'country' | 'port'>[] | null;
     };
   } catch (error) {
     console.error('Error in getFreightRateById:', error);
@@ -536,7 +539,7 @@ export async function getQuotations(userId: string) {
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching quotations:', error);
       return []; // Return empty array on error
@@ -571,7 +574,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
       .single();
 
     if (error) {
-        console.error('Error fetching quotation by ID:', error);
+      console.error('Error fetching quotation by ID:', error);
       return null;
     }
     if (!data) return null;
@@ -602,7 +605,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
 
     // Check for required fields
     if (!quotationData.user_id || !quotationData.company_id || !quotationData.destination_id) {
-      console.error('Missing required fields for quotation:', 
+      console.error('Missing required fields for quotation:',
         !quotationData.user_id ? 'user_id' : '',
         !quotationData.company_id ? 'company_id' : '',
         !quotationData.destination_id ? 'destination_id' : ''
@@ -622,6 +625,8 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       // Convert any undefined values to null for PostgreSQL compatibility
       contract_no: quotationData.contract_no || null,
       notes: quotationData.notes || null,
+      opportunity_id: quotationData.opportunity_id || null, // Added field
+      internal_remark: quotationData.internal_remark || null, // Added field
       // Ensure JSONB fields are properly formatted
       pallets: Array.isArray(quotationData.pallets) ? quotationData.pallets : [],
       additional_charges: Array.isArray(quotationData.additional_charges) ? quotationData.additional_charges : []
@@ -635,7 +640,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
 
     if (error) {
       console.error('Error saving quotation:', error);
-      
+
       // More detailed error reporting based on error type
       if (error.code === '23505') {
         console.error('Unique constraint violation. A record with these values already exists.');
@@ -709,12 +714,12 @@ export async function deleteQuotation(id: string) {
       .from('quotations')
       .delete()
       .eq('id', id);
-    
+
     if (error) {
       console.error('Error deleting quotation:', error);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error in deleteQuotation:', error);
@@ -792,12 +797,12 @@ export async function updateDocumentSubmission(id: string, updates: Partial<Docu
     console.log('🔍 updateDocumentSubmission called with:');
     console.log('- Document ID:', id);
     console.log('- Updates:', updates);
-    
+
     // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
     console.log('👤 Current user session:', session ? 'User logged in' : 'No user session');
     console.log('👤 User ID:', session?.user?.id || 'None');
-    
+
     const { data, error } = await supabase
       .from('document_submissions')
       .update(updates)
@@ -945,8 +950,8 @@ export async function createOrUpdateSetting(
       return data[0] as Setting;
     }
   } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  error: any
   ) {
     console.error('Error in createOrUpdateSetting:', error);
     return null;

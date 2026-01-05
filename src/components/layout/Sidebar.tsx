@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Settings, 
-  Building, 
-  Globe, 
+import {
+  ChevronDown,
+  ChevronRight,
+  Settings,
+  Building,
+  Globe,
   DollarSign,
   Calculator,
   Menu,
@@ -42,14 +42,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
   }
 
   return (
-    <div 
+    <div
       className={cn(
         "h-full bg-slate-900 text-white flex flex-col transition-all duration-300 ease-in-out",
         // Width based on state
         isCollapsed ? "w-16" : "w-64",
         // Position: fixed overlay on mobile, normal on desktop  
-        isMobile 
-          ? "fixed left-0 top-0 z-50 h-screen" 
+        isMobile
+          ? "fixed left-0 top-0 z-50 h-screen"
           : "relative",
         // Hide on mobile when collapsed
         isMobile && isCollapsed ? "hidden" : "flex",
@@ -60,14 +60,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
     >
       <div className={cn(
         "flex items-center mb-6 mt-3",
-        isCollapsed ? "justify-center" : "justify-between" 
+        isCollapsed ? "justify-center" : "justify-between"
       )}>
         {!isCollapsed && <div className="text-lg font-bold">Exportation Tracker</div>}
         {/* Show toggle button only on desktop or when sidebar is expanded on mobile */}
         {(!isMobile || !isCollapsed) && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleSidebar}
             className="text-white hover:bg-slate-800"
           >
@@ -75,10 +75,10 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           </Button>
         )}
       </div>
-      
+
       <nav className="space-y-3 flex-1 overflow-y-auto">
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -90,8 +90,21 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           {!isCollapsed && <span className="text-base">Dashboard</span>}
         </Link>
 
-        <Link 
-          href="/packing-lists" 
+        <Link
+          href="/opportunities"
+          className={cn(
+            "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
+            isCollapsed ? "justify-center" : "",
+            pathname?.startsWith("/opportunities") ? "bg-slate-800" : ""
+          )}
+          title="Opportunities"
+        >
+          <Sparkles className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
+          {!isCollapsed && <span className="text-base">Opportunities</span>}
+        </Link>
+
+        <Link
+          href="/packing-lists"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -103,8 +116,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           {!isCollapsed && <span className="text-base">Packing Lists</span>}
         </Link>
 
-        <Link 
-          href="/shipping-calculator" 
+        <Link
+          href="/shipping-calculator"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -115,9 +128,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           <Calculator className={cn("h-6 w-6", !isCollapsed && "mr-3")} />
           {!isCollapsed && <span className="text-base">Shipping Calculator</span>}
         </Link>
-        
-        <Link 
-          href="/document-submissions" 
+
+        <Link
+          href="/document-submissions"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -129,8 +142,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           {!isCollapsed && <span className="text-base">Document Submissions</span>}
         </Link>
 
-        <Link 
-          href="/document-comparison" 
+        <Link
+          href="/document-comparison"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -142,8 +155,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
           {!isCollapsed && <span className="text-base">Document Comparison</span>}
         </Link>
 
-        <Link 
-          href="/calendar" 
+        <Link
+          href="/calendar"
           className={cn(
             "flex items-center px-4 py-3 rounded-md hover:bg-slate-800 transition-colors",
             isCollapsed ? "justify-center" : "",
@@ -156,7 +169,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
         </Link>
 
         {/* Removed direct link to Generator; creation is accessed from list page */}
-        
+
         <div className="space-y-1">
           <button
             onClick={() => !isCollapsed && setSettingsOpen(!settingsOpen)}
@@ -176,11 +189,11 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
               <ChevronRight className="h-5 w-5 ml-auto" />
             ))}
           </button>
-          
+
           {!isCollapsed && settingsOpen && (
             <div className="pl-8 space-y-2 mt-2">
-              <Link 
-                href="/settings/company" 
+              <Link
+                href="/settings/company"
                 className={cn(
                   "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
                   pathname?.startsWith("/settings/company") ? "bg-slate-700" : ""
@@ -189,8 +202,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                 <Building className="h-5 w-5 mr-3" />
                 <span className="text-base">Company</span>
               </Link>
-              <Link 
-                href="/settings/destination" 
+              <Link
+                href="/settings/destination"
                 className={cn(
                   "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
                   pathname?.startsWith("/settings/destination") ? "bg-slate-700" : ""
@@ -199,8 +212,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                 <Globe className="h-5 w-5 mr-3" />
                 <span className="text-base">Destination</span>
               </Link>
-              <Link 
-                href="/settings/freight-rate" 
+              <Link
+                href="/settings/freight-rate"
                 className={cn(
                   "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
                   pathname?.startsWith("/settings/freight-rate") ? "bg-slate-700" : ""
@@ -209,8 +222,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                 <DollarSign className="h-5 w-5 mr-3" />
                 <span className="text-base">Freight Rate</span>
               </Link>
-              <Link 
-                href="/settings/ai" 
+              <Link
+                href="/settings/ai"
                 className={cn(
                   "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
                   pathname?.startsWith("/settings/ai") ? "bg-slate-700" : ""
@@ -219,8 +232,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                 <Sparkles className="h-5 w-5 mr-3" />
                 <span className="text-base">AI Settings</span>
               </Link>
-              <Link 
-                href="/document-comparison/rules" 
+              <Link
+                href="/document-comparison/rules"
                 className={cn(
                   "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
                   pathname?.startsWith("/document-comparison/rules") ? "bg-slate-700" : ""
@@ -232,9 +245,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
             </div>
           )}
         </div>
-        
+
       </nav>
-      
+
       <div className="mt-auto">
         {isCollapsed ? (
           <div className="flex justify-center mb-4">

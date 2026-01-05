@@ -44,6 +44,7 @@ const palletSchema = z.object({
     height: z.number().min(0, { message: 'Must be 0 or positive' }),
     weight: z.number().min(0, { message: 'Must be 0 or positive' }),
     quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }),
+    overriddenRate: z.number().min(0).optional(),
 });
 
 // --- Additional Charge Schema ---
@@ -59,7 +60,7 @@ const additionalChargeSchema = z.object({
 const quotationFormSchema = z.object({
     companyId: z.string().min(1, { message: 'Company is required' }),
     customerName: z.string().min(1, { message: 'Customer name is required' }),
-    contactPerson: z.string().min(1, { message: 'Contact person is required' }),
+    contactPerson: z.string().optional(), // Made optional since it may not be provided from Opportunity
     contractNo: z.string().optional(), // Still optional
     destinationId: z.string().min(1, { message: 'Destination is required' }),
     pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }),
@@ -68,6 +69,8 @@ const quotationFormSchema = z.object({
     clearanceCost: z.number().min(0, { message: 'Clearance cost must be 0 or greater' }).optional(), // Added clearance cost field
     additionalCharges: z.array(additionalChargeSchema), // Default handled by useForm
     notes: z.string().optional(), // Still optional
+    internalRemark: z.string().optional(), // Added for staff internal notes
+    opportunityId: z.string().optional(), // Added for linking
 });
 
 // Define the type based on the schema
@@ -81,6 +84,7 @@ interface PalletType {
     weight: number;
     quantity?: number;
     id?: string; // Make id optional since it's not used in existing code
+    overriddenRate?: number;
 }
 
 interface AdditionalChargeType {
@@ -99,7 +103,7 @@ const formatNumber = (num: number) => {
 
 // --- Helper Function: Calculate single pallet cost ---
 function calculateSinglePalletFreightCost(
-    pallet: { length?: number; width?: number; height?: number; weight?: number },
+    pallet: { length?: number; width?: number; height?: number; weight?: number; overriddenRate?: number },
     destinationId: string | undefined,
     freightRates: FreightRate[]
 ): { volumeWeight: number; actualWeight: number; chargeableWeight: number; freightCost: number; applicableRate: FreightRate | null } {
@@ -107,6 +111,7 @@ function calculateSinglePalletFreightCost(
     const width = pallet.width ?? 0;
     const height = pallet.height ?? 0;
     const actualWeight = pallet.weight ?? 0;
+    const overriddenRate = pallet.overriddenRate;
 
     // Calculate volume weight regardless of whether destinationId is provided
     const volumeWeight = calculateVolumeWeight(length, width, height);
@@ -125,7 +130,12 @@ function calculateSinglePalletFreightCost(
     };
 
     const applicableRate = getApplicableRateFromDb(destinationId, chargeableWeight);
-    const rateValue = applicableRate?.base_rate ?? 0;
+
+    // Use override if provided, otherwise use master rate
+    const rateValue = overriddenRate !== undefined && overriddenRate > 0
+        ? overriddenRate
+        : (applicableRate?.base_rate ?? 0);
+
     const freightCost = Math.round(chargeableWeight * rateValue);
 
     return { volumeWeight, actualWeight, chargeableWeight, freightCost, applicableRate };
@@ -176,11 +186,17 @@ const PalletItem = ({
         };
 
         const foundRate = getApplicableRateFromDb(destinationId, chargeableWeight);
-        const rateValue = foundRate?.base_rate ?? 0;
+        const overriddenRate = pallet.overriddenRate;
+
+        // Use override if provided, otherwise use master rate
+        const rateValue = overriddenRate !== undefined && overriddenRate > 0
+            ? overriddenRate
+            : (foundRate?.base_rate ?? 0);
+
         const cost = Math.round(chargeableWeight * rateValue);
 
         return { applicableRate: foundRate, freightCost: cost };
-    }, [chargeableWeight, destinationId, freightRates]);
+    }, [chargeableWeight, destinationId, freightRates, pallet.overriddenRate]);
 
     // Total cost for this item
     const totalItemCost = React.useMemo(() => {
@@ -293,6 +309,31 @@ const PalletItem = ({
                                     className="h-9"
                                 />
                             </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 border-t pt-3">
+                <FormField
+                    control={control}
+                    name={`pallets.${index}.overriddenRate`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs font-semibold text-blue-600">Manual Rate Override (THB/kg)</FormLabel>
+                            <FormControl>
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder={applicableRate ? `${applicableRate.base_rate.toFixed(2)}` : "0.00"}
+                                    value={field.value || ''}
+                                    onChange={(e) => {
+                                        field.onChange(parseFloat(e.target.value) || 0);
+                                    }}
+                                    className="h-9 border-blue-200 focus:border-blue-500 bg-blue-50/30"
+                                />
+                            </FormControl>
+                            <p className="text-[10px] text-gray-500 italic">Leave at 0 or empty to use suggested rate.</p>
                         </FormItem>
                     )}
                 />
@@ -508,21 +549,29 @@ function ShippingCalculatorPageContent() {
         destinationId: undefined
     });
 
+    const paramOpportunityId = searchParams.get('opportunityId');
+    const paramCompanyId = searchParams.get('companyId');
+    const paramCustomerName = searchParams.get('customerName');
+    const paramNotes = searchParams.get('notes');
+    const paramDestinationId = searchParams.get('destinationId'); // Read param
+    const paramVehicleType = searchParams.get('deliveryVehicleType');
+
     // --- React Hook Form Setup ---
     const form = useForm<QuotationFormValues>({
         resolver: zodResolver(quotationFormSchema),
         defaultValues: {
-            companyId: '',
-            customerName: '',
+            companyId: paramCompanyId || '',
+            customerName: paramCustomerName || '',
             contactPerson: '',
             contractNo: '',
-            destinationId: '',
+            destinationId: paramDestinationId || '', // Set default
             pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
             deliveryServiceRequired: false,
-            deliveryVehicleType: '4wheel',
-            clearanceCost: 5350, // Default clearance cost, can be modified or set to 0
+            deliveryVehicleType: (paramVehicleType as '4wheel' | '6wheel') || '4wheel',
+            clearanceCost: 5350,
             additionalCharges: [{ name: '', description: '', amount: 0 }],
-            notes: '',
+            notes: paramNotes || '',
+            opportunityId: paramOpportunityId || '',
         },
         mode: 'onChange',
     });
@@ -749,9 +798,10 @@ function ShippingCalculatorPageContent() {
                                     width: Number(p.width) || 0,
                                     height: Number(p.height) || 0,
                                     weight: Number(p.weight) || 0,
-                                    quantity: Number(p.quantity) || 1
+                                    quantity: Number(p.quantity) || 1,
+                                    overriddenRate: Number(p.overridden_rate) || 0
                                 }))
-                                : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
+                                : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1, overriddenRate: 0 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
                             clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
@@ -773,7 +823,8 @@ function ShippingCalculatorPageContent() {
                                 width: Number(p.width) || 0,
                                 height: Number(p.height) || 0,
                                 weight: Number(p.weight) || 0,
-                                quantity: Number(p.quantity) || 1
+                                quantity: Number(p.quantity) || 1,
+                                overriddenRate: Number(p.overridden_rate) || 0
                             })) : [],
                             Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
                                 name: c.name || '',
@@ -799,7 +850,8 @@ function ShippingCalculatorPageContent() {
                                     width: Number(p.width) || 0,
                                     height: Number(p.height) || 0,
                                     weight: Number(p.weight) || 0,
-                                    quantity: Number(p.quantity) || 1
+                                    quantity: Number(p.quantity) || 1,
+                                    overriddenRate: Number(p.overridden_rate) || 0
                                 })) : []
                             )),
                             additionalCharges: JSON.parse(JSON.stringify(
@@ -818,22 +870,23 @@ function ShippingCalculatorPageContent() {
                         toast.error("Source quotation not found.");
                     }
                 } else {
-                    console.log("Effect 2: New quotation mode, resetting to blank defaults.");
+                    console.log("Effect 2: New quotation mode, resetting to defaults (with params).");
                     // Clear existing quotation for new mode
                     setExistingQuotation(null);
 
                     reset({
-                        companyId: '',
-                        customerName: '',
+                        companyId: paramCompanyId || '',
+                        customerName: paramCustomerName || '',
                         contactPerson: '',
                         contractNo: '',
-                        destinationId: '',
+                        destinationId: paramDestinationId || '',
                         pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                         deliveryServiceRequired: false,
-                        deliveryVehicleType: '4wheel',
+                        deliveryVehicleType: (paramVehicleType as '4wheel' | '6wheel') || '4wheel',
                         clearanceCost: 5350, // Default clearance cost
                         additionalCharges: [{ name: '', description: '', amount: 0 }],
-                        notes: '',
+                        notes: paramNotes || '',
+                        opportunityId: paramOpportunityId || '',
                     });
                 }
             } catch (error: unknown) {
@@ -847,7 +900,7 @@ function ShippingCalculatorPageContent() {
         setFormDefaults();
 
         // Depend on isLoading, isEditMode, quotationId, cloneFromId, and potentially userId
-    }, [isLoading, isEditMode, quotationId, cloneFromId, userId, router, reset]); // Add cloneFromId dependency
+    }, [isLoading, isEditMode, quotationId, cloneFromId, userId, router, reset, freightRates, paramCompanyId, paramCustomerName, paramDestinationId, paramNotes, paramOpportunityId, paramVehicleType]); // Add missing dependencies
 
     // --- Delivery Rates ---
     // Wrap deliveryRates in useMemo
@@ -936,8 +989,15 @@ function ShippingCalculatorPageContent() {
         const selectedCompany = companies.find(c => c.id === formData.companyId);
         const selectedDestination = destinations.find(d => d.id === formData.destinationId);
 
-        // Remove explicit type definitions and conversion
-        const convertedPallets = formData.pallets;
+        // Map pallets to ensure field names match Quotation interface (snake_case)
+        const convertedPallets = formData.pallets.map(p => ({
+            length: p.length,
+            width: p.width,
+            height: p.height,
+            weight: p.weight,
+            quantity: p.quantity,
+            overridden_rate: p.overriddenRate
+        }));
         const convertedAdditionalCharges = formData.additionalCharges;
 
         // Construct the full data object matching NewQuotationData with snake_case field names
@@ -945,7 +1005,7 @@ function ShippingCalculatorPageContent() {
             user_id: userId,
             company_id: formData.companyId,
             customer_name: formData.customerName,
-            contact_person: formData.contactPerson,
+            contact_person: formData.contactPerson || '',
             contract_no: formData.contractNo || null,
             destination_id: formData.destinationId,
             pallets: convertedPallets,
@@ -953,6 +1013,8 @@ function ShippingCalculatorPageContent() {
             delivery_vehicle_type: formData.deliveryVehicleType,
             additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
+            internal_remark: formData.internalRemark || null, // Map internalRemark -> internal_remark
+            opportunity_id: formData.opportunityId || null, // Added field
             total_cost: calculationResult.finalTotalCost,
             total_freight_cost: calculationResult.totalFreightCost,
             clearance_cost: calculationResult.clearanceCost,
@@ -1387,6 +1449,26 @@ function ShippingCalculatorPageContent() {
                                             <FormLabel>Notes (Optional)</FormLabel>
                                             <FormControl>
                                                 <Textarea placeholder="Add any relevant notes here..." {...field} rows={3} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={control}
+                                    name="internalRemark"
+                                    render={({ field }) => (
+                                        <FormItem className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-md">
+                                            <FormLabel className="text-blue-700 font-semibold flex items-center gap-2">
+                                                Internal Remark (Staff Only)
+                                                <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase">Private</span>
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Textarea
+                                                    placeholder="Add internal notes that won't be seen by customers..."
+                                                    {...field}
+                                                    rows={2}
+                                                    className="bg-white border-blue-200 focus-visible:ring-blue-500"
+                                                />
                                             </FormControl>
                                         </FormItem>
                                     )}
