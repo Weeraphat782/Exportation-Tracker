@@ -16,8 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -132,8 +130,6 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
-  const [showWon, setShowWon] = useState<boolean>(true);
-  const [showLost, setShowLost] = useState<boolean>(true);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch companies for filter
@@ -401,47 +397,21 @@ export default function OpportunitiesPage() {
         </div>
       </div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">Filter by Company:</label>
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue placeholder="All Companies" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="show-won"
-                checked={showWon}
-                onCheckedChange={(checked) => setShowWon(checked as boolean)}
-              />
-              <Label htmlFor="show-won" className="text-sm font-medium text-gray-700">
-                Show Won Cases
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="show-lost"
-                checked={showLost}
-                onCheckedChange={(checked) => setShowLost(checked as boolean)}
-              />
-              <Label htmlFor="show-lost" className="text-sm font-medium text-gray-700">
-                Show Lost Cases
-              </Label>
-            </div>
-          </div>
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Filter by Company:</label>
+          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+            <SelectTrigger className="w-[250px]">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -458,24 +428,9 @@ export default function OpportunitiesPage() {
             onWinCase={handleWinCase}
             onLoseCase={handleLoseCase}
             initialOpportunities={
-              (() => {
-                let filtered = opportunities;
-
-                // Filter by company
-                if (selectedCompany !== 'all') {
-                  filtered = filtered.filter(opp => opp.companyId === selectedCompany);
-                }
-
-                // Filter by won/lost status
-                if (!showWon) {
-                  filtered = filtered.filter(opp => opp.stage !== 'closed_won');
-                }
-                if (!showLost) {
-                  filtered = filtered.filter(opp => opp.stage !== 'closed_lost');
-                }
-
-                return filtered;
-              })()
+              selectedCompany === 'all'
+                ? opportunities
+                : opportunities.filter(opp => opp.companyId === selectedCompany)
             }
           />
         </div>
