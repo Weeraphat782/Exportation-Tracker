@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -130,6 +132,8 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [showWon, setShowWon] = useState<boolean>(false);
+  const [showLost, setShowLost] = useState<boolean>(false);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch companies for filter
@@ -170,57 +174,99 @@ export default function OpportunitiesPage() {
     try {
       console.log('handleSaveOpportunity received:', opportunityData);
 
+      // Validate required fields
+      if (!opportunityData.topic || opportunityData.topic.trim() === '') {
+        throw new Error('Topic is required');
+      }
+
+      if (!opportunityData.customerName || opportunityData.customerName.trim() === '') {
+        throw new Error('Customer name is required');
+      }
+
       const payload = {
-        topic: opportunityData.topic,
-        customer_name: opportunityData.customerName,
-        company_id: opportunityData.companyId,
-        amount: opportunityData.amount,
-        currency: opportunityData.currency,
-        stage: opportunityData.stage,
-        probability: opportunityData.probability,
-        close_date: opportunityData.closeDate,
-        vehicle_type: opportunityData.vehicleType,
-        container_size: opportunityData.containerSize,
-        product_details: opportunityData.productDetails,
-        notes: opportunityData.notes,
-        destination_id: opportunityData.destinationId,
+        topic: opportunityData.topic.trim(),
+        customer_name: opportunityData.customerName.trim(),
+        company_id: opportunityData.companyId || null,
+        amount: opportunityData.amount || 0,
+        currency: opportunityData.currency || 'THB',
+        stage: opportunityData.stage || 'inquiry',
+        probability: opportunityData.probability || 10,
+        close_date: opportunityData.closeDate ? new Date(opportunityData.closeDate).toISOString().split('T')[0] : null,
+        vehicle_type: opportunityData.vehicleType || null,
+        container_size: opportunityData.containerSize || null,
+        product_details: opportunityData.productDetails ? JSON.stringify(opportunityData.productDetails) : null,
+        notes: opportunityData.notes || null,
+        destination_id: opportunityData.destinationId || null,
       };
 
+      console.log('Payload to save:', payload);
+
+      let oppId: string;
+
       if (editingOpportunity) {
+        console.log('Updating existing opportunity:', editingOpportunity.id);
         const { error } = await supabase
           .from('opportunities')
           .update(payload)
           .eq('id', editingOpportunity.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
+
+        oppId = editingOpportunity.id;
         toast.success('Opportunity updated');
       } else {
-        const { error } = await supabase
+        console.log('Creating new opportunity');
+        const { data, error } = await supabase
           .from('opportunities')
-          .insert([payload]);
+          .insert([payload])
+          .select('id')
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Insert error:', error);
+          throw error;
+        }
+
+        oppId = data!.id;
         toast.success('Opportunity created');
       }
 
       // Update product links in junction table
-      if (opportunityData.productId) {
-        const oppId = editingOpportunity ? editingOpportunity.id : (await supabase.from('opportunities').select('id').order('created_at', { ascending: false }).limit(1).single()).data?.id;
+      if (opportunityData.productId && opportunityData.productId.length > 0) {
+        console.log('Updating product links for opportunity:', oppId);
 
-        if (oppId) {
-          // Delete existing links
-          await supabase.from('opportunity_products').delete().eq('opportunity_id', oppId);
+        // Delete existing links
+        const { error: deleteError } = await supabase
+          .from('opportunity_products')
+          .delete()
+          .eq('opportunity_id', oppId);
 
-          // Insert new links
-          const productLinks = opportunityData.productId
-            .filter(id => id !== 'none')
-            .map(productId => ({
-              opportunity_id: oppId,
-              product_id: productId
-            }));
+        if (deleteError) {
+          console.error('Error deleting product links:', deleteError);
+          // Don't throw here, continue with insert
+        }
 
-          if (productLinks.length > 0) {
-            await supabase.from('opportunity_products').insert(productLinks);
+        // Insert new links
+        const productLinks = opportunityData.productId
+          .filter(id => id && id !== 'none')
+          .map(productId => ({
+            opportunity_id: oppId,
+            product_id: productId
+          }));
+
+        console.log('Product links to insert:', productLinks);
+
+        if (productLinks.length > 0) {
+          const { error: insertError } = await supabase
+            .from('opportunity_products')
+            .insert(productLinks);
+
+          if (insertError) {
+            console.error('Error inserting product links:', insertError);
+            throw insertError;
           }
         }
       }
@@ -230,15 +276,30 @@ export default function OpportunitiesPage() {
       setEditingOpportunity(undefined);
     } catch (error: unknown) {
       console.error('Error saving opportunity:', error);
+
+      let errorMessage = 'Failed to save opportunity';
+
       if (error && typeof error === 'object' && 'message' in error) {
+        const err = error as { message?: string; details?: unknown; hint?: unknown; code?: string };
         console.error('Error details:', {
-          message: (error as { message: string }).message,
-          details: (error as { details?: unknown }).details,
-          hint: (error as { hint?: unknown }).hint,
-          code: (error as { code?: unknown }).code
+          message: err.message,
+          details: err.details,
+          hint: err.hint,
+          code: err.code
         });
+
+        // Provide more specific error messages
+        if (err.code === '23503') {
+          errorMessage = 'Invalid reference data. Please check company or destination selection.';
+        } else if (err.code === '23505') {
+          errorMessage = 'Duplicate data found.';
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
-      const errorMessage = error instanceof Error ? error.message : 'Failed to save opportunity';
+
       toast.error(errorMessage);
     }
   };
@@ -340,21 +401,47 @@ export default function OpportunitiesPage() {
         </div>
       </div>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Company:</label>
-          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="All Companies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Filter by Company:</label>
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="All Companies" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-won"
+                checked={showWon}
+                onCheckedChange={(checked) => setShowWon(checked as boolean)}
+              />
+              <Label htmlFor="show-won" className="text-sm font-medium text-gray-700">
+                Show Won Cases
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-lost"
+                checked={showLost}
+                onCheckedChange={(checked) => setShowLost(checked as boolean)}
+              />
+              <Label htmlFor="show-lost" className="text-sm font-medium text-gray-700">
+                Show Lost Cases
+              </Label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -370,9 +457,25 @@ export default function OpportunitiesPage() {
             onDeleteOpportunity={handleDeleteOpportunity}
             onWinCase={handleWinCase}
             onLoseCase={handleLoseCase}
-            initialOpportunities={selectedCompany === 'all'
-              ? opportunities
-              : opportunities.filter(opp => opp.companyId === selectedCompany)
+            initialOpportunities={
+              (() => {
+                let filtered = opportunities;
+
+                // Filter by company
+                if (selectedCompany !== 'all') {
+                  filtered = filtered.filter(opp => opp.companyId === selectedCompany);
+                }
+
+                // Filter by won/lost status
+                if (!showWon) {
+                  filtered = filtered.filter(opp => opp.stage !== 'closed_won');
+                }
+                if (!showLost) {
+                  filtered = filtered.filter(opp => opp.stage !== 'closed_lost');
+                }
+
+                return filtered;
+              })()
             }
           />
         </div>
