@@ -6,7 +6,6 @@ export type OpportunityStage =
     | 'booking_requested'
     | 'awb_received'
     | 'payment_received'
-    | 'pickup_in_progress'
     | 'closed_won'
     | 'closed_lost';
 
@@ -47,7 +46,6 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
     booking_requested: 'Booking Requested',
     awb_received: 'AWB Received',
     payment_received: 'Payment Received',
-    pickup_in_progress: 'Pickup in Progress',
     closed_won: 'Shipped (Won)',
     closed_lost: 'Lost Case',
 };
@@ -60,7 +58,6 @@ export const STAGE_COLORS: Record<OpportunityStage, string> = {
     booking_requested: 'bg-violet-50 text-violet-700 border-violet-200',
     awb_received: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     payment_received: 'bg-amber-50 text-amber-700 border-amber-200',
-    pickup_in_progress: 'bg-orange-50 text-orange-700 border-orange-200',
     closed_won: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     closed_lost: 'bg-red-50 text-red-700 border-red-200',
 };

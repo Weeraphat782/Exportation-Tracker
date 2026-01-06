@@ -259,6 +259,40 @@ export default function OpportunitiesPage() {
     }
   };
 
+  const handleWinCase = async (opportunityId: string) => {
+    const { error } = await supabase
+      .from('opportunities')
+      .update({
+        stage: 'closed_won',
+        probability: 100
+      })
+      .eq('id', opportunityId);
+
+    if (error) {
+      toast.error('Failed to mark as won');
+    } else {
+      toast.success('Opportunity marked as WON!');
+      fetchOpportunities(); // Refresh the board
+    }
+  };
+
+  const handleLoseCase = async (opportunityId: string) => {
+    const { error } = await supabase
+      .from('opportunities')
+      .update({
+        stage: 'closed_lost',
+        probability: 0
+      })
+      .eq('id', opportunityId);
+
+    if (error) {
+      toast.error('Failed to mark as lost');
+    } else {
+      toast.success('Opportunity marked as LOST');
+      fetchOpportunities(); // Refresh the board
+    }
+  };
+
   const getProbabilityForStage = (stage: OpportunityStage): number => {
     switch (stage) {
       case 'inquiry': return 10;
@@ -268,7 +302,6 @@ export default function OpportunitiesPage() {
       case 'booking_requested': return 60;
       case 'awb_received': return 75;
       case 'payment_received': return 85;
-      case 'pickup_in_progress': return 95;
       case 'closed_won': return 100;
       case 'closed_lost': return 0;
       default: return 0;
@@ -335,6 +368,8 @@ export default function OpportunitiesPage() {
             onStageChange={handleStageChange}
             onEditOpportunity={handleEditOpportunity}
             onDeleteOpportunity={handleDeleteOpportunity}
+            onWinCase={handleWinCase}
+            onLoseCase={handleLoseCase}
             initialOpportunities={selectedCompany === 'all'
               ? opportunities
               : opportunities.filter(opp => opp.companyId === selectedCompany)

@@ -26,7 +26,6 @@ const STAGES: OpportunityStage[] = [
     'booking_requested',
     'awb_received',
     'payment_received',
-    'pickup_in_progress',
     'closed_won',
     'closed_lost',
 ];
@@ -36,9 +35,11 @@ interface KanbanBoardProps {
     onStageChange?: (opportunityId: string, newStage: OpportunityStage) => void;
     onEditOpportunity?: (opportunity: Opportunity) => void;
     onDeleteOpportunity?: (id: string) => void;
+    onWinCase?: (id: string) => void;
+    onLoseCase?: (id: string) => void;
 }
 
-export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportunity, onDeleteOpportunity }: KanbanBoardProps) {
+export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportunity, onDeleteOpportunity, onWinCase, onLoseCase }: KanbanBoardProps) {
     // Sync state with props
     const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities);
 
@@ -149,7 +150,6 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             case 'booking_requested': return 60;
             case 'awb_received': return 75;
             case 'payment_received': return 85;
-            case 'pickup_in_progress': return 95;
             case 'closed_won': return 100;
             case 'closed_lost': return 0;
             default: return 0;
@@ -174,6 +174,8 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
                         opportunities={opportunities.filter((o) => o.stage === stage)}
                         onEdit={onEditOpportunity}
                         onDelete={onDeleteOpportunity}
+                        onWinCase={onWinCase}
+                        onLoseCase={onLoseCase}
                     />
                 ))}
             </div>

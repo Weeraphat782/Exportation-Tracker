@@ -13,16 +13,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface KanbanCardProps {
   opportunity: Opportunity;
   onEdit?: (opportunity: Opportunity) => void;
   onDelete?: (id: string) => void;
+  onWinCase?: (id: string) => void;
+  onLoseCase?: (id: string) => void;
 }
 
-export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
+export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase }: KanbanCardProps) {
   // console.log(`Card ${opportunity.id}: onEdit is`, !!onEdit);
   const router = useRouter();
   const [creating] = useState(false);
@@ -102,6 +104,30 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="cursor-pointer text-green-600 focus:text-green-600"
+                  onSelect={() => {
+                    if (confirm('Mark this opportunity as WON?')) {
+                      if (onWinCase) onWinCase(opportunity.id);
+                    }
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Win Case
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer text-red-600 focus:text-red-600"
+                  onSelect={() => {
+                    if (confirm('Mark this opportunity as LOST?')) {
+                      if (onLoseCase) onLoseCase(opportunity.id);
+                    }
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Lose Case
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onSelect={() => {
