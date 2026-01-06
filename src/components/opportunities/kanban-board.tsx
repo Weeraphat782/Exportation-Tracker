@@ -148,8 +148,6 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             case 'booking_requested': return 60;
             case 'awb_received': return 75;
             case 'payment_received': return 85;
-            case 'closed_won': return 100;
-            case 'closed_lost': return 0;
             default: return 0;
         }
     };

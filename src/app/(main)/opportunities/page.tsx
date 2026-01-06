@@ -427,10 +427,9 @@ export default function OpportunitiesPage() {
             onDeleteOpportunity={handleDeleteOpportunity}
             onWinCase={handleWinCase}
             onLoseCase={handleLoseCase}
-            initialOpportunities={
-              selectedCompany === 'all'
-                ? opportunities
-                : opportunities.filter(opp => opp.companyId === selectedCompany)
+            initialOpportunities={selectedCompany === 'all'
+              ? opportunities
+              : opportunities.filter(opp => opp.companyId === selectedCompany)
             }
           />
         </div>
