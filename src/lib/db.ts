@@ -1,5 +1,24 @@
 import { supabase } from '@/lib/supabase';
 
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
+  product_charges?: ProductCharge[];
+}
+
+export interface ProductCharge {
+  id?: string;
+  product_id: string;
+  name: string;
+  description?: string;
+  amount: number;
+  created_at?: string;
+}
+
 // Type definitions for our database tables
 export interface Profile {
   id: string;
@@ -70,6 +89,7 @@ export interface Quotation {
   user_id: string;
   company_id: string;
   opportunity_id?: string | null; // Added field
+  product_id?: string | null; // Added field
   customer_name: string;
   contact_person: string;
   contract_no?: string | null;
@@ -559,7 +579,8 @@ export async function getQuotations(userId: string) {
       .select(`
         *,
         company:companies(name),
-        destination_country:destinations(country, port)
+        destination_country:destinations(country, port),
+        product:products(name)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -592,7 +613,8 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
       .select(`
         *,
         company:companies(name, address, tax_id, contact_person, contact_email, contact_phone),
-        destination_country:destinations(country, port)
+        destination_country:destinations(country, port),
+        product:products(name)
       `)
       .eq('id', id)
       .single();
@@ -607,7 +629,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
     const quotation: Quotation = {
       ...data,
       company_name: data.company?.name,
-      destination: data.destination_country ? `${data.destination_country.country} ${data.destination_country.port ? '- ' + data.destination_country.port : ''}` : 'N/A',
+      destination: data.destination_country ? `${data.destination_country.country} ${data.destination_country.port ? '- ' + data.destination_country.port : ''} ` : 'N/A',
       // Ensure shipment_photo_url and shipment_photo_uploaded_at are correctly typed here if needed
       // If the database returns shipment_photo_url as a string that looks like an array (e.g., "{\"url1\",\"url2\"}"),
       // you might need to parse it here. However, Supabase usually handles TEXT[] as JS arrays directly.
@@ -650,6 +672,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       contract_no: quotationData.contract_no || null,
       notes: quotationData.notes || null,
       opportunity_id: quotationData.opportunity_id || null, // Added field
+      product_id: quotationData.product_id || null, // Added field
       internal_remark: quotationData.internal_remark || null, // Added field
       // Ensure JSONB fields are properly formatted
       pallets: Array.isArray(quotationData.pallets) ? quotationData.pallets : [],
@@ -677,7 +700,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
         throw new Error('A required field is missing');
       } else {
         // Generic database error
-        throw new Error(`Database error: ${error.message || 'Unknown error'}`);
+        throw new Error(`Database error: ${error.message || 'Unknown error'} `);
       }
     }
 
@@ -1020,4 +1043,125 @@ export async function getDocumentTemplate(documentTypeId: string) {
     console.error('Failed to fetch document template:', err);
     return null;
   }
-} 
+}
+
+// Product Master Functions
+export async function getProducts() {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_charges(*)')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+    return data as Product[];
+  } catch (err) {
+    console.error('Failed to fetch products:', err);
+    return [];
+  }
+}
+
+export async function getProductWithCharges(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_charges(*)')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+    return data as Product;
+  } catch (err) {
+    console.error('Failed to fetch product:', err);
+    return null;
+  }
+}
+
+export async function saveProductWithCharges(
+  productData: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_charges'>,
+  charges: Omit<ProductCharge, 'id' | 'product_id' | 'created_at'>[],
+  productId?: string
+) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    const user_id = userData.user?.id;
+
+    let id = productId;
+
+    // 1. Save or Update Product
+    if (productId) {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({
+          ...productData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', productId);
+
+      if (updateError) throw updateError;
+    } else {
+      const { data: newProduct, error: insertError } = await supabase
+        .from('products')
+        .insert({
+          ...productData,
+          user_id,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      id = newProduct.id;
+    }
+
+    if (!id) throw new Error('Failed to get product ID');
+
+    // 2. Manage Charges (Delete old ones and insert new ones for simplicity in this master-detail save)
+    if (productId) {
+      const { error: deleteError } = await supabase
+        .from('product_charges')
+        .delete()
+        .eq('product_id', id);
+
+      if (deleteError) throw deleteError;
+    }
+
+    if (charges.length > 0) {
+      const chargesToInsert = charges.map(c => ({
+        ...c,
+        product_id: id,
+      }));
+
+      const { error: chargesError } = await supabase
+        .from('product_charges')
+        .insert(chargesToInsert);
+
+      if (chargesError) throw chargesError;
+    }
+
+    return id;
+  } catch (err) {
+    console.error('Failed to save product:', err);
+    throw err;
+  }
+}
+
+export async function deleteProduct(id: string) {
+  try {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to delete product:', err);
+    return false;
+  }
+}

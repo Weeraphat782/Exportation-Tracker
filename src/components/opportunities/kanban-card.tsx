@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, FileText, ExternalLink, Loader2, MoreHorizontal, Edit, Trash } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface KanbanCardProps {
@@ -54,6 +54,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
     // Calculate values to pass
     const params = new URLSearchParams();
     if (opportunity.id) params.set('opportunityId', opportunity.id);
+    if (opportunity.productId && opportunity.productId.length > 0) params.set('productId', opportunity.productId.join(','));
     if (opportunity.companyId) params.set('companyId', opportunity.companyId);
     if (opportunity.companyName) params.set('customerName', opportunity.companyName);
     if (opportunity.destinationId) params.set('destinationId', opportunity.destinationId); // Pass destination
@@ -80,9 +81,9 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
     >
-      <Card className="hover:shadow-md transition-shadow group">
+      <Card className="premium-shadow-hover border-none ring-1 ring-slate-100/50 transition-all duration-300">
         <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
-          <Badge variant="outline" className={STAGE_COLORS[opportunity.stage]}>
+          <Badge variant="outline" className={`font-semibold px-2 py-0.5 rounded-full ${STAGE_COLORS[opportunity.stage]}`}>
             {opportunity.probability}%
           </Badge>
           <div className="flex items-center gap-1">
@@ -130,8 +131,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-2">
-          <h4 className="font-semibold text-sm mb-1 text-gray-900">{opportunity.topic}</h4>
-          <p className="text-base font-bold text-blue-600 mb-2">{opportunity.companyName}</p>
+          <h4 className="font-bold text-sm mb-1 text-slate-800 line-clamp-1">{opportunity.topic}</h4>
+          <p className="text-base font-extrabold text-blue-600 mb-2 truncate">{opportunity.companyName}</p>
 
           <div className="flex justify-between items-center text-sm mb-3">
             <span className="font-semibold text-gray-900">
@@ -162,9 +163,18 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
                 <span className="text-gray-700 font-medium">{opportunity.containerSize}</span>
               </div>
             )}
+            {opportunity.productName && opportunity.productName.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2 mb-1">
+                {opportunity.productName.map((name, i) => (
+                  <span key={i} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-md border border-emerald-100">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
             {opportunity.productDetails && (
               <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Product:</span>
+                <span className="text-gray-500 min-w-[70px]">Details:</span>
                 <span className="text-gray-700 font-medium line-clamp-2">{opportunity.productDetails}</span>
               </div>
             )}
@@ -191,17 +201,17 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
             <Button
               variant="outline"
               size="sm"
-              className="w-full h-8 text-xs bg-slate-50 hover:bg-slate-100"
+              className="w-full h-9 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 border-none shadow-sm transition-all hover:shadow-md"
               onClick={handleCreateQuotation}
               onPointerDown={(e) => e.stopPropagation()}
               disabled={creating}
             >
               {creating ? (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <FileText className="mr-2 h-3.5 w-3.5" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
-              {creating ? 'Creating...' : 'Create Quotation'}
+              {creating ? 'Processing...' : 'Generate Quotation'}
             </Button>
           )}
         </CardContent>

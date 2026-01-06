@@ -29,12 +29,18 @@ export default function OpportunitiesPage() {
       // Select opportunity fields AND linked quotations(id)
       // Note: This relies on the foreign key relationship being detected.
       // If one-to-many, it returns an array. We take the first one (most recent?).
-      .select('*, quotations(id), destination:destination_id(country, port)')
+      .select('*, quotations(id), destination:destination_id(country, port), opportunity_products(product:products(id, name))')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching opportunities:', error);
-      toast.error('Failed to fetch opportunities');
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      toast.error(`Failed to fetch opportunities: ${error.message}`);
     } else {
       interface RawSupabaseOpportunity {
         id: string;
@@ -54,7 +60,9 @@ export default function OpportunitiesPage() {
         notes?: string;
         destination_id?: string;
         destination?: { country: string; port: string | null };
+        product_id?: string | null;
         quotations?: { id: string }[];
+        opportunity_products?: { product: { id: string; name: string } }[];
       }
 
       // Map DB fields to Frontend types
@@ -87,6 +95,8 @@ export default function OpportunitiesPage() {
           notes: item.notes,
           destinationId: item.destination_id,
           destinationName,
+          productId: item.opportunity_products?.map(op => op.product.id) || [],
+          productName: item.opportunity_products?.map(op => op.product.name) || [],
 
           quotationId: linkedQuotation?.id
         }
@@ -156,69 +166,80 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const handleSaveOpportunity = async (data: Partial<Opportunity>) => {
+  const handleSaveOpportunity = async (opportunityData: Partial<Opportunity>) => {
     try {
-      console.log('Saving opportunity:', data);
+      console.log('handleSaveOpportunity received:', opportunityData);
 
       const payload = {
-        topic: data.topic,
-        amount: data.amount,
-        company_id: data.companyId || null,
-        customer_name: data.companyName,
-        vehicle_type: data.vehicleType || null,
-        container_size: data.containerSize || null,
-        product_details: data.productDetails ? { description: data.productDetails } : null,
-        notes: data.notes || null,
-        destination_id: data.destinationId || null,
-        // Default fields for new
-        stage: data.stage || 'inquiry',
-        probability: data.probability || 10,
-        currency: 'THB',
-        close_date: data.closeDate,
+        topic: opportunityData.topic,
+        customer_name: opportunityData.customerName,
+        company_id: opportunityData.companyId,
+        amount: opportunityData.amount,
+        currency: opportunityData.currency,
+        stage: opportunityData.stage,
+        probability: opportunityData.probability,
+        close_date: opportunityData.closeDate,
+        vehicle_type: opportunityData.vehicleType,
+        container_size: opportunityData.containerSize,
+        product_details: opportunityData.productDetails,
+        notes: opportunityData.notes,
+        destination_id: opportunityData.destinationId,
       };
 
-      console.log('Payload to save:', payload);
-
-      if (data.id) {
-        // UPDATE
-        console.log('Updating opportunity with ID:', data.id);
+      if (editingOpportunity) {
         const { error } = await supabase
           .from('opportunities')
           .update(payload)
-          .eq('id', data.id);
+          .eq('id', editingOpportunity.id);
 
-        if (error) {
-          console.error('Supabase update error:', error);
-          throw error;
-        }
-        toast.success('Opportunity updated!');
+        if (error) throw error;
+        toast.success('Opportunity updated');
       } else {
-        // INSERT
-        console.log('Inserting new opportunity');
         const { error } = await supabase
           .from('opportunities')
           .insert([payload]);
 
-        if (error) {
-          console.error('Supabase insert error:', error);
-          throw error;
+        if (error) throw error;
+        toast.success('Opportunity created');
+      }
+
+      // Update product links in junction table
+      if (opportunityData.productId) {
+        const oppId = editingOpportunity ? editingOpportunity.id : (await supabase.from('opportunities').select('id').order('created_at', { ascending: false }).limit(1).single()).data?.id;
+
+        if (oppId) {
+          // Delete existing links
+          await supabase.from('opportunity_products').delete().eq('opportunity_id', oppId);
+
+          // Insert new links
+          const productLinks = opportunityData.productId
+            .filter(id => id !== 'none')
+            .map(productId => ({
+              opportunity_id: oppId,
+              product_id: productId
+            }));
+
+          if (productLinks.length > 0) {
+            await supabase.from('opportunity_products').insert(productLinks);
+          }
         }
-        toast.success('Opportunity created!');
       }
 
       fetchOpportunities();
-      setEditingOpportunity(undefined); // Reset editing state
-      setIsDialogOpen(false); // Close dialog
+      setIsDialogOpen(false);
+      setEditingOpportunity(undefined);
     } catch (error: unknown) {
       console.error('Error saving opportunity:', error);
-      console.error('Error type:', typeof error);
-      if (error && typeof error === 'object') {
-        console.error('Error keys:', Object.keys(error));
-        console.error('Error message:', (error as { message?: string })?.message);
-        console.error('Error details:', (error as { details?: string })?.details);
-        console.error('Error hint:', (error as { hint?: string })?.hint);
+      if (error && typeof error === 'object' && 'message' in error) {
+        console.error('Error details:', {
+          message: (error as { message: string }).message,
+          details: (error as { details?: unknown }).details,
+          hint: (error as { hint?: unknown }).hint,
+          code: (error as { code?: unknown }).code
+        });
       }
-      toast.error(`Failed to save opportunity: ${(error as { message?: string })?.message || (error as { details?: string })?.details || JSON.stringify(error)}`);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save opportunity';
+      toast.error(errorMessage);
     }
   };
 

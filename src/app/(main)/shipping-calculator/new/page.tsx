@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Plus, Trash, Minus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash, Minus, Loader2 } from 'lucide-react';
 import {
     calculateVolumeWeight,
     // getTotalVolumeWeight, // Removed unused import
@@ -27,9 +27,12 @@ import {
     saveQuotation as dbSaveQuotation,
     updateQuotation as dbUpdateQuotation,
     getQuotationById as dbGetQuotationById,
+    getProducts,
+    getProductWithCharges,
     Destination,
     FreightRate,
     Company,
+    Product,
     Quotation,
     NewQuotationData
 } from '@/lib/db';
@@ -52,6 +55,7 @@ const additionalChargeSchema = z.object({
     name: z.string().min(1, { message: 'Charge name is required' }),
     description: z.string().min(1, { message: 'Description is required' }),
     amount: z.number().min(0, { message: 'Amount must be 0 or greater' }),
+    productId: z.string().optional(), // Track which product this charge belongs to
 });
 
 // --- Quotation Form Schema ---
@@ -71,6 +75,7 @@ const quotationFormSchema = z.object({
     notes: z.string().optional(), // Still optional
     internalRemark: z.string().optional(), // Added for staff internal notes
     opportunityId: z.string().optional(), // Added for linking
+    productId: z.string().optional(), // Added for Product Master auto-fill
 });
 
 // Define the type based on the schema
@@ -91,6 +96,7 @@ interface AdditionalChargeType {
     description: string;
     amount: number;
     id?: string; // Make id optional since it's not used in existing code
+    productId?: string; // Optional product ID for tracking
 }
 
 // Add this helper function after existing utility functions
@@ -536,6 +542,8 @@ function ShippingCalculatorPageContent() {
     const [userId, setUserId] = useState<string | null>(null);
     const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
     const [existingQuotation, setExistingQuotation] = useState<Quotation | null>(null);
+    const [products, setProducts] = useState<Product[]>([]);
+    const prevProductIdsRef = React.useRef<string[]>([]);
 
     // Update the useEffect for recalculating costs to prevent infinite loops
     // Use useRef instead of useState for lastCalculatedValues to avoid effect re-runs
@@ -555,6 +563,7 @@ function ShippingCalculatorPageContent() {
     const paramNotes = searchParams.get('notes');
     const paramDestinationId = searchParams.get('destinationId'); // Read param
     const paramVehicleType = searchParams.get('deliveryVehicleType');
+    const paramProductId = searchParams.get('productId');
 
     // --- React Hook Form Setup ---
     const form = useForm<QuotationFormValues>({
@@ -572,6 +581,7 @@ function ShippingCalculatorPageContent() {
             additionalCharges: [{ name: '', description: '', amount: 0 }],
             notes: paramNotes || '',
             opportunityId: paramOpportunityId || '',
+            productId: paramProductId || '',
         },
         mode: 'onChange',
     });
@@ -602,6 +612,75 @@ function ShippingCalculatorPageContent() {
     const watchedDestinationId = watch('destinationId');
     const watchedDeliveryRequired = watch('deliveryServiceRequired');
     const watchedDeliveryVehicle = watch('deliveryVehicleType');
+    const watchedProductId = watch('productId');
+
+    // --- Product Master Auto-fill Effect ---
+    useEffect(() => {
+        const syncProductCharges = async () => {
+            const currentIds = watchedProductId ? watchedProductId.split(',').filter(id => id.trim() !== '' && id !== 'none') : [];
+            const prevIds = prevProductIdsRef.current;
+
+            // Find added and removed IDs
+            const addedIds = currentIds.filter(id => !prevIds.includes(id));
+            const removedIds = prevIds.filter(id => !currentIds.includes(id));
+
+            if (addedIds.length === 0 && removedIds.length === 0) return;
+
+            // 1. Remove charges for products that were unselected
+            if (removedIds.length > 0) {
+                // We need to iterate backwards to avoid index shifting issues
+                const currentCharges = getValues('additionalCharges');
+                for (let i = currentCharges.length - 1; i >= 0; i--) {
+                    if (currentCharges[i].productId && removedIds.includes(currentCharges[i].productId!)) {
+                        removeCharge(i);
+                    }
+                }
+            }
+
+            // 2. Add charges for new products
+            if (addedIds.length > 0) {
+                try {
+                    const productsWithCharges = await Promise.all(
+                        addedIds.map(id => getProductWithCharges(id))
+                    );
+
+                    let appliedCount = 0;
+                    productsWithCharges.forEach(product => {
+                        if (product && product.product_charges && product.product_charges.length > 0) {
+                            appliedCount++;
+                            product.product_charges.forEach(pc => {
+                                appendCharge({
+                                    name: pc.name,
+                                    description: pc.description || '',
+                                    amount: pc.amount,
+                                    productId: product.id // Tag it
+                                });
+                            });
+                        }
+                    });
+
+                    // Handle empty first row if we just added something
+                    if (appliedCount > 0) {
+                        const chargesAfterAdd = getValues('additionalCharges');
+                        // If the first row is empty and it's not the only row (meaning we just added more)
+                        if (chargesAfterAdd.length > 1 &&
+                            chargesAfterAdd[0].name === '' &&
+                            chargesAfterAdd[0].amount === 0 &&
+                            !chargesAfterAdd[0].productId) {
+                            removeCharge(0);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error syncing product charges:', error);
+                    toast.error("Failed to sync product charges");
+                }
+            }
+
+            prevProductIdsRef.current = currentIds;
+        };
+
+        syncProductCharges();
+    }, [watchedProductId, getValues, removeCharge, appendCharge]);
 
     // --- Fetch Initial Data (Runs once on mount) ---
     useEffect(() => {
@@ -619,10 +698,11 @@ function ShippingCalculatorPageContent() {
                 }
 
                 // 2. Fetch other data concurrently
-                const [destinationsData, freightRatesData, companiesData] = await Promise.all([
+                const [destinationsData, freightRatesData, companiesData, productsData] = await Promise.all([
                     getDestinations(),
                     getFreightRates(),
-                    getCompanies()
+                    getCompanies(),
+                    getProducts()
                 ]);
 
                 // 3. Set state for fetched data
@@ -643,6 +723,11 @@ function ShippingCalculatorPageContent() {
                     console.log("Effect 1: Companies loaded:", companiesData.length);
                 } else {
                     toast.error("Failed to load companies.");
+                }
+
+                if (productsData) {
+                    setProducts(productsData);
+                    console.log("Effect 1: Products loaded:", productsData.length);
                 }
 
                 // 4. Finish loading only after all fetches and state sets are done
@@ -713,11 +798,16 @@ function ShippingCalculatorPageContent() {
                                 ? typedExistingQuotation.additional_charges.map(c => ({
                                     name: c.name || '',
                                     description: c.description || '',
-                                    amount: Number(c.amount) || 0
+                                    amount: Number(c.amount) || 0,
+                                    productId: (c as { productId?: string }).productId || undefined
                                 }))
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
+                            productId: typedExistingQuotation.product_id || '',
                         });
+
+                        // Set the ref to prevent initial sync if products are already loaded
+                        prevProductIdsRef.current = typedExistingQuotation.product_id ? typedExistingQuotation.product_id.split(',').filter(Boolean) : [];
 
                         // Force initial calculation after setting defaults
                         console.log("Effect 2: Triggering initial calculation.");
@@ -809,11 +899,15 @@ function ShippingCalculatorPageContent() {
                                 ? typedExistingQuotation.additional_charges.map(c => ({
                                     name: c.name || '',
                                     description: c.description || '',
-                                    amount: Number(c.amount) || 0
+                                    amount: Number(c.amount) || 0,
+                                    productId: (c as { productId?: string }).productId || undefined
                                 }))
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
                         });
+
+                        // Pre-set product ID ref for clone? Actually clone doesn't copy product_id often but let's be safe
+                        prevProductIdsRef.current = [];
 
                         // Force initial calculation
                         console.log("Effect 2: Triggering initial calculation for Clone.");
@@ -1011,13 +1105,14 @@ function ShippingCalculatorPageContent() {
             pallets: convertedPallets,
             delivery_service_required: formData.deliveryServiceRequired,
             delivery_vehicle_type: formData.deliveryVehicleType,
+            clearance_cost: formData.clearanceCost, // Use formData
             additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
             internal_remark: formData.internalRemark || null, // Map internalRemark -> internal_remark
             opportunity_id: formData.opportunityId || null, // Added field
+            product_id: formData.productId ? formData.productId.split(',')[0] : null,
             total_cost: calculationResult.finalTotalCost,
             total_freight_cost: calculationResult.totalFreightCost,
-            clearance_cost: calculationResult.clearanceCost,
             delivery_cost: calculationResult.deliveryCost,
             total_volume_weight: calculationResult.totalVolumeWeight,
             total_actual_weight: calculationResult.totalActualWeight,
@@ -1129,7 +1224,6 @@ function ShippingCalculatorPageContent() {
                 totalActualWeight: calculationResult.totalActualWeight,
                 chargeableWeight: calculationResult.totalChargeableWeight,
                 totalFreightCost: calculationResult.totalFreightCost,
-                clearanceCost: calculationResult.clearanceCost,
                 deliveryCost: calculationResult.deliveryCost,
                 totalAdditionalCharges: calculationResult.totalAdditionalCharges,
                 // Ensure we have good conversion between snake_case and camelCase
@@ -1228,6 +1322,43 @@ function ShippingCalculatorPageContent() {
                             />
                             <FormField
                                 control={control}
+                                name="productId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Product Master (Optional)</FormLabel>
+                                        <div className="border border-emerald-100 rounded-md p-3 space-y-2 max-h-[150px] overflow-y-auto bg-slate-50">
+                                            {products.length === 0 ? (
+                                                <p className="text-xs text-muted-foreground italic">No products found.</p>
+                                            ) : (
+                                                products.map((product) => {
+                                                    const selectedIds = field.value ? field.value.split(',') : [];
+                                                    return (
+                                                        <div key={product.id} className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                                id={`prod-${product.id}`}
+                                                                checked={selectedIds.includes(product.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    let current = field.value ? field.value.split(',').filter(id => id && id !== 'none') : [];
+                                                                    if (checked) {
+                                                                        current.push(product.id);
+                                                                    } else {
+                                                                        current = current.filter(id => id !== product.id);
+                                                                    }
+                                                                    field.onChange(current.join(','));
+                                                                }}
+                                                            />
+                                                            <label htmlFor={`prod-${product.id}`} className="text-sm cursor-pointer">{product.name}</label>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-emerald-600 italic">Choosing a product will auto-fill standard charges.</p>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
                                 name="customerName"
                                 render={({ field }) => (
                                     <FormItem>
@@ -1321,10 +1452,20 @@ function ShippingCalculatorPageContent() {
 
                             {/* Display Total Weights */}
                             {calculationResult && (
-                                <div className="mt-4 p-3 bg-gray-100 rounded text-sm space-y-1 border">
-                                    <p>Total Volume Weight: <span className="font-semibold">{formatNumber(calculationResult.totalVolumeWeight)} kg</span></p>
-                                    <p>Total Actual Weight: <span className="font-semibold">{formatNumber(calculationResult.totalActualWeight)} kg</span></p>
-                                    <p className="font-bold">Aggregate Chargeable Wt: <span className="font-semibold">{formatNumber(calculationResult.totalChargeableWeight)} kg</span></p>
+                                <div className="mt-4 p-4 bg-blue-50/50 rounded-xl text-sm space-y-2 border border-blue-100 shadow-sm glass">
+                                    <div className="flex justify-between items-center text-slate-600">
+                                        <span>Total Volume Weight:</span>
+                                        <span className="font-bold text-slate-800">{formatNumber(calculationResult.totalVolumeWeight)} kg</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-slate-600">
+                                        <span>Total Actual Weight:</span>
+                                        <span className="font-bold text-slate-800">{formatNumber(calculationResult.totalActualWeight)} kg</span>
+                                    </div>
+                                    <Separator className="bg-blue-200/50" />
+                                    <div className="flex justify-between items-center pt-1 text-blue-700">
+                                        <span className="font-bold">Aggregate Chargeable Wt:</span>
+                                        <span className="font-black text-lg">{formatNumber(calculationResult.totalChargeableWeight)} kg</span>
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
@@ -1476,31 +1617,47 @@ function ShippingCalculatorPageContent() {
                             </div>
 
                             {/* Right side: Cost Summary */}
-                            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200 h-fit sticky top-4">
-                                <h3 className="font-semibold text-lg mb-3 text-blue-800">Cost Summary (THB)</h3>
+                            <div className="space-y-4 p-6 glass rounded-2xl border border-blue-100 shadow-xl h-fit sticky top-6 overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/30 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none"></div>
+                                <h3 className="font-extrabold text-xl mb-4 text-blue-900 border-b border-blue-100 pb-2 relative z-10">
+                                    Quotation Summary
+                                </h3>
                                 {calculationResult ? (
-                                    <>
-                                        <div className="flex justify-between text-sm"><span>Freight Cost:</span> <span className="font-medium">{calculationResult.totalFreightCost.toFixed(2)}</span></div>
+                                    <div className="space-y-3 relative z-10">
+                                        <div className="flex justify-between text-sm text-slate-600">
+                                            <span>Freight Cost:</span>
+                                            <span className="font-bold text-slate-900">{calculationResult.totalFreightCost.toLocaleString()} THB</span>
+                                        </div>
                                         {calculationResult.clearanceCost > 0 && (
-                                            <div className="flex justify-between text-sm"><span>Clearance Cost:</span> <span className="font-medium">{calculationResult.clearanceCost.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-sm text-slate-600">
+                                                <span>Clearance Cost:</span>
+                                                <span className="font-bold text-slate-900">{calculationResult.clearanceCost.toLocaleString()} THB</span>
+                                            </div>
                                         )}
-                                        <div className="flex justify-between text-sm">
-                                            <span>Delivery Cost:</span>
-                                            <span className="font-medium">
-                                                {watchedDeliveryRequired ? calculationResult.deliveryCost.toFixed(2) : '0.00'}
+                                        <div className="flex justify-between text-sm text-slate-600">
+                                            <span>Delivery Fee:</span>
+                                            <span className="font-bold text-slate-900">
+                                                {watchedDeliveryRequired ? calculationResult.deliveryCost.toLocaleString() : '0.00'} THB
                                             </span>
                                         </div>
-                                        <Separator className="my-2" />
-                                        <div className="flex justify-between font-medium text-sm"><span>Subtotal:</span> <span>{calculationResult.subTotal.toFixed(2)}</span></div>
-                                        <div className="flex justify-between text-sm"><span>Additional Charges:</span> <span className="font-medium">{calculationResult.totalAdditionalCharges.toFixed(2)}</span></div>
-                                        <Separator className="my-2 border-blue-300" />
-                                        <div className="flex justify-between text-xl font-bold text-blue-900">
-                                            <span>Total Cost:</span>
-                                            <span>{calculationResult.finalTotalCost.toFixed(2)}</span>
+                                        <div className="flex justify-between text-sm text-slate-600">
+                                            <span>Additional Charges:</span>
+                                            <span className="font-bold text-slate-900">{calculationResult.totalAdditionalCharges.toLocaleString()} THB</span>
                                         </div>
-                                    </>
+                                        <Separator className="my-4 bg-blue-200/50" />
+                                        <div className="bg-blue-600 rounded-xl p-4 text-white shadow-lg space-y-1 transform transition-all duration-300 hover:scale-[1.02]">
+                                            <p className="text-xs text-blue-100 font-medium uppercase tracking-wider">Final Total (Excl. VAT)</p>
+                                            <div className="flex justify-between items-baseline">
+                                                <span className="text-3xl font-black">{calculationResult.finalTotalCost.toLocaleString()}</span>
+                                                <span className="text-sm font-bold text-blue-200 ml-1">THB</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <p className="text-gray-500 text-center text-sm">Calculating costs...</p>
+                                    <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                                        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                                        <p className="text-slate-400 text-sm font-medium">Calculating pricing...</p>
+                                    </div>
                                 )}
                             </div>
                         </CardContent>
@@ -1515,9 +1672,15 @@ function ShippingCalculatorPageContent() {
                     <Button
                         type="button"
                         onClick={handleSave}
-                        disabled={isSaving || !isValid} // Disable if saving or form is invalid
+                        disabled={isSaving || !isValid}
+                        className="h-11 px-8 bg-blue-700 hover:bg-blue-800 text-white font-extrabold shadow-lg hover:shadow-xl transition-all rounded-xl min-w-[180px]"
                     >
-                        {isSaving ? 'Saving...' : (isEditMode ? 'Update Quotation' : 'Save as Draft')}
+                        {isSaving ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Saving...</span>
+                            </div>
+                        ) : (isEditMode ? 'Update Quotation' : 'Confirm & Save')}
                     </Button>
                 </CardFooter>
             </form>

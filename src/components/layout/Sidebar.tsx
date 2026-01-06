@@ -16,7 +16,8 @@ import {
   Calendar,
   FileCheck,
   Sparkles,
-  ListChecks
+  ListChecks,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -221,6 +222,16 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
               >
                 <DollarSign className="h-5 w-5 mr-3" />
                 <span className="text-base">Freight Rate</span>
+              </Link>
+              <Link
+                href="/settings/products"
+                className={cn(
+                  "flex items-center px-4 py-2 rounded-md hover:bg-slate-800 transition-colors",
+                  pathname?.startsWith("/settings/products") ? "bg-slate-700" : ""
+                )}
+              >
+                <Package className="h-5 w-5 mr-3" />
+                <span className="text-base">Product Master</span>
               </Link>
               <Link
                 href="/settings/ai"

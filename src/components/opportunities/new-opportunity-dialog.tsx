@@ -33,7 +33,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Opportunity } from '@/types/opportunity';
 import { toast } from 'sonner';
-import { getCompanies, getDestinations } from '@/lib/db';
+import { Checkbox } from '@/components/ui/checkbox';
+import { getCompanies, getDestinations, getProducts, Product } from '@/lib/db';
 
 // Type for Company fetched from DB
 interface Company {
@@ -51,6 +52,7 @@ const formSchema = z.object({
     containerSize: z.string().optional(),
     productDetails: z.string().optional(),
     notes: z.string().optional(),
+    productId: z.array(z.string()),
 });
 
 type OpportunityFormValues = z.infer<typeof formSchema>;
@@ -82,19 +84,23 @@ export function OpportunityDialog({
 
     const [companies, setCompanies] = useState<Company[]>([]);
     const [destinations, setDestinations] = useState<{ id: string, country: string, port?: string }[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
 
     // Fetch Data on Mount
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [companiesData, destinationsData] = await Promise.all([
+                const [companiesData, destinationsData, productsData] = await Promise.all([
                     getCompanies(),
-                    getDestinations()
+                    getDestinations(),
+                    getProducts()
                 ]);
                 console.log('Fetched Companies:', companiesData);
                 console.log('Fetched Destinations:', destinationsData);
+                console.log('Fetched Products:', productsData);
                 setCompanies(companiesData || []);
                 setDestinations(destinationsData || []);
+                setProducts(productsData || []);
             } catch (error) {
                 console.error('Error fetching dropdown data:', error);
                 toast.error('Failed to load companies/destinations');
@@ -118,6 +124,7 @@ export function OpportunityDialog({
             containerSize: '',
             productDetails: '',
             notes: '',
+            productId: [],
         },
     });
 
@@ -134,6 +141,7 @@ export function OpportunityDialog({
                 containerSize: initialData.containerSize || '',
                 productDetails: initialData.productDetails || '',
                 notes: initialData.notes || '',
+                productId: initialData.productId || [],
             });
         } else if (mode === 'create' && open) {
             form.reset({
@@ -145,6 +153,7 @@ export function OpportunityDialog({
                 containerSize: '',
                 productDetails: '',
                 notes: '',
+                productId: [],
             });
         }
     }, [initialData, mode, open, form]);
@@ -172,6 +181,7 @@ export function OpportunityDialog({
             containerSize: values.containerSize,
             productDetails: values.productDetails,
             notes: values.notes,
+            productId: values.productId,
         });
 
         if (setOpen) setOpen(false);
@@ -243,6 +253,45 @@ export function OpportunityDialog({
                                     <FormControl>
                                         <Input type="number" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="productId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Product Master (Select Multiple)</FormLabel>
+                                    <div className="border border-emerald-100 rounded-md p-3 space-y-2 max-h-[150px] overflow-y-auto bg-slate-50">
+                                        {products.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground italic">No products found in Master Table.</p>
+                                        ) : (
+                                            products.map((product) => (
+                                                <div key={product.id} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`product-${product.id}`}
+                                                        checked={field.value.includes(product.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            const current = field.value || [];
+                                                            if (checked) {
+                                                                field.onChange([...current, product.id]);
+                                                            } else {
+                                                                field.onChange(current.filter((id) => id !== product.id));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`product-${product.id}`}
+                                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                    >
+                                                        {product.name}
+                                                    </label>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -331,11 +380,11 @@ export function OpportunityDialog({
                         />
 
                         <DialogFooter>
-                            <Button type="submit">Create Opportunity</Button>
+                            <Button type="submit">{mode === 'create' ? 'Create Opportunity' : 'Update Opportunity'}</Button>
                         </DialogFooter>
                     </form>
                 </Form>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

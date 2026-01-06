@@ -32,6 +32,8 @@ export interface Opportunity {
     notes?: string;
     destinationId?: string; // Added field
     destinationName?: string; // Added field to show on card
+    productId?: string[]; // Array for multiple products
+    productName?: string[]; // Array for multiple products
 
     // Links
     quotationId?: string; // ID of the linked quotation
