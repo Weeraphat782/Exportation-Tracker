@@ -132,8 +132,8 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
-  const [showWon, setShowWon] = useState<boolean>(false);
-  const [showLost, setShowLost] = useState<boolean>(false);
+  const [showWon, setShowWon] = useState<boolean>(true);
+  const [showLost, setShowLost] = useState<boolean>(true);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch companies for filter

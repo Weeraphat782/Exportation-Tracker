@@ -26,6 +26,8 @@ const STAGES: OpportunityStage[] = [
     'booking_requested',
     'awb_received',
     'payment_received',
+    'closed_won',
+    'closed_lost',
 ];
 
 interface KanbanBoardProps {
