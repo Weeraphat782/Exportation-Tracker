@@ -22,6 +22,9 @@ export interface Company {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+  is_approved?: boolean;
+  onboarding_token?: string;
+  registration_docs?: string[] | null;
 }
 
 export interface Destination {
@@ -194,6 +197,27 @@ export async function getCompanies() {
     return data as Company[];
   } catch (error) {
     console.error('Error in getCompanies:', error);
+    return null;
+  }
+}
+
+// Fetch a single company by onboarding token (Public access)
+export async function getCompanyByToken(token: string): Promise<Company | null> {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('onboarding_token', token)
+      .single();
+
+    if (error) {
+      console.error('Error fetching company by token:', error);
+      return null;
+    }
+
+    return data as Company;
+  } catch (error) {
+    console.error('Unexpected error fetching company by token:', error);
     return null;
   }
 }

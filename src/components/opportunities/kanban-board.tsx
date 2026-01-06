@@ -19,10 +19,14 @@ import { KanbanColumn } from './kanban-column';
 import { KanbanCard } from './kanban-card';
 
 const STAGES: OpportunityStage[] = [
-    'prospecting',
-    'qualification',
-    'proposal',
-    'negotiation',
+    'inquiry',
+    'quoting',
+    'pending_docs',
+    'pending_booking',
+    'booking_requested',
+    'awb_received',
+    'payment_received',
+    'pickup_in_progress',
     'closed_won',
     'closed_lost',
 ];
@@ -47,7 +51,11 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
     const [startStage, setStartStage] = useState<OpportunityStage | null>(null);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -134,10 +142,14 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
 
     const getProbabilityForStage = (stage: OpportunityStage): number => {
         switch (stage) {
-            case 'prospecting': return 10;
-            case 'qualification': return 20;
-            case 'proposal': return 50;
-            case 'negotiation': return 80;
+            case 'inquiry': return 10;
+            case 'quoting': return 20;
+            case 'pending_docs': return 30;
+            case 'pending_booking': return 45;
+            case 'booking_requested': return 60;
+            case 'awb_received': return 75;
+            case 'payment_received': return 85;
+            case 'pickup_in_progress': return 95;
             case 'closed_won': return 100;
             case 'closed_lost': return 0;
             default: return 0;

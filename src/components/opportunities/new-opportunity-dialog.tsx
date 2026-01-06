@@ -43,8 +43,8 @@ interface Company {
 
 const formSchema = z.object({
     topic: z.string().min(2, 'Topic is required'),
-    customerId: z.string().min(1, 'Customer is required'),
-    amount: z.coerce.number().min(0, 'Amount must be positive'),
+    customerId: z.string().min(1, 'Company is required'),
+    amount: z.coerce.number().optional().or(z.literal('')),
     // Optional fields matching Quotation
     destinationId: z.string().optional(),
     vehicleType: z.string().optional(),
@@ -52,6 +52,8 @@ const formSchema = z.object({
     productDetails: z.string().optional(),
     notes: z.string().optional(),
 });
+
+type OpportunityFormValues = z.infer<typeof formSchema>;
 
 // Update Props
 interface OpportunityDialogProps {
@@ -105,7 +107,7 @@ export function OpportunityDialog({
     }, [open]);
 
     // Form ...
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<OpportunityFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             topic: '',
@@ -149,7 +151,7 @@ export function OpportunityDialog({
 
     // ... Fetch Data Effect (Keep existing)
 
-    function handleSubmitForm(values: z.infer<typeof formSchema>) {
+    function handleSubmitForm(values: OpportunityFormValues) {
         const selectedCompany = companies.find(c => c.id === values.customerId);
 
         onSubmit({
@@ -159,10 +161,10 @@ export function OpportunityDialog({
             companyId: selectedCompany?.id,
             companyName: selectedCompany?.name || 'Unknown',
             destinationId: values.destinationId,
-            amount: values.amount,
+            amount: typeof values.amount === 'number' ? values.amount : 0,
             currency: 'THB',
             // Only set defaults if creating
-            stage: initialData?.stage || 'prospecting',
+            stage: initialData?.stage || 'inquiry',
             probability: initialData?.probability || 10,
             closeDate: initialData?.closeDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             ownerName: initialData?.ownerName || 'Current User',

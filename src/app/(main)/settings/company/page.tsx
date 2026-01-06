@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, Link2, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -61,10 +61,10 @@ export default function CompanySettingsPage() {
       if (!success) {
         setError(`Failed to delete company: ${companyToDelete.name}`);
         // Revert UI change if delete failed
-        setCompanies([...companies]); 
+        setCompanies([...companies]);
       } else {
-         console.log(`Deleted company with ID: ${id}`);
-         // Optionally show a success message
+        console.log(`Deleted company with ID: ${id}`);
+        // Optionally show a success message
       }
     } catch (err) {
       console.error('Error deleting company:', err);
@@ -104,6 +104,7 @@ export default function CompanySettingsPage() {
                   <TableHead>Address</TableHead>
                   <TableHead>Contact Person</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,19 +120,46 @@ export default function CompanySettingsPage() {
                       <TableCell>{company.address || '-'}</TableCell>
                       <TableCell>{company.contact_person || '-'}</TableCell>
                       <TableCell>{company.contact_email || '-'}</TableCell>
+                      <TableCell>
+                        {company.is_approved ? (
+                          <div className="flex items-center text-green-600 gap-1.5 font-medium">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approved
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-amber-600 gap-1.5 font-medium">
+                            <Clock className="h-4 w-4" />
+                            Pending
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="inline-flex items-center"
+                          onClick={() => {
+                            const url = `${window.location.origin}/company-onboarding/${company.onboarding_token}`;
+                            navigator.clipboard.writeText(url);
+                            alert('Onboarding link copied to clipboard!');
+                          }}
+                          title="Copy onboarding link"
+                        >
+                          <Link2 className="h-4 w-4 mr-1" />
+                          Link
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="inline-flex items-center"
                           onClick={() => handleEdit(company.id)}
                         >
                           <Pencil className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="inline-flex items-center text-red-500 hover:text-red-600"
                           onClick={() => handleDelete(company.id)}
                         >

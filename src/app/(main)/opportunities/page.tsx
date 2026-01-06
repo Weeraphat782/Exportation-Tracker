@@ -29,38 +29,64 @@ export default function OpportunitiesPage() {
       // Select opportunity fields AND linked quotations(id)
       // Note: This relies on the foreign key relationship being detected.
       // If one-to-many, it returns an array. We take the first one (most recent?).
-      .select('*, quotations(id)')
+      .select('*, quotations(id), destination:destination_id(country, port)')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching opportunities:', error);
       toast.error('Failed to fetch opportunities');
     } else {
+      interface RawSupabaseOpportunity {
+        id: string;
+        topic: string;
+        customer_name: string | null;
+        company_id: string | null;
+        amount: number;
+        currency: string;
+        stage: OpportunityStage;
+        probability: number;
+        created_at: string;
+        updated_at: string;
+        close_date: string;
+        vehicle_type?: string;
+        container_size?: string;
+        product_details?: string | { description?: string };
+        notes?: string;
+        destination_id?: string;
+        destination?: { country: string; port: string | null };
+        quotations?: { id: string }[];
+      }
+
       // Map DB fields to Frontend types
-      const mapped: Opportunity[] = data.map((item: Record<string, unknown>) => {
+      const mapped: Opportunity[] = (data as unknown as RawSupabaseOpportunity[]).map((item) => {
         // item.quotations will be an array of objects { id: ... } or null
-        const linkedQuotation = item.quotations && (item.quotations as Array<{ id: string }>).length > 0 ? (item.quotations as Array<{ id: string }>)[0] : null;
+        const linkedQuotation = item.quotations && item.quotations.length > 0 ? item.quotations[0] : null;
+
+        // Extract destination name
+        const dest = item.destination;
+        const destinationName = dest ? `${dest.country}${dest.port ? ` (${dest.port})` : ''}` : undefined;
 
         return {
-          id: item.id as string,
-          topic: item.topic as string,
-          customerName: (item.customer_name as string) || 'Unknown',
-          companyName: (item.customer_name as string) || 'Unknown',
-          companyId: item.company_id as string | undefined,
-          amount: item.amount as number,
-          currency: item.currency as string,
-          stage: item.stage as OpportunityStage,
-          probability: item.probability as number,
-          closeDate: item.close_date as string,
+          id: item.id,
+          topic: item.topic,
+          customerName: item.customer_name || 'Unknown',
+          companyName: item.customer_name || 'Unknown',
+          companyId: item.company_id || undefined,
+          amount: item.amount,
+          currency: item.currency,
+          stage: item.stage,
+          probability: item.probability,
+          closeDate: item.close_date,
           ownerName: 'Me',
-          createdAt: item.created_at as string,
-          updatedAt: item.updated_at as string,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
 
-          vehicleType: item.vehicle_type as string | undefined,
-          containerSize: item.container_size as string | undefined,
-          productDetails: (item.product_details as { description?: string })?.description || (typeof item.product_details === 'string' ? item.product_details : ''),
-          notes: item.notes as string | undefined,
-          destinationId: item.destination_id as string | undefined,
+          vehicleType: item.vehicle_type,
+          containerSize: item.container_size,
+          productDetails: typeof item.product_details === 'object' ? item.product_details?.description || '' : item.product_details || '',
+          notes: item.notes,
+          destinationId: item.destination_id,
+          destinationName,
 
           quotationId: linkedQuotation?.id
         }
@@ -137,15 +163,15 @@ export default function OpportunitiesPage() {
       const payload = {
         topic: data.topic,
         amount: data.amount,
-        company_id: data.companyId,
+        company_id: data.companyId || null,
         customer_name: data.companyName,
-        vehicle_type: data.vehicleType,
-        container_size: data.containerSize,
+        vehicle_type: data.vehicleType || null,
+        container_size: data.containerSize || null,
         product_details: data.productDetails ? { description: data.productDetails } : null,
-        notes: data.notes,
-        destination_id: data.destinationId,
+        notes: data.notes || null,
+        destination_id: data.destinationId || null,
         // Default fields for new
-        stage: data.stage || 'prospecting',
+        stage: data.stage || 'inquiry',
         probability: data.probability || 10,
         currency: 'THB',
         close_date: data.closeDate,
@@ -214,10 +240,14 @@ export default function OpportunitiesPage() {
 
   const getProbabilityForStage = (stage: OpportunityStage): number => {
     switch (stage) {
-      case 'prospecting': return 10;
-      case 'qualification': return 20;
-      case 'proposal': return 50;
-      case 'negotiation': return 80;
+      case 'inquiry': return 10;
+      case 'quoting': return 20;
+      case 'pending_docs': return 30;
+      case 'pending_booking': return 45;
+      case 'booking_requested': return 60;
+      case 'awb_received': return 75;
+      case 'payment_received': return 85;
+      case 'pickup_in_progress': return 95;
       case 'closed_won': return 100;
       case 'closed_lost': return 0;
       default: return 0;

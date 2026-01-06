@@ -73,15 +73,21 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="cursor-grab active:cursor-grabbing"
+    >
       <Card className="hover:shadow-md transition-shadow group">
         <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
           <Badge variant="outline" className={STAGE_COLORS[opportunity.stage]}>
             {opportunity.probability}%
           </Badge>
           <div className="flex items-center gap-1">
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded">
-              <GripVertical className="h-4 w-4 text-gray-300" />
+            <div className="p-1 text-gray-300">
+              <GripVertical className="h-4 w-4" />
             </div>
 
             <DropdownMenu>
@@ -89,6 +95,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
                 <Button
                   variant="ghost"
                   className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full"
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-4 w-4 text-gray-500" />
                 </Button>
@@ -96,24 +103,24 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onSelect={() => {
                     // console.log('KanbanCard: Edit clicked');
                     if (onEdit) onEdit(opportunity);
                   }}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-red-600 focus:text-red-600 cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onSelect={() => {
                     // console.log('KanbanCard: Delete clicked');
                     if (confirm('Are you sure you want to delete this opportunity?')) {
                       if (onDelete) onDelete(opportunity.id);
                     }
                   }}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <Trash className="mr-2 h-4 w-4" />
                   Delete
@@ -137,6 +144,12 @@ export function KanbanCard({ opportunity, onEdit, onDelete }: KanbanCardProps) {
 
           {/* Additional Details Section */}
           <div className="space-y-1.5 mb-3 text-xs">
+            {opportunity.destinationName && (
+              <div className="flex items-start gap-1.5">
+                <span className="text-gray-500 min-w-[70px]">Destination:</span>
+                <span className="text-blue-700 font-semibold">{opportunity.destinationName}</span>
+              </div>
+            )}
             {opportunity.vehicleType && (
               <div className="flex items-start gap-1.5">
                 <span className="text-gray-500 min-w-[70px]">Vehicle:</span>

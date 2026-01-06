@@ -12,6 +12,7 @@ import {
   Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 } from 'recharts';
 import dynamic from 'next/dynamic';
+import * as XLSX from 'xlsx';
 
 // Dynamically import react-simple-maps components
 const ComposableMap = dynamic(() => import('react-simple-maps').then(mod => mod.ComposableMap), { ssr: false });
@@ -26,6 +27,14 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Copy, Link as LinkIcon, FileText as FileTextIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCompanies, Company } from '@/lib/db';
 
 // Define colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -175,6 +184,27 @@ const countryToCode: Record<string, string> = {
   'Vietnam': 'vn'
 };
 
+interface AdditionalCharge {
+  description: string;
+  amount: number | string;
+}
+
+interface ExportQuotation {
+  id: string;
+  created_at: string;
+  completed_at: string | null;
+  customer_name: string | null;
+  total_cost: number | null;
+  total_freight_cost: number | null;
+  clearance_cost: number | null;
+  delivery_cost: number | null;
+  additional_charges: AdditionalCharge[] | null;
+  status: string;
+  company: { name: string } | { name: string }[] | null;
+  destination_country: { country: string; port: string | null } | null;
+  debit_notes: { debit_note_no: string }[] | null;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalQuotations: 0,
@@ -187,6 +217,21 @@ export default function DashboardPage() {
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Excel Export State
+  const [isExporting, setIsExporting] = useState(false);
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1); // Default to 1 month ago
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [quotationStartDate, setQuotationStartDate] = useState<string>('');
+  const [quotationEndDate, setQuotationEndDate] = useState<string>('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
+  const [companies, setCompanies] = useState<Company[]>([]);
 
   // State for map zoom and position
   const [position, setPosition] = useState({ coordinates: [0, 0], zoom: 1 });
@@ -513,7 +558,13 @@ export default function DashboardPage() {
       }
     };
 
+    const fetchCompanies = async () => {
+      const data = await getCompanies();
+      if (data) setCompanies(data);
+    };
+
     fetchDashboardData();
+    fetchCompanies();
   }, []);
 
   // Format currency
@@ -587,6 +638,131 @@ export default function DashboardPage() {
     setTooltipContent(content);
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+
+      // Fetch completed quotations with dynamic filters
+      let query = supabase
+        .from('quotations')
+        .select(`
+          id,
+          created_at,
+          completed_at,
+          customer_name,
+          total_cost,
+          total_freight_cost,
+          clearance_cost,
+          delivery_cost,
+          additional_charges,
+          status,
+          company:companies(name),
+          destination_country:destinations(country, port),
+          debit_notes(debit_note_no)
+        `)
+        .eq('status', 'completed');
+
+      if (selectedCompanyId !== 'all') {
+        query = query.eq('company_id', selectedCompanyId);
+      }
+
+      if (startDate) {
+        query = query.gte('completed_at', `${startDate}T00:00:00`);
+      }
+
+      if (endDate) {
+        query = query.lte('completed_at', `${endDate}T23:59:59`);
+      }
+
+      if (quotationStartDate) {
+        query = query.gte('created_at', `${quotationStartDate}T00:00:00`);
+      }
+
+      if (quotationEndDate) {
+        query = query.lte('created_at', `${quotationEndDate}T23:59:59`);
+      }
+
+      const { data, error } = await query.order('completed_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.info('No completed shipments found for the selected date range.');
+        return;
+      }
+
+      // Format data for Excel
+      const excelData = (data as unknown as ExportQuotation[]).map((q, index) => {
+        // Flatten nested objects and handle potential nulls
+        const companyName = Array.isArray(q.company)
+          ? q.company[0]?.name
+          : q.company?.name || 'N/A';
+
+        const destination = q.destination_country
+          ? `${q.destination_country.country}${q.destination_country.port ? ' - ' + q.destination_country.port : ''}`
+          : 'N/A';
+
+        // Get first debit note number if available
+        const debitNoteNo = q.debit_notes?.[0]?.debit_note_no || 'N/A';
+
+        // Calculate additional charges sum
+        const additionalChargesList = q.additional_charges || [];
+        const additionalChargesSum = additionalChargesList.reduce((sum: number, charge: AdditionalCharge) => {
+          const amount = typeof charge.amount === 'number' ? charge.amount : parseFloat(charge.amount) || 0;
+          return sum + amount;
+        }, 0);
+
+        return {
+          'No.': index + 1,
+          'Completed Date': q.completed_at ? new Date(q.completed_at).toLocaleDateString() : 'N/A',
+          'Customer Name': q.customer_name || companyName,
+          'Company': companyName,
+          'Destination': destination,
+          'Debit Note No.': debitNoteNo,
+          'Freight Cost': q.total_freight_cost || 0,
+          'Clearance & Handling': q.clearance_cost || 0,
+          'Delivery Service': q.delivery_cost || 0,
+          'Additional Charges': additionalChargesSum,
+          'Total Amount (THB)': q.total_cost || 0,
+          'Quotation ID': q.id
+        };
+      });
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Completed Shipments');
+
+      // Adjust column widths
+      const wscols = [
+        { wch: 5 },  // No.
+        { wch: 15 }, // Completed Date
+        { wch: 25 }, // Customer Name
+        { wch: 25 }, // Company
+        { wch: 30 }, // Destination
+        { wch: 20 }, // Debit Note No.
+        { wch: 15 }, // Freight
+        { wch: 20 }, // Clearance
+        { wch: 15 }, // Delivery
+        { wch: 18 }, // Additional
+        { wch: 18 }, // Total
+        { wch: 36 }  // Quotation ID
+      ];
+      worksheet['!cols'] = wscols;
+
+      // Write and download
+      const fileName = `Completed_Shipments_${startDate}_to_${endDate}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Exported ${data.length} records successfully!`);
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+      toast.error('Failed to export Excel file');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-3 mb-4">
@@ -658,25 +834,163 @@ export default function DashboardPage() {
 
 
       {/* Financial Metrics */}
-      <div className="mb-8">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center">
-              <DollarSign className="h-5 w-5 mr-2" />
-              <CardTitle>Financial Metrics</CardTitle>
-            </div>
-            <CardDescription>Monthly revenue and average shipment value</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-center py-10">Loading financial data...</p>
-            ) : financialMetrics.length === 0 ? (
-              <p className="text-center py-10">No financial data available</p>
-            ) : (
-              renderLineChart(financialMetrics)
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div className="xl:col-span-2">
+          <Card className="h-full">
+            <CardHeader>
+              <div className="flex items-center">
+                <DollarSign className="h-5 w-5 mr-2" />
+                <CardTitle>Financial Metrics</CardTitle>
+              </div>
+              <CardDescription>Monthly revenue and average shipment value</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p className="text-center py-10">Loading financial data...</p>
+              ) : financialMetrics.length === 0 ? (
+                <p className="text-center py-10">No financial data available</p>
+              ) : (
+                renderLineChart(financialMetrics)
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Excel Export Tool */}
+        <div>
+          <Card className="h-full border-emerald-100 bg-emerald-50/30">
+            <CardHeader>
+              <div className="flex items-center">
+                <FileCheck className="h-5 w-5 mr-2 text-emerald-600" />
+                <CardTitle className="text-emerald-800">Completed Shipments Report</CardTitle>
+              </div>
+              <CardDescription>Export completed items to Excel</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs">Company</Label>
+                <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Select Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Completed Date Filter */}
+              <div className="space-y-2 border-t pt-3">
+                <span className="text-[10px] font-semibold text-emerald-700 uppercase">Completed Date Filter</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="startDate" className="text-xs">Start</Label>
+                      {startDate && (
+                        <button
+                          onClick={() => setStartDate('')}
+                          className="text-[10px] text-red-500 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="endDate" className="text-xs">End</Label>
+                      {endDate && (
+                        <button
+                          onClick={() => setEndDate('')}
+                          className="text-[10px] text-red-500 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quotation Date Filter */}
+              <div className="space-y-2 border-t pt-3">
+                <span className="text-[10px] font-semibold text-blue-700 uppercase">Quotation Date Filter</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="qStartDate" className="text-xs">Start</Label>
+                      {quotationStartDate && (
+                        <button
+                          onClick={() => setQuotationStartDate('')}
+                          className="text-[10px] text-red-500 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="qStartDate"
+                      type="date"
+                      value={quotationStartDate}
+                      onChange={(e) => setQuotationStartDate(e.target.value)}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="qEndDate" className="text-xs">End</Label>
+                      {quotationEndDate && (
+                        <button
+                          onClick={() => setQuotationEndDate('')}
+                          className="text-[10px] text-red-500 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="qEndDate"
+                      type="date"
+                      value={quotationEndDate}
+                      onChange={(e) => setQuotationEndDate(e.target.value)}
+                      className="bg-white h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-2"
+              >
+                {isExporting ? 'Exporting...' : 'Export to Excel'}
+              </Button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                * Filters Quotations with &quot;Completed&quot; status
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
 
