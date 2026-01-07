@@ -341,19 +341,43 @@ export default function DashboardPage() {
       try {
         setIsLoading(true);
 
-        // Get total quotations
-        const { count: totalQuotations, error: quotationsError } = await supabase
-          .from('quotations')
-          .select('*', { count: 'exact', head: true });
+        // Get current user for filtering
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
+
+        // Get total quotations (filtered by user if available)
+        let quotationsQuery = supabase.from('quotations').select('*', { count: 'exact', head: true });
+        if (userId) {
+          quotationsQuery = quotationsQuery.eq('user_id', userId);
+        }
+        const { count: totalQuotations, error: quotationsError } = await quotationsQuery;
 
         if (quotationsError) throw quotationsError;
 
-        // Get total documents
-        const { count: totalDocuments, error: documentsError } = await supabase
-          .from('document_submissions')
-          .select('*', { count: 'exact', head: true });
-
-        if (documentsError) throw documentsError;
+        // Get total documents (through quotations that belong to user)
+        let documentsCount = 0;
+        if (userId) {
+          // First get user's quotation IDs
+          const { data: userQuotations } = await supabase
+            .from('quotations')
+            .select('id')
+            .eq('user_id', userId);
+          
+          if (userQuotations && userQuotations.length > 0) {
+            const quotationIds = userQuotations.map(q => q.id);
+            const { count } = await supabase
+              .from('document_submissions')
+              .select('*', { count: 'exact', head: true })
+              .in('quotation_id', quotationIds);
+            documentsCount = count || 0;
+          }
+        } else {
+          const { count } = await supabase
+            .from('document_submissions')
+            .select('*', { count: 'exact', head: true });
+          documentsCount = count || 0;
+        }
+        const totalDocuments = documentsCount;
 
         // Update basic stats
         setStats({
@@ -363,9 +387,11 @@ export default function DashboardPage() {
 
         try {
           // Get top companies by export volume - with error handling
-          const { data: companiesData, error: companiesError } = await supabase
-            .from('quotations')
-            .select('company_name, total_cost');
+          let companiesQuery = supabase.from('quotations').select('company_name, total_cost');
+          if (userId) {
+            companiesQuery = companiesQuery.eq('user_id', userId);
+          }
+          const { data: companiesData, error: companiesError } = await companiesQuery;
 
           if (companiesError) throw companiesError;
 
@@ -403,9 +429,11 @@ export default function DashboardPage() {
 
         // NEW: Status Breakdown
         try {
-          const { data: statusData, error: statusError } = await supabase
-            .from('quotations')
-            .select('status');
+          let statusQuery = supabase.from('quotations').select('status');
+          if (userId) {
+            statusQuery = statusQuery.eq('user_id', userId);
+          }
+          const { data: statusData, error: statusError } = await statusQuery;
 
           if (statusError) throw statusError;
 
@@ -434,15 +462,19 @@ export default function DashboardPage() {
 
         // NEW: Country Distribution
         try {
-          const { data: countryData, error: countryError } = await supabase
-            .from('destinations')
-            .select('country, id');
+          let destQuery = supabase.from('destinations').select('country, id');
+          if (userId) {
+            destQuery = destQuery.eq('user_id', userId);
+          }
+          const { data: countryData, error: countryError } = await destQuery;
 
           if (countryError) throw countryError;
 
-          const { data: quotationsWithDest, error: quotDestError } = await supabase
-            .from('quotations')
-            .select('destination_id');
+          let quotDestQuery = supabase.from('quotations').select('destination_id');
+          if (userId) {
+            quotDestQuery = quotDestQuery.eq('user_id', userId);
+          }
+          const { data: quotationsWithDest, error: quotDestError } = await quotDestQuery;
 
           if (quotDestError) throw quotDestError;
 
@@ -511,9 +543,11 @@ export default function DashboardPage() {
 
         // NEW: Financial Metrics by Month
         try {
-          const { data: financialData, error: financialError } = await supabase
-            .from('quotations')
-            .select('created_at, total_cost');
+          let financialQuery = supabase.from('quotations').select('created_at, total_cost');
+          if (userId) {
+            financialQuery = financialQuery.eq('user_id', userId);
+          }
+          const { data: financialData, error: financialError } = await financialQuery;
 
           if (financialError) throw financialError;
 
@@ -642,6 +676,10 @@ export default function DashboardPage() {
     try {
       setIsExporting(true);
 
+      // Get current user for filtering
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+
       // Fetch completed quotations with dynamic filters
       let query = supabase
         .from('quotations')
@@ -661,6 +699,11 @@ export default function DashboardPage() {
           debit_notes(debit_note_no)
         `)
         .eq('status', 'completed');
+
+      // Filter by user
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
 
       if (selectedCompanyId !== 'all') {
         query = query.eq('company_id', selectedCompanyId);

@@ -31,13 +31,22 @@ export default function OpportunitiesPage() {
 
   const fetchOpportunities = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Get current user for filtering
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    
+    let query = supabase
       .from('opportunities')
       // Select opportunity fields AND linked quotations(id)
-      // Note: This relies on the foreign key relationship being detected.
-      // If one-to-many, it returns an array. We take the first one (most recent?).
-      .select('*, quotations(id), destination:destination_id(country, port), opportunity_products(product:products(id, name))')
-      .order('created_at', { ascending: false });
+      .select('*, quotations(id), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
+    
+    // Filter by owner_id if user is logged in
+    if (userId) {
+      query = query.eq('owner_id', userId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching opportunities:', error);
