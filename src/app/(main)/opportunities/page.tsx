@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { KanbanBoard } from '@/components/opportunities/kanban-board';
+import { ListView } from '@/components/opportunities/list-view';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, PlusCircle } from 'lucide-react';
+import { RefreshCw, PlusCircle, LayoutGrid, List } from 'lucide-react';
 import { OpportunityDialog } from '@/components/opportunities/new-opportunity-dialog';
 import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -16,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Trophy, XCircle } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type ViewMode = 'kanban' | 'list';
 
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -63,12 +70,15 @@ export default function OpportunitiesPage() {
         product_id?: string | null;
         quotations?: { id: string }[];
         opportunity_products?: { product: { id: string; name: string } }[];
+        closure_status?: 'won' | 'lost' | null;
       }
 
       // Map DB fields to Frontend types
       const mapped: Opportunity[] = (data as unknown as RawSupabaseOpportunity[]).map((item) => {
-        // item.quotations will be an array of objects { id: ... } or null
-        const linkedQuotation = item.quotations && item.quotations.length > 0 ? item.quotations[0] : null;
+        // item.quotations will be an array of objects { id: ... } - get ALL quotation IDs
+        const quotationIds = item.quotations && item.quotations.length > 0 
+          ? item.quotations.map(q => q.id) 
+          : [];
 
         // Extract destination name
         const dest = item.destination;
@@ -98,7 +108,8 @@ export default function OpportunitiesPage() {
           productId: item.opportunity_products?.map(op => op.product.id) || [],
           productName: item.opportunity_products?.map(op => op.product.name) || [],
 
-          quotationId: linkedQuotation?.id
+          quotationIds: quotationIds,
+          closureStatus: item.closure_status || null
         }
       });
       setOpportunities(mapped);
@@ -130,7 +141,10 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [showWon, setShowWon] = useState<boolean>(false);
+  const [showLost, setShowLost] = useState<boolean>(false);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
 
   // Fetch companies for filter
   useEffect(() => {
@@ -320,15 +334,14 @@ export default function OpportunitiesPage() {
     const { error } = await supabase
       .from('opportunities')
       .update({
-        stage: 'closed_won',
-        probability: 100
+        closure_status: 'won'
       })
       .eq('id', opportunityId);
 
     if (error) {
       toast.error('Failed to mark as won');
     } else {
-      toast.success('Opportunity marked as WON!');
+      toast.success('Opportunity marked as WON! 🏆');
       fetchOpportunities(); // Refresh the board
     }
   };
@@ -337,8 +350,7 @@ export default function OpportunitiesPage() {
     const { error } = await supabase
       .from('opportunities')
       .update({
-        stage: 'closed_lost',
-        probability: 0
+        closure_status: 'lost'
       })
       .eq('id', opportunityId);
 
@@ -359,8 +371,6 @@ export default function OpportunitiesPage() {
       case 'booking_requested': return 60;
       case 'awb_received': return 75;
       case 'payment_received': return 85;
-      case 'closed_won': return 100;
-      case 'closed_lost': return 0;
       default: return 0;
     }
   };
@@ -396,22 +406,72 @@ export default function OpportunitiesPage() {
           />
         </div>
       </div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Company:</label>
-          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="All Companies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-6">
+          {/* View Toggle */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList className="grid w-[200px] grid-cols-2">
+              <TabsTrigger value="kanban" className="flex items-center gap-1.5">
+                <LayoutGrid className="h-4 w-4" />
+                Kanban
+              </TabsTrigger>
+              <TabsTrigger value="list" className="flex items-center gap-1.5">
+                <List className="h-4 w-4" />
+                List
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Company Filter */}
+          <div className="flex items-center gap-2 border-l pl-4">
+            <label className="text-sm font-medium text-gray-700">Company:</label>
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Companies" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Won/Lost Filters */}
+          <div className="flex items-center gap-4 border-l pl-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-won"
+                checked={showWon}
+                onCheckedChange={(checked) => setShowWon(checked as boolean)}
+              />
+              <Label 
+                htmlFor="show-won" 
+                className="text-sm font-medium flex items-center gap-1 cursor-pointer text-emerald-700"
+              >
+                <Trophy className="h-3.5 w-3.5" />
+                Won ({opportunities.filter(o => o.closureStatus === 'won').length})
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-lost"
+                checked={showLost}
+                onCheckedChange={(checked) => setShowLost(checked as boolean)}
+              />
+              <Label 
+                htmlFor="show-lost" 
+                className="text-sm font-medium flex items-center gap-1 cursor-pointer text-red-600"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Lost ({opportunities.filter(o => o.closureStatus === 'lost').length})
+              </Label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -420,19 +480,49 @@ export default function OpportunitiesPage() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden rounded-md border bg-white p-4 shadow-sm h-[calc(100vh-200px)]">
-          <KanbanBoard
-            onStageChange={handleStageChange}
-            onEditOpportunity={handleEditOpportunity}
-            onDeleteOpportunity={handleDeleteOpportunity}
-            onWinCase={handleWinCase}
-            onLoseCase={handleLoseCase}
-            initialOpportunities={selectedCompany === 'all'
-              ? opportunities
-              : opportunities.filter(opp => opp.companyId === selectedCompany)
-            }
-          />
-        </div>
+        <>
+          {/* Filter opportunities based on selected filters */}
+          {(() => {
+            const filteredOpportunities = opportunities.filter(opp => {
+              // Filter by company
+              if (selectedCompany !== 'all' && opp.companyId !== selectedCompany) {
+                return false;
+              }
+              // Filter out Won cases unless showWon is checked
+              if (opp.closureStatus === 'won' && !showWon) {
+                return false;
+              }
+              // Filter out Lost cases unless showLost is checked
+              if (opp.closureStatus === 'lost' && !showLost) {
+                return false;
+              }
+              return true;
+            });
+
+            return viewMode === 'kanban' ? (
+              <div className="flex-1 overflow-hidden rounded-md border bg-white p-4 shadow-sm h-[calc(100vh-200px)]">
+                <KanbanBoard
+                  onStageChange={handleStageChange}
+                  onEditOpportunity={handleEditOpportunity}
+                  onDeleteOpportunity={handleDeleteOpportunity}
+                  onWinCase={handleWinCase}
+                  onLoseCase={handleLoseCase}
+                  initialOpportunities={filteredOpportunities}
+                />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-auto h-[calc(100vh-200px)]">
+                <ListView
+                  opportunities={filteredOpportunities}
+                  onEdit={handleEditOpportunity}
+                  onDelete={handleDeleteOpportunity}
+                  onWinCase={handleWinCase}
+                  onLoseCase={handleLoseCase}
+                />
+              </div>
+            );
+          })()}
+        </>
       )}
     </div>
   );

@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface KanbanCardProps {
@@ -69,11 +69,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
     router.push(`/shipping-calculator/new?${params.toString()}`);
   };
 
-  const handleViewQuotation = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Navigate to quotation detail
-    router.push(`/shipping-calculator/preview?id=${opportunity.quotationId}`);
-  };
+  const quotationCount = opportunity.quotationIds?.length || 0;
 
   return (
     <div
@@ -83,14 +79,33 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
     >
-      <Card className="premium-shadow-hover border-none ring-1 ring-slate-100/50 transition-all duration-300">
-        <CardHeader className="p-4 pb-2 flex flex-row items-start justify-between space-y-0">
-          <Badge variant="outline" className={`font-semibold px-2 py-0.5 rounded-full ${STAGE_COLORS[opportunity.stage]}`}>
-            {opportunity.probability}%
-          </Badge>
-          <div className="flex items-center gap-1">
-            <div className="p-1 text-gray-300">
-              <GripVertical className="h-4 w-4" />
+      <Card className={`premium-shadow-hover transition-all duration-300 ${
+        opportunity.closureStatus === 'won' 
+          ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30' 
+          : opportunity.closureStatus === 'lost' 
+            ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
+            : 'border-none ring-1 ring-slate-100/50'
+      }`}>
+        <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between space-y-0">
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className={`font-semibold px-2 py-0.5 text-xs rounded-full ${STAGE_COLORS[opportunity.stage]}`}>
+              {opportunity.probability}%
+            </Badge>
+            {/* Won/Lost Badge */}
+            {opportunity.closureStatus === 'won' && (
+              <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 py-0 h-5 font-bold">
+                🏆 WON
+              </Badge>
+            )}
+            {opportunity.closureStatus === 'lost' && (
+              <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0 h-5 font-bold">
+                ❌ LOST
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5">
+            <div className="p-0.5 text-gray-300">
+              <GripVertical className="h-3.5 w-3.5" />
             </div>
 
             <DropdownMenu>
@@ -131,7 +146,6 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onSelect={() => {
-                    // console.log('KanbanCard: Edit clicked');
                     if (onEdit) onEdit(opportunity);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
@@ -142,7 +156,6 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 <DropdownMenuItem
                   className="text-red-600 focus:text-red-600 cursor-pointer"
                   onSelect={() => {
-                    // console.log('KanbanCard: Delete clicked');
                     if (confirm('Are you sure you want to delete this opportunity?')) {
                       if (onDelete) onDelete(opportunity.id);
                     }
@@ -156,90 +169,113 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             </DropdownMenu>
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-2">
-          <h4 className="font-bold text-sm mb-1 text-slate-800 line-clamp-1">{opportunity.topic}</h4>
-          <p className="text-base font-extrabold text-blue-600 mb-2 truncate">{opportunity.companyName}</p>
+        <CardContent className="p-3 pt-1">
+          {/* Company Name - Main Title */}
+          <p className="text-sm font-bold text-blue-600 truncate">{opportunity.companyName}</p>
+          
+          {/* Topic as subtitle */}
+          <h4 className="text-xs text-slate-600 line-clamp-1 mb-1">{opportunity.topic}</h4>
 
-          <div className="flex justify-between items-center text-sm mb-3">
-            <span className="font-semibold text-gray-900">
+          {/* Amount */}
+          <div className="flex justify-between items-center text-xs mb-2">
+            <span className="font-bold text-gray-900">
               {opportunity.amount.toLocaleString()} {opportunity.currency}
-            </span>
-            <span className="text-xs text-gray-500">
-              {new Date(opportunity.closeDate).toLocaleDateString()}
             </span>
           </div>
 
-          {/* Additional Details Section */}
-          <div className="space-y-1.5 mb-3 text-xs">
+          {/* Compact Details - Only show key info */}
+          <div className="space-y-0.5 mb-2 text-xs">
             {opportunity.destinationName && (
-              <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Destination:</span>
-                <span className="text-blue-700 font-semibold">{opportunity.destinationName}</span>
-              </div>
-            )}
-            {opportunity.vehicleType && (
-              <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Vehicle:</span>
-                <span className="text-gray-700 font-medium">{opportunity.vehicleType}</span>
-              </div>
-            )}
-            {opportunity.containerSize && (
-              <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Container:</span>
-                <span className="text-gray-700 font-medium">{opportunity.containerSize}</span>
-              </div>
-            )}
-            {opportunity.productName && opportunity.productName.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2 mb-1">
-                {opportunity.productName.map((name, i) => (
-                  <span key={i} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-md border border-emerald-100">
-                    {name}
-                  </span>
-                ))}
+              <div className="text-blue-700 font-medium truncate">
+                📍 {opportunity.destinationName}
               </div>
             )}
             {opportunity.productDetails && (
-              <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Details:</span>
-                <span className="text-gray-700 font-medium line-clamp-2">{opportunity.productDetails}</span>
-              </div>
-            )}
-            {opportunity.notes && (
-              <div className="flex items-start gap-1.5">
-                <span className="text-gray-500 min-w-[70px]">Notes:</span>
-                <span className="text-gray-600 italic line-clamp-2">{opportunity.notes}</span>
+              <div className="text-gray-600 line-clamp-1">
+                📦 {opportunity.productDetails}
               </div>
             )}
           </div>
 
-          {opportunity.quotationId ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-8 text-xs bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
-              onClick={handleViewQuotation}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="mr-2 h-3.5 w-3.5" />
-              View Quotation
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full h-9 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 border-none shadow-sm transition-all hover:shadow-md"
-              onClick={handleCreateQuotation}
-              onPointerDown={(e) => e.stopPropagation()}
-              disabled={creating}
-            >
-              {creating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
+          {/* Product Tags - Compact */}
+          {opportunity.productName && opportunity.productName.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {opportunity.productName.slice(0, 2).map((name, i) => (
+                <span key={i} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-semibold rounded border border-emerald-100">
+                  {name}
+                </span>
+              ))}
+              {opportunity.productName.length > 2 && (
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
+                  +{opportunity.productName.length - 2}
+                </span>
               )}
-              {creating ? 'Processing...' : 'Generate Quotation'}
-            </Button>
+            </div>
           )}
+
+          {/* Action Buttons - Support Multiple Quotations */}
+          <div className="flex gap-1">
+            {quotationCount > 0 ? (
+              <>
+                {/* View Quotations Button */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-7 text-xs bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <FileText className="mr-1 h-3 w-3" />
+                      {quotationCount} Quotation{quotationCount > 1 ? 's' : ''}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    {opportunity.quotationIds?.map((qId, index) => (
+                      <DropdownMenuItem
+                        key={qId}
+                        className="cursor-pointer text-xs"
+                        onSelect={() => router.push(`/shipping-calculator/preview?id=${qId}`)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="mr-2 h-3 w-3" />
+                        View Quotation #{index + 1}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                {/* Add New Quotation Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
+                  onClick={handleCreateQuotation}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  disabled={creating}
+                  title="Add New Quotation"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 border-none shadow-sm"
+                onClick={handleCreateQuotation}
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={creating}
+              >
+                {creating ? (
+                  <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                ) : (
+                  <Plus className="mr-1.5 h-3 w-3" />
+                )}
+                {creating ? 'Processing...' : 'Generate Quotation'}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

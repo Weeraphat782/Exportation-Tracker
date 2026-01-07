@@ -5,9 +5,10 @@ export type OpportunityStage =
     | 'pending_booking'
     | 'booking_requested'
     | 'awb_received'
-    | 'payment_received'
-    | 'closed_won'
-    | 'closed_lost';
+    | 'payment_received';
+
+// Closure status - separate from stage
+export type ClosureStatus = 'won' | 'lost' | null;
 
 export interface Opportunity {
     id: string;
@@ -34,8 +35,11 @@ export interface Opportunity {
     productId?: string[]; // Array for multiple products
     productName?: string[]; // Array for multiple products
 
-    // Links
-    quotationId?: string; // ID of the linked quotation
+    // Links - Support multiple quotations
+    quotationIds?: string[]; // Array of linked quotation IDs
+    
+    // Closure status - separate from stage (card can be won/lost at any stage)
+    closureStatus?: 'won' | 'lost' | null;
 }
 
 export const STAGE_LABELS: Record<OpportunityStage, string> = {
@@ -46,8 +50,6 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
     booking_requested: 'Booking Requested',
     awb_received: 'AWB Received',
     payment_received: 'Payment Received',
-    closed_won: 'Shipped (Won)',
-    closed_lost: 'Lost Case',
 };
 
 export const STAGE_COLORS: Record<OpportunityStage, string> = {
@@ -58,6 +60,4 @@ export const STAGE_COLORS: Record<OpportunityStage, string> = {
     booking_requested: 'bg-violet-50 text-violet-700 border-violet-200',
     awb_received: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     payment_received: 'bg-amber-50 text-amber-700 border-amber-200',
-    closed_won: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    closed_lost: 'bg-red-50 text-red-700 border-red-200',
 };

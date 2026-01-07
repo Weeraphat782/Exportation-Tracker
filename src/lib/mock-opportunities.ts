@@ -64,11 +64,12 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
         companyName: 'Build It Right',
         amount: 2500000,
         currency: 'THB',
-        stage: 'closed_won',
+        stage: 'payment_received',
         probability: 100,
         closeDate: '2024-10-30',
         ownerName: 'Sales Rep A',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        closureStatus: 'won', // Marked as won
     }
 ];
