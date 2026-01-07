@@ -193,11 +193,8 @@ export default function OpportunitiesPage() {
         throw new Error('Customer name is required');
       }
 
-      // Get current user ID for owner_id
+      // Get current user ID for owner_id (optional - RLS disabled)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
 
       const payload = {
         topic: opportunityData.topic.trim(),
@@ -213,7 +210,7 @@ export default function OpportunitiesPage() {
         product_details: opportunityData.productDetails ? JSON.stringify(opportunityData.productDetails) : null,
         notes: opportunityData.notes || null,
         destination_id: opportunityData.destinationId || null,
-        owner_id: user.id, // Set owner for RLS
+        owner_id: user?.id || null, // Set owner if available
       };
 
       console.log('Payload to save:', payload);
