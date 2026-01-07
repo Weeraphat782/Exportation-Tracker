@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, FileText, Edit, Upload } from 'lucide-react';
@@ -42,7 +42,16 @@ const formatNumber = (num: number | string | undefined | null) => {
   return parsedNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// Wrapper component to handle Suspense
 export default function QuotationPreviewPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>}>
+      <QuotationPreviewContent />
+    </Suspense>
+  );
+}
+
+function QuotationPreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [quotationData, setQuotationData] = useState<EnhancedQuotation | null>(null);
