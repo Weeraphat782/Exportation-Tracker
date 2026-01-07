@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, FileText, Edit, Upload } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Quotation } from '@/lib/db';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Quotation, getQuotationById } from '@/lib/db';
 
 // Define interfaces for data coming from sessionStorage
 interface EnhancedQuotation extends Quotation {
@@ -44,57 +44,45 @@ const formatNumber = (num: number | string | undefined | null) => {
 
 export default function QuotationPreviewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [quotationData, setQuotationData] = useState<EnhancedQuotation | null>(null);
   const [loading, setLoading] = useState(true);
   const quotationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Get the quotation data from sessionStorage
-    try {
-      const storedData = sessionStorage.getItem('quotationData');
-      if (storedData) {
-        setQuotationData(JSON.parse(storedData));
-      } else {
-        // Fallback to mock data if no data in sessionStorage
-        const mockQuotation: EnhancedQuotation = {
-          id: '2025-0001',
-          created_at: new Date().toISOString(),
-          user_id: '123', // This should be the actual user ID in production
-          company_id: '456', // This should be a valid company ID
-          contact_person: 'John Doe',
-          contract_no: 'CNT-2025-123',
-          destination_id: '789', // This should be a valid destination ID
-          company_name: 'Company A',
-          customer_name: 'Sample Customer',
-          destination: 'Japan',
-          pallets: [
-            { length: 100, width: 100, height: 100, weight: 150, quantity: 1 },
-            { length: 120, width: 80, height: 90, weight: 120, quantity: 1 },
-          ],
-          delivery_service_required: true,
-          delivery_vehicle_type: '4wheel',
-          additional_charges: [
-            { name: 'Documentation', description: 'Documentation', amount: 1200 },
-            { name: 'Insurance', description: 'Insurance', amount: 3500 },
-          ],
-          notes: 'Please handle with care. Fragile items included.',
-          total_freight_cost: 24500,
-          delivery_cost: 3500,
-          clearance_cost: 0,
-          total_cost: 38050,
-          total_volume_weight: 217,
-          total_actual_weight: 270,
-          chargeable_weight: 270,
-          status: 'sent',
-        };
-        setQuotationData(mockQuotation);
+    const loadQuotation = async () => {
+      try {
+        // Check for ID in URL first
+        const quotationId = searchParams.get('id');
+        
+        if (quotationId) {
+          // Fetch from database
+          console.log('Fetching quotation from database:', quotationId);
+          const dbQuotation = await getQuotationById(quotationId);
+          if (dbQuotation) {
+            setQuotationData(dbQuotation as EnhancedQuotation);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Fallback to sessionStorage
+        const storedData = sessionStorage.getItem('quotationData');
+        if (storedData) {
+          setQuotationData(JSON.parse(storedData));
+        } else {
+          // No data found
+          console.warn('No quotation data found');
+        }
+      } catch (error) {
+        console.error('Error retrieving quotation data:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error retrieving quotation data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    };
+
+    loadQuotation();
+  }, [searchParams]);
 
   const handleSaveAsPdf = () => {
     // ใช้วิธีเดียวกับการพิมพ์ปกติซึ่งจะรักษารูปแบบได้สมบูรณ์
