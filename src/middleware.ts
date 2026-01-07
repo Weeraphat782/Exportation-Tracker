@@ -6,32 +6,20 @@ export async function middleware(request: NextRequest) {
   // Create a response object
   const res = NextResponse.next();
 
-  // Create Supabase client with cookies
-  const supabase = createMiddlewareClient({ req: request, res });
+  try {
+    // Create Supabase client with cookies
+    const supabase = createMiddlewareClient({ req: request, res });
 
-  // Refresh session if expired - required for Server Components
-  // This will also set the cookies properly for RLS to work
-  const { data: { session } } = await supabase.auth.getSession();
+    // Refresh session if expired - required for Server Components
+    // This will also set the cookies properly for RLS to work
+    await supabase.auth.getSession();
 
-  // Log for debugging
-  console.log('Middleware - Session:', session ? `User: ${session.user.email}` : 'No session');
-
-  // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/register', '/reset-password', '/auth/callback', '/simple-login'];
-  const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route));
-
-  // If no session and trying to access protected route, redirect to login
-  if (!session && !isPublicRoute && !request.nextUrl.pathname.startsWith('/company-onboarding')) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+  } catch (error) {
+    console.error('Middleware error:', error);
   }
 
-  // If has session and trying to access login page, redirect to home
-  if (session && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/simple-login')) {
-    return NextResponse.redirect(new URL('/opportunities', request.url));
-  }
-
+  // Allow all requests to pass through
+  // Authentication check is handled by individual pages
   return res;
 }
 
