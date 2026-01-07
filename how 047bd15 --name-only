@@ -1,5 +1,0 @@
-[33m7a22db4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/master[m[33m)[m Force push all changes to master branch - fix settings user filtering
-[33m047bd15[m[33m ([m[1;31morigin/main[m[33m)[m Fix settings data filtering by user authentication - filter companies, destinations, and freight rates by user_id
-[33m10cfb47[m Fix wizard steps: reorganize into 4 steps (Consigner+Shipping, Consignee+ShippedTo, Pallets, Summary) and fix email-booking module build error
-[33ma710c85[m Update Sankey Chart to show Pallet → Box  Product flow and fix type compatibility
-[33m0e2faaa[m Add Email Booking and Packing List Generator to correct sidebar

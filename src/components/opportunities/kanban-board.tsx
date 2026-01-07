@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     DndContext,
     DragOverlay,
@@ -17,6 +17,74 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { KanbanColumn } from './kanban-column';
 import { KanbanCard } from './kanban-card';
+
+// Custom hook for drag-to-scroll like Trello
+function useDragToScroll() {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        // Check if clicked on a card or interactive element
+        const target = e.target as HTMLElement;
+        const isCard = target.closest('[data-kanban-card]');
+        const isButton = target.closest('button');
+        const isLink = target.closest('a');
+        const isInput = target.closest('input');
+        
+        // Only activate drag-to-scroll when NOT clicking on cards or buttons
+        if (!isCard && !isButton && !isLink && !isInput) {
+            setIsDragging(true);
+            setStartX(e.pageX - (containerRef.current?.offsetLeft || 0));
+            setScrollLeft(containerRef.current?.scrollLeft || 0);
+            e.preventDefault();
+        }
+    }, []);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - (containerRef.current?.offsetLeft || 0);
+        const walk = (x - startX) * 2; // Scroll speed multiplier
+        if (containerRef.current) {
+            containerRef.current.scrollLeft = scrollLeft - walk;
+        }
+    }, [isDragging, startX, scrollLeft]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+        if (isDragging) {
+            setIsDragging(false);
+        }
+    }, [isDragging]);
+
+    // Horizontal scroll with mouse wheel (Shift + Scroll OR just scroll when hovering)
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        if (containerRef.current) {
+            // If scrolling vertically but container has horizontal overflow
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                e.preventDefault();
+                containerRef.current.scrollLeft += e.deltaY;
+            }
+        }
+    }, []);
+
+    return {
+        containerRef,
+        isDragging,
+        handlers: {
+            onMouseDown: handleMouseDown,
+            onMouseMove: handleMouseMove,
+            onMouseUp: handleMouseUp,
+            onMouseLeave: handleMouseLeave,
+            onWheel: handleWheel,
+        }
+    };
+}
 
 const STAGES: OpportunityStage[] = [
     'inquiry',
@@ -48,6 +116,9 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
 
     const [activeId, setActiveId] = useState<string | null>(null);
     const [startStage, setStartStage] = useState<OpportunityStage | null>(null);
+
+    // Drag to scroll like Trello
+    const { containerRef, isDragging, handlers } = useDragToScroll();
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -162,18 +233,25 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
         >
-            <div className="flex h-full gap-4 overflow-x-auto pb-4">
-                {STAGES.map((stage) => (
-                    <KanbanColumn
-                        key={stage}
-                        stage={stage}
-                        opportunities={opportunities.filter((o) => o.stage === stage)}
-                        onEdit={onEditOpportunity}
-                        onDelete={onDeleteOpportunity}
-                        onWinCase={onWinCase}
-                        onLoseCase={onLoseCase}
-                    />
-                ))}
+            <div 
+                ref={containerRef}
+                className={`kanban-scroll-container flex h-full gap-4 overflow-x-auto pb-4 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+                {...handlers}
+            >
+                <div className="kanban-scroll-area flex gap-4 min-w-max px-1">
+                    {STAGES.map((stage) => (
+                        <KanbanColumn
+                            key={stage}
+                            stage={stage}
+                            opportunities={opportunities.filter((o) => o.stage === stage)}
+                            onEdit={onEditOpportunity}
+                            onDelete={onDeleteOpportunity}
+                            onWinCase={onWinCase}
+                            onLoseCase={onLoseCase}
+                        />
+                    ))}
+                </div>
             </div>
 
             <DragOverlay>

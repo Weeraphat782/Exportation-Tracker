@@ -79,7 +79,9 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
     >
-      <Card className={`premium-shadow-hover transition-all duration-300 ${
+      <Card 
+        data-kanban-card
+        className={`premium-shadow-hover transition-all duration-300 ${
         opportunity.closureStatus === 'won' 
           ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30' 
           : opportunity.closureStatus === 'lost' 

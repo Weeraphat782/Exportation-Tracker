@@ -27,3 +27,4 @@ COMMENT ON COLUMN opportunities.closure_status IS 'Closure status of the opportu
 COMMENT ON COLUMN opportunities.closure_date IS 'Date when the opportunity was closed (won or lost)';
 COMMENT ON COLUMN opportunities.closure_reason IS 'Reason for closure or notes about the outcome';
 
+

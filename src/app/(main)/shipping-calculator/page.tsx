@@ -833,7 +833,7 @@ export default function ShippingCalculatorPage() {
                 <Button
                   onClick={handleSaveShippingDate}
                   disabled={isUpdating || !selectedShippingDate}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-[#7CB342] hover:bg-[#689F38]"
                 >
                   {isUpdating ? 'Saving...' : 'Assign Date'}
                 </Button>

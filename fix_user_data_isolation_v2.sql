@@ -120,3 +120,4 @@ CREATE POLICY "Users can delete own companies" ON public.companies
 -- FROM pg_policies 
 -- WHERE tablename IN ('opportunities', 'quotations', 'companies');
 
+
