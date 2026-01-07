@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
@@ -88,13 +89,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M23 14H18V9H14V14H9V18H14V23H18V18H23V14Z" fill="white"/>
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold">Exportation Tracker</h1>
-          <p className="text-sm text-slate-500">Login to your account</p>
+          <Image src="/logo.png" alt="Cantrak" width={180} height={56} className="h-14 w-auto" />
+          <span className="text-lg font-medium text-gray-500 italic mt-1">For Export</span>
+          <p className="text-sm text-slate-400 mt-2">Login to your account</p>
         </div>
         
         <Card>
