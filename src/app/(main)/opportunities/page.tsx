@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, PlusCircle, LayoutGrid, List } from 'lucide-react';
 import { OpportunityDialog } from '@/components/opportunities/new-opportunity-dialog';
 import { Opportunity, OpportunityStage } from '@/types/opportunity';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { getCompanies } from '@/lib/db';
 import {
@@ -27,7 +27,6 @@ type ViewMode = 'kanban' | 'list';
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
 
   const fetchOpportunities = useCallback(async () => {
     setLoading(true);
@@ -124,7 +123,7 @@ export default function OpportunitiesPage() {
       setOpportunities(mapped);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchOpportunities();
@@ -145,7 +144,7 @@ export default function OpportunitiesPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchOpportunities]);
+  }, [fetchOpportunities]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
