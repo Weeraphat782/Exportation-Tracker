@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
@@ -17,6 +17,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+
+// Column definitions
+const ALL_COLUMNS = [
+  { id: 'date', label: 'Date', default: true },
+  { id: 'id', label: 'ID', default: true },
+  { id: 'company', label: 'Company', default: true },
+  { id: 'customer', label: 'Customer', default: true },
+  { id: 'destination', label: 'Destination', default: true },
+  { id: 'internal_remark', label: 'Internal Remark', default: false },
+  { id: 'status', label: 'Status', default: true },
+  { id: 'net_weight', label: 'Net Weight', default: true },
+  { id: 'shipping_date', label: 'Shipping Date', default: true },
+  { id: 'total_cost', label: 'Total Cost', default: true },
+] as const;
+
+type ColumnId = typeof ALL_COLUMNS[number]['id'];
+
+interface ColumnPreset {
+  id: string;
+  name: string;
+  columns: ColumnId[];
+}
+
+const DEFAULT_VISIBLE_COLUMNS: ColumnId[] = ALL_COLUMNS.filter(c => c.default).map(c => c.id);
 
 export default function ShippingCalculatorPage() {
   const router = useRouter();
@@ -31,6 +57,183 @@ export default function ShippingCalculatorPage() {
   const [isShippingDateDialogOpen, setIsShippingDateDialogOpen] = useState(false);
   const [selectedShippingDate, setSelectedShippingDate] = useState('');
   const [quotationForShipping, setQuotationForShipping] = useState<string>('');
+  
+  // Column visibility and presets
+  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(DEFAULT_VISIBLE_COLUMNS);
+  const [columnPresets, setColumnPresets] = useState<ColumnPreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [newPresetName, setNewPresetName] = useState('');
+  const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
+
+  // Load column presets from Supabase
+  useEffect(() => {
+    async function loadPresets() {
+      try {
+        // Get user ID
+        let userId = '';
+        const userString = localStorage.getItem('user');
+        if (userString) {
+          const userData = JSON.parse(userString);
+          userId = userData.id;
+        }
+        
+        if (!userId) return;
+        
+        // Load presets from Supabase
+        const { data, error } = await supabase
+          .from('column_presets')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.error('Error loading presets:', error);
+          return;
+        }
+        
+        if (data) {
+          const presets: ColumnPreset[] = data.map(p => ({
+            id: p.id,
+            name: p.name,
+            columns: p.columns as ColumnId[]
+          }));
+          setColumnPresets(presets);
+        }
+      } catch (e) {
+        console.error('Error loading column presets:', e);
+      }
+    }
+    
+    // Load visible columns from localStorage (for quick access)
+    const savedColumns = localStorage.getItem('visibleColumns');
+    if (savedColumns) {
+      try {
+        const parsed = JSON.parse(savedColumns);
+        setVisibleColumns(parsed);
+      } catch (e) {
+        console.error('Error loading visible columns:', e);
+      }
+    }
+    
+    const savedActivePreset = localStorage.getItem('activePresetId');
+    if (savedActivePreset) {
+      setActivePresetId(savedActivePreset);
+    }
+    
+    loadPresets();
+  }, []);
+
+  // Save visible columns to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('visibleColumns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  // Column management functions
+  const toggleColumn = (columnId: ColumnId) => {
+    setVisibleColumns(prev => {
+      if (prev.includes(columnId)) {
+        return prev.filter(c => c !== columnId);
+      } else {
+        // Add column in correct order
+        const orderedColumns = ALL_COLUMNS.map(c => c.id).filter(
+          id => prev.includes(id) || id === columnId
+        );
+        return orderedColumns as ColumnId[];
+      }
+    });
+    setActivePresetId(null); // Clear active preset when manually changing columns
+  };
+
+  const savePreset = async () => {
+    if (!newPresetName.trim()) return;
+    
+    try {
+      // Get user ID
+      let userId = '';
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        const userData = JSON.parse(userString);
+        userId = userData.id;
+      }
+      
+      if (!userId) {
+        toast.error('User not authenticated');
+        return;
+      }
+      
+      // Save to Supabase
+      const { data, error } = await supabase
+        .from('column_presets')
+        .insert({
+          user_id: userId,
+          name: newPresetName.trim(),
+          columns: visibleColumns
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving preset:', error);
+        toast.error('Failed to save preset');
+        return;
+      }
+      
+      const newPreset: ColumnPreset = {
+        id: data.id,
+        name: data.name,
+        columns: data.columns as ColumnId[]
+      };
+      
+      setColumnPresets(prev => [...prev, newPreset]);
+      setActivePresetId(newPreset.id);
+      localStorage.setItem('activePresetId', newPreset.id);
+      setNewPresetName('');
+      toast.success('Preset Saved', { description: `"${newPreset.name}" has been saved.` });
+    } catch (e) {
+      console.error('Error saving preset:', e);
+      toast.error('Failed to save preset');
+    }
+  };
+
+  const loadPreset = (preset: ColumnPreset) => {
+    setVisibleColumns(preset.columns);
+    setActivePresetId(preset.id);
+    localStorage.setItem('activePresetId', preset.id);
+    toast.success('Preset Loaded', { description: `"${preset.name}" applied.` });
+  };
+
+  const deletePreset = async (presetId: string) => {
+    try {
+      const { error } = await supabase
+        .from('column_presets')
+        .delete()
+        .eq('id', presetId);
+      
+      if (error) {
+        console.error('Error deleting preset:', error);
+        toast.error('Failed to delete preset');
+        return;
+      }
+      
+      setColumnPresets(prev => prev.filter(p => p.id !== presetId));
+      if (activePresetId === presetId) {
+        setActivePresetId(null);
+        localStorage.removeItem('activePresetId');
+      }
+      toast.success('Preset Deleted');
+    } catch (e) {
+      console.error('Error deleting preset:', e);
+      toast.error('Failed to delete preset');
+    }
+  };
+
+  const resetToDefault = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    setActivePresetId(null);
+    localStorage.removeItem('activePresetId');
+  };
+
+  const isColumnVisible = (columnId: ColumnId) => visibleColumns.includes(columnId);
 
   // First useEffect - only for auth checking
   useEffect(() => {
@@ -485,81 +688,89 @@ export default function ShippingCalculatorPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[90px] text-xs sm:text-sm">Date</TableHead>
-              <TableHead className="min-w-[80px] text-xs sm:text-sm">ID</TableHead>
-              <TableHead className="min-w-[120px] text-xs sm:text-sm">Company</TableHead>
-              <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>
-              <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>
-              <TableHead className="min-w-[120px] text-xs sm:text-sm">Internal Remark</TableHead>
-              <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>
-              <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>
-              <TableHead className="min-w-[100px] text-xs sm:text-sm">Shipping Date</TableHead>
-              <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>
+              {isColumnVisible('date') && <TableHead className="min-w-[90px] text-xs sm:text-sm">Date</TableHead>}
+              {isColumnVisible('id') && <TableHead className="min-w-[80px] text-xs sm:text-sm">ID</TableHead>}
+              {isColumnVisible('company') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Company</TableHead>}
+              {isColumnVisible('customer') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>}
+              {isColumnVisible('destination') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>}
+              {isColumnVisible('internal_remark') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Internal Remark</TableHead>}
+              {isColumnVisible('status') && <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>}
+              {isColumnVisible('net_weight') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>}
+              {isColumnVisible('shipping_date') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Shipping Date</TableHead>}
+              {isColumnVisible('total_cost') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>}
               <TableHead className="min-w-[140px] text-right text-xs sm:text-sm">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {quotationsList.map((quotation) => (
               <TableRow key={quotation.id}>
-                <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>
-                <TableCell className="text-xs sm:text-sm font-mono">{quotation.id}</TableCell>
-                <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>
-                <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>
-                <TableCell className="text-xs sm:text-sm">{quotation.destination}</TableCell>
-                <TableCell className="text-xs sm:text-sm italic text-blue-600 max-w-[150px] truncate" title={quotation.internal_remark || ''}>
-                  {quotation.internal_remark || '-'}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
-                    {getStatusText(quotation.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs sm:text-sm">
-                  {(() => {
-                    // Use stored total_actual_weight if available
-                    if (quotation.total_actual_weight) {
-                      return `${quotation.total_actual_weight} kg`;
-                    }
+                {isColumnVisible('date') && <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>}
+                {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.id}</TableCell>}
+                {isColumnVisible('company') && <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>}
+                {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
+                {isColumnVisible('destination') && <TableCell className="text-xs sm:text-sm">{quotation.destination}</TableCell>}
+                {isColumnVisible('internal_remark') && (
+                  <TableCell className="text-xs sm:text-sm italic text-blue-600 max-w-[150px] truncate" title={quotation.internal_remark || ''}>
+                    {quotation.internal_remark || '-'}
+                  </TableCell>
+                )}
+                {isColumnVisible('status') && (
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
+                      {getStatusText(quotation.status)}
+                    </Badge>
+                  </TableCell>
+                )}
+                {isColumnVisible('net_weight') && (
+                  <TableCell className="text-xs sm:text-sm">
+                    {(() => {
+                      // Use stored total_actual_weight if available
+                      if (quotation.total_actual_weight) {
+                        return `${quotation.total_actual_weight} kg`;
+                      }
 
-                    // Calculate from pallets if no stored value
-                    if (quotation.pallets && quotation.pallets.length > 0) {
-                      const calculatedWeight = quotation.pallets.reduce((total, pallet) => {
-                        const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
-                        const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-                        return total + (weight * quantity);
-                      }, 0);
-                      return calculatedWeight > 0 ? `${calculatedWeight} kg` : '-';
-                    }
+                      // Calculate from pallets if no stored value
+                      if (quotation.pallets && quotation.pallets.length > 0) {
+                        const calculatedWeight = quotation.pallets.reduce((total, pallet) => {
+                          const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
+                          const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
+                          return total + (weight * quantity);
+                        }, 0);
+                        return calculatedWeight > 0 ? `${calculatedWeight} kg` : '-';
+                      }
 
-                    return '-';
-                  })()}
-                </TableCell>
-                <TableCell className="text-xs sm:text-sm">
-                  {quotation.shipping_date ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenShippingDateDialog(quotation.id)}
-                      className="h-auto p-1 flex items-center gap-2 text-green-700 hover:text-green-800 hover:bg-green-50"
-                    >
-                      <CalendarDays className="h-3 w-3" />
-                      <span className="text-xs">
-                        {formatDate(quotation.shipping_date)}
-                      </span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenShippingDateDialog(quotation.id)}
-                      className="h-6 text-xs px-2 py-1"
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      Assign
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>
+                      return '-';
+                    })()}
+                  </TableCell>
+                )}
+                {isColumnVisible('shipping_date') && (
+                  <TableCell className="text-xs sm:text-sm">
+                    {quotation.shipping_date ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenShippingDateDialog(quotation.id)}
+                        className="h-auto p-1 flex items-center gap-2 text-green-700 hover:text-green-800 hover:bg-green-50"
+                      >
+                        <CalendarDays className="h-3 w-3" />
+                        <span className="text-xs">
+                          {formatDate(quotation.shipping_date)}
+                        </span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenShippingDateDialog(quotation.id)}
+                        className="h-6 text-xs px-2 py-1"
+                      >
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Assign
+                      </Button>
+                    )}
+                  </TableCell>
+                )}
+                {isColumnVisible('total_cost') && <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>}
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1 sm:gap-2">
                     {/* View Quotation Button */}
@@ -703,7 +914,109 @@ export default function ShippingCalculatorPage() {
               <CardTitle className="text-lg sm:text-xl">Quotations Management</CardTitle>
               <CardDescription className="text-sm">View and manage your shipping quotations by status</CardDescription>
             </div>
+            
+            {/* Column Settings */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  Columns
+                  {activePresetId && columnPresets.find(p => p.id === activePresetId) && (
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                      {columnPresets.find(p => p.id === activePresetId)?.name}
+                    </Badge>
+                  )}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72" align="end">
+                <div className="space-y-4">
+                  <div className="font-medium text-sm">Show/Hide Columns</div>
+                  
+                  {/* Column Checkboxes */}
+                  <div className="space-y-2">
+                    {ALL_COLUMNS.map((column) => (
+                      <div key={column.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`col-${column.id}`}
+                          checked={isColumnVisible(column.id)}
+                          onCheckedChange={() => toggleColumn(column.id)}
+                        />
+                        <label
+                          htmlFor={`col-${column.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {column.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="border-t pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Presets</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetToDefault}
+                        className="h-7 text-xs"
+                      >
+                        Reset Default
+                      </Button>
+                    </div>
+                    
+                    {/* Saved Presets */}
+                    {columnPresets.length > 0 && (
+                      <div className="space-y-1 mb-3">
+                        {columnPresets.map((preset) => (
+                          <div
+                            key={preset.id}
+                            className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 ${
+                              activePresetId === preset.id ? 'bg-green-50 border border-green-200' : ''
+                            }`}
+                            onClick={() => loadPreset(preset)}
+                          >
+                            <span className="truncate">{preset.name}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-red-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deletePreset(preset.id);
+                              }}
+                            >
+                              <X className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Save New Preset */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Preset name..."
+                        value={newPresetName}
+                        onChange={(e) => setNewPresetName(e.target.value)}
+                        className="h-8 text-sm"
+                        onKeyDown={(e) => e.key === 'Enter' && savePreset()}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={savePreset}
+                        disabled={!newPresetName.trim()}
+                        className="h-8 bg-[#7CB342] hover:bg-[#689F38]"
+                      >
+                        <Save className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
+          
           {/* Search Input */}
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
