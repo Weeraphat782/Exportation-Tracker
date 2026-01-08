@@ -63,7 +63,6 @@ export default function ShippingCalculatorPage() {
   const [columnPresets, setColumnPresets] = useState<ColumnPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [newPresetName, setNewPresetName] = useState('');
-  const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
 
   // Load column presets from Supabase
   useEffect(() => {

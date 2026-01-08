@@ -28,3 +28,4 @@ COMMENT ON COLUMN opportunities.closure_date IS 'Date when the opportunity was c
 COMMENT ON COLUMN opportunities.closure_reason IS 'Reason for closure or notes about the outcome';
 
 
+

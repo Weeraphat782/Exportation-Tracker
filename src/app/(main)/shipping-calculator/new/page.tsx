@@ -41,41 +41,54 @@ import { toast } from 'sonner';
 // import Link from 'next/link'; // Removed unused import
 
 // --- Pallet Schema ---
+// Relaxed - allow 0 values for all fields
 const palletSchema = z.object({
-    length: z.number().min(0, { message: 'Must be 0 or positive' }),
-    width: z.number().min(0, { message: 'Must be 0 or positive' }),
-    height: z.number().min(0, { message: 'Must be 0 or positive' }),
-    weight: z.number().min(0, { message: 'Must be 0 or positive' }),
-    quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }),
+    length: z.number().min(0),
+    width: z.number().min(0),
+    height: z.number().min(0),
+    weight: z.number().min(0),
+    quantity: z.number().int().min(1, { message: 'Quantity must be at least 1' }), // Keep quantity >= 1
     overriddenRate: z.number().min(0).optional(),
 });
 
 // --- Additional Charge Schema ---
 const additionalChargeSchema = z.object({
-    name: z.string().min(1, { message: 'Charge name is required' }),
-    description: z.string().min(1, { message: 'Description is required' }),
+    name: z.string(),
+    description: z.string(),
     amount: z.number().min(0, { message: 'Amount must be 0 or greater' }),
     productId: z.string().optional(), // Track which product this charge belongs to
-});
+}).refine(
+    (data) => {
+        // If any field is filled, all fields must be filled
+        const hasAnyValue = data.name !== '' || data.description !== '' || data.amount > 0;
+        if (hasAnyValue) {
+            return data.name !== '' && data.description !== '';
+        }
+        return true; // Allow all empty
+    },
+    {
+        message: 'If adding a charge, both name and description are required',
+        path: ['name'], // Show error on name field
+    }
+);
 
 // --- Quotation Form Schema ---
-// Ensure this schema matches the QuotationFormValues type below
-// Fields managed by useForm defaults don't need .optional() or .default() here
+// Relaxed validation - most fields are optional for flexibility
 const quotationFormSchema = z.object({
-    companyId: z.string().min(1, { message: 'Company is required' }),
-    customerName: z.string().min(1, { message: 'Customer name is required' }),
-    contactPerson: z.string().optional(), // Made optional since it may not be provided from Opportunity
-    contractNo: z.string().optional(), // Still optional
-    destinationId: z.string().min(1, { message: 'Destination is required' }),
-    pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }),
-    deliveryServiceRequired: z.boolean(), // Default handled by useForm
-    deliveryVehicleType: z.enum(['4wheel', '6wheel']), // Default handled by useForm
-    clearanceCost: z.number().min(0, { message: 'Clearance cost must be 0 or greater' }).optional(), // Added clearance cost field
-    additionalCharges: z.array(additionalChargeSchema), // Default handled by useForm
-    notes: z.string().optional(), // Still optional
-    internalRemark: z.string().optional(), // Added for staff internal notes
-    opportunityId: z.string().optional(), // Added for linking
-    productId: z.string().optional(), // Added for Product Master auto-fill
+    companyId: z.string().optional(), // Optional - can be filled later
+    customerName: z.string().optional(), // Optional - can be filled later
+    contactPerson: z.string().optional(),
+    contractNo: z.string().optional(),
+    destinationId: z.string().optional(), // Optional - needed for cost calculation but can save draft without it
+    pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }), // Keep at least 1 pallet
+    deliveryServiceRequired: z.boolean(),
+    deliveryVehicleType: z.enum(['4wheel', '6wheel']).optional(), // Optional - only needed if delivery service is required
+    clearanceCost: z.number().min(0, { message: 'Clearance cost must be 0 or greater' }).optional(),
+    additionalCharges: z.array(additionalChargeSchema),
+    notes: z.string().optional(),
+    internalRemark: z.string().optional(),
+    opportunityId: z.string().optional(),
+    productId: z.string().optional(),
 });
 
 // Define the type based on the schema
@@ -481,8 +494,8 @@ function calculateTotalFreightCost(
             return acc + freightCost;
         }, 0);
     } else {
-        // Fallback calculation if proper rates aren't available
-        totalFreightCost = totalChargeableWeight * 50; // Example rate per kg
+        // No destination or rates - freight cost is 0 (draft mode)
+        totalFreightCost = 0;
     }
 
     // Use provided clearance cost or default to 0 (no clearance cost)
@@ -576,8 +589,8 @@ function ShippingCalculatorPageContent() {
             destinationId: paramDestinationId || '', // Set default
             pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
             deliveryServiceRequired: false,
-            deliveryVehicleType: (paramVehicleType as '4wheel' | '6wheel') || '4wheel',
-            clearanceCost: 5350,
+            deliveryVehicleType: paramVehicleType as '4wheel' | '6wheel' | undefined, // Don't set default - let user choose if needed
+            clearanceCost: 0, // Default to 0, user can add via button
             additionalCharges: [{ name: '', description: '', amount: 0 }],
             notes: paramNotes || '',
             opportunityId: paramOpportunityId || '',
@@ -593,8 +606,7 @@ function ShippingCalculatorPageContent() {
         getValues,
         watch,
         reset,
-        trigger, // Added trigger for manual validation
-        formState: { errors, isValid /*, isDirty*/ }
+        formState: { errors /*, isValid, isDirty*/ }
     } = form;
 
     // Field Arrays
@@ -792,7 +804,7 @@ function ShippingCalculatorPageContent() {
                                 }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
-                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
                             clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0, // Load clearance cost from DB
                             additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
                                 ? typedExistingQuotation.additional_charges.map(c => ({
@@ -804,6 +816,7 @@ function ShippingCalculatorPageContent() {
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
                             productId: typedExistingQuotation.product_id || '',
+                            opportunityId: typedExistingQuotation.opportunity_id || '', // IMPORTANT: Preserve opportunity link
                         });
 
                         // Set the ref to prevent initial sync if products are already loaded
@@ -893,7 +906,7 @@ function ShippingCalculatorPageContent() {
                                 }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1, overriddenRate: 0 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
-                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
+                            deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
                             clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
                             additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
                                 ? typedExistingQuotation.additional_charges.map(c => ({
@@ -904,6 +917,7 @@ function ShippingCalculatorPageContent() {
                                 }))
                                 : [{ name: '', description: '', amount: 0 }],
                             notes: typedExistingQuotation.notes || '',
+                            opportunityId: typedExistingQuotation.opportunity_id || '', // Clone also gets the opportunity link (optional)
                         });
 
                         // Pre-set product ID ref for clone? Actually clone doesn't copy product_id often but let's be safe
@@ -976,8 +990,8 @@ function ShippingCalculatorPageContent() {
                         destinationId: paramDestinationId || '',
                         pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                         deliveryServiceRequired: false,
-                        deliveryVehicleType: (paramVehicleType as '4wheel' | '6wheel') || '4wheel',
-                        clearanceCost: 5350, // Default clearance cost
+                        deliveryVehicleType: paramVehicleType as '4wheel' | '6wheel' | undefined,
+                        clearanceCost: 0, // Default to 0, user can add via button
                         additionalCharges: [{ name: '', description: '', amount: 0 }],
                         notes: paramNotes || '',
                         opportunityId: paramOpportunityId || '',
@@ -1018,12 +1032,9 @@ function ShippingCalculatorPageContent() {
             // Always force calculation when pallet fields change
             const isPalletChange = name && name.startsWith('pallets');
 
-            // For complete calculation including costs, we need a destination
-            if (!destinationId) {
-                console.log("Skipping total cost calculation - no destination selected");
-                return;
-            }
-
+            // Allow calculation even without destination (freight cost will be 0)
+            // This allows saving draft quotations without all information
+            
             // Skip if nothing relevant has changed and it's not a direct pallet change
             if (
                 !isPalletChange &&
@@ -1092,24 +1103,27 @@ function ShippingCalculatorPageContent() {
             quantity: p.quantity,
             overridden_rate: p.overriddenRate
         }));
-        const convertedAdditionalCharges = formData.additionalCharges;
+        // Filter out empty additional charges (where name and description are empty)
+        const convertedAdditionalCharges = formData.additionalCharges.filter(
+            charge => charge.name !== '' || charge.description !== '' || charge.amount > 0
+        );
 
         // Construct the full data object matching NewQuotationData with snake_case field names
         const dataForDB: NewQuotationData = {
             user_id: userId,
-            company_id: formData.companyId,
-            customer_name: formData.customerName,
+            company_id: formData.companyId || '',
+            customer_name: formData.customerName || '',
             contact_person: formData.contactPerson || '',
             contract_no: formData.contractNo || null,
-            destination_id: formData.destinationId,
+            destination_id: formData.destinationId || '',
             pallets: convertedPallets,
             delivery_service_required: formData.deliveryServiceRequired,
             delivery_vehicle_type: formData.deliveryVehicleType,
-            clearance_cost: formData.clearanceCost, // Use formData
+            clearance_cost: formData.clearanceCost || 0,
             additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
-            internal_remark: formData.internalRemark || null, // Map internalRemark -> internal_remark
-            opportunity_id: formData.opportunityId || null, // Added field
+            internal_remark: formData.internalRemark || null,
+            opportunity_id: formData.opportunityId || null,
             product_id: formData.productId ? formData.productId.split(',')[0] : null,
             total_cost: calculationResult.finalTotalCost,
             total_freight_cost: calculationResult.totalFreightCost,
@@ -1119,7 +1133,7 @@ function ShippingCalculatorPageContent() {
             chargeable_weight: calculationResult.totalChargeableWeight,
             // Preserve existing status if in edit mode, otherwise set to 'draft' by default
             status: isEditMode && existingQuotation ? existingQuotation.status : 'draft',
-            company_name: selectedCompany?.name || formData.companyId,
+            company_name: selectedCompany?.name || formData.companyId || '',
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
                 : formData.destinationId
@@ -1130,13 +1144,7 @@ function ShippingCalculatorPageContent() {
     // --- Save/Update Quotation Logic ---
     const handleSave = async () => {
         try {
-            // First validate the form
-            const isValidSave = await trigger(); // Manually trigger validation
-            if (!isValidSave) {
-                toast.error("Validation Error", { description: "Please check the form for errors before saving." });
-                return;
-            }
-
+            // Skip validation - allow saving as draft with any data
             setIsSaving(true);
             const loadingToastId = toast.loading(isEditMode ? "Updating Quotation..." : "Saving Quotation...");
 
@@ -1554,8 +1562,12 @@ function ShippingCalculatorPageContent() {
                                                         step="0.01"
                                                         placeholder="Enter clearance cost (0 for no clearance)"
                                                         {...field}
-                                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                                        value={field.value || ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            // Allow empty string, otherwise parse as number
+                                                            field.onChange(val === '' ? 0 : parseFloat(val) || 0);
+                                                        }}
+                                                        value={field.value ?? ''}
                                                     />
                                                 </FormControl>
                                                 {errors.clearanceCost && (
@@ -1672,7 +1684,7 @@ function ShippingCalculatorPageContent() {
                     <Button
                         type="button"
                         onClick={handleSave}
-                        disabled={isSaving || !isValid}
+                        disabled={isSaving}
                         className="h-11 px-8 bg-blue-700 hover:bg-blue-800 text-white font-extrabold shadow-lg hover:shadow-xl transition-all rounded-xl min-w-[180px]"
                     >
                         {isSaving ? (

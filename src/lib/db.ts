@@ -97,7 +97,7 @@ export interface Quotation {
   shipping_date?: string | null;
   pallets: Pallet[]; // Use defined type
   delivery_service_required: boolean;
-  delivery_vehicle_type: '4wheel' | '6wheel';
+  delivery_vehicle_type?: '4wheel' | '6wheel';
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;

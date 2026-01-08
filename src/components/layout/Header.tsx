@@ -10,7 +10,7 @@ const Header = () => {
   const { toggleSidebar, isMobile, isSidebarCollapsed } = useSidebar();
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-5 shadow-sm">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-5 shadow-sm print:hidden">
       {/* Left Section - Logo */}
       <div className="flex items-center gap-3">
         {/* Mobile Menu Button */}

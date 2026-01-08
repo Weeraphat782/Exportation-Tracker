@@ -121,3 +121,4 @@ CREATE POLICY "Users can delete own companies" ON public.companies
 -- WHERE tablename IN ('opportunities', 'quotations', 'companies');
 
 
+

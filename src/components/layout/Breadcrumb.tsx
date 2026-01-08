@@ -22,7 +22,7 @@ const Breadcrumb = () => {
   if (items.length === 0) return null;
 
   return (
-    <nav className="flex items-center text-sm text-gray-500 mb-4">
+    <nav className="flex items-center text-sm text-gray-500 mb-4 print:hidden">
       <Link href="/dashboard" className="flex items-center hover:text-gray-700 transition-colors">
         <Home className="h-4 w-4" />
       </Link>
@@ -43,4 +43,5 @@ const Breadcrumb = () => {
 };
 
 export default Breadcrumb;
+
 
