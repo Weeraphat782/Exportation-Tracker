@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Edit, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { QuotationDocuments } from '@/components/quotations/quotation-documents';
 
 interface OpportunityDetail extends Omit<Opportunity, 'quotationIds'> {
     description?: string;
@@ -261,7 +262,10 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex justify-end gap-2">
+                                                    {/* Attached Documents */}
+                                                    <QuotationDocuments quotationId={quote.id} />
+
+                                                    <div className="flex justify-end gap-2 mt-4">
                                                         <Link href={`/shipping-calculator/new?id=${quote.id}`}>
                                                             <Button variant="outline" size="sm" className="h-8 text-xs">
                                                                 <Edit className="h-3.5 w-3.5 mr-1.5" />

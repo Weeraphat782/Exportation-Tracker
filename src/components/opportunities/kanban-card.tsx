@@ -116,6 +116,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                   variant="ghost"
                   className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full"
                   onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-4 w-4 text-gray-500" />
                 </Button>
@@ -151,6 +152,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     if (onEdit) onEdit(opportunity);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
@@ -227,6 +229,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                       size="sm"
                       className="flex-1 h-7 text-xs bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
                       onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <FileText className="mr-1 h-3 w-3" />
                       {quotationCount} Quotation{quotationCount > 1 ? 's' : ''}
