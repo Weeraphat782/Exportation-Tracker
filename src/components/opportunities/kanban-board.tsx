@@ -32,7 +32,7 @@ function useDragToScroll() {
         const isButton = target.closest('button');
         const isLink = target.closest('a');
         const isInput = target.closest('input');
-        
+
         // Only activate drag-to-scroll when NOT clicking on cards or buttons
         if (!isCard && !isButton && !isLink && !isInput) {
             setIsDragging(true);
@@ -233,7 +233,7 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
         >
-            <div 
+            <div
                 ref={containerRef}
                 className={`kanban-scroll-container flex h-full gap-4 overflow-x-auto pb-4 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                 style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}

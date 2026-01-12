@@ -1034,7 +1034,7 @@ function ShippingCalculatorPageContent() {
 
             // Allow calculation even without destination (freight cost will be 0)
             // This allows saving draft quotations without all information
-            
+
             // Skip if nothing relevant has changed and it's not a direct pallet change
             if (
                 !isPalletChange &&
@@ -1084,8 +1084,8 @@ function ShippingCalculatorPageContent() {
     // --- Generate Data for DB --- 
     // This function now creates the full data object required for insertion
     // based on the updated NewQuotationData type (which matches the Quotation interface minus id/created_at)
-    const generateQuotationDataForDB = (formData: QuotationFormValues): NewQuotationData | null => {
-        if (!userId || !calculationResult) {
+    const generateQuotationDataForDB = (formData: QuotationFormValues, calcResult: CalculationResult): NewQuotationData | null => {
+        if (!userId || !calcResult) {
             console.error("Cannot generate quotation data: missing user ID or calculation results");
             return null;
         }
@@ -1118,22 +1118,22 @@ function ShippingCalculatorPageContent() {
             destination_id: formData.destinationId || '',
             pallets: convertedPallets,
             delivery_service_required: formData.deliveryServiceRequired,
-            delivery_vehicle_type: formData.deliveryVehicleType,
-            clearance_cost: formData.clearanceCost || 0,
+            delivery_vehicle_type: formData.deliveryVehicleType || '4wheel',
+            clearance_cost: formData.clearanceCost, // Use formData
             additional_charges: convertedAdditionalCharges,
             notes: formData.notes || null,
-            internal_remark: formData.internalRemark || null,
-            opportunity_id: formData.opportunityId || null,
+            internal_remark: formData.internalRemark || null, // Map internalRemark -> internal_remark
+            opportunity_id: formData.opportunityId || null, // Added field
             product_id: formData.productId ? formData.productId.split(',')[0] : null,
-            total_cost: calculationResult.finalTotalCost,
-            total_freight_cost: calculationResult.totalFreightCost,
-            delivery_cost: calculationResult.deliveryCost,
-            total_volume_weight: calculationResult.totalVolumeWeight,
-            total_actual_weight: calculationResult.totalActualWeight,
-            chargeable_weight: calculationResult.totalChargeableWeight,
+            total_cost: calcResult.finalTotalCost,
+            total_freight_cost: calcResult.totalFreightCost,
+            delivery_cost: calcResult.deliveryCost,
+            total_volume_weight: calcResult.totalVolumeWeight,
+            total_actual_weight: calcResult.totalActualWeight,
+            chargeable_weight: calcResult.totalChargeableWeight,
             // Preserve existing status if in edit mode, otherwise set to 'draft' by default
             status: isEditMode && existingQuotation ? existingQuotation.status : 'draft',
-            company_name: selectedCompany?.name || formData.companyId || '',
+            company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
                 : formData.destinationId
@@ -1157,7 +1157,27 @@ function ShippingCalculatorPageContent() {
                 return;
             }
 
-            if (!calculationResult) {
+            const formData = getValues();
+
+            // Perform a fresh calculation to ensure we have the absolute latest data
+            // This fixes the race condition where typing -> save immediately uses stale state
+            const freshCalculationResult = calculateTotalFreightCost(
+                formData.pallets || [],
+                formData.additionalCharges || [],
+                {
+                    clearanceCost: formData.clearanceCost || 0,
+                    deliveryRequired: formData.deliveryServiceRequired,
+                    deliveryType: formData.deliveryVehicleType,
+                    deliveryRates: deliveryRates,
+                    destinationId: formData.destinationId,
+                    freightRates: freightRates
+                }
+            );
+
+            // Also update local state to match (optional but good for consistency UI)
+            setCalculationResult(freshCalculationResult);
+
+            if (!freshCalculationResult) {
                 toast.error("Calculation Error", {
                     id: loadingToastId,
                     description: "Calculation results are missing. Please ensure all required fields are filled."
@@ -1165,14 +1185,12 @@ function ShippingCalculatorPageContent() {
                 return;
             }
 
-            const formData = getValues();
-
             // Log form values to help debug
             console.log("Form values being saved:", formData);
-            console.log("Calculation results:", calculationResult);
+            console.log("Fresh Calculation results:", freshCalculationResult);
 
-            // Use the updated function to get the full data object
-            const quotationDataForDB = generateQuotationDataForDB(formData);
+            // Use the updated function to get the full data object, passing the FRESH result
+            const quotationDataForDB = generateQuotationDataForDB(formData, freshCalculationResult);
 
             if (!quotationDataForDB) {
                 toast.error("Data Preparation Error", {
@@ -1228,19 +1246,19 @@ function ShippingCalculatorPageContent() {
             const previewData = {
                 ...savedQuotation,
                 // Add calculation results that might not be in the DB record
-                totalVolumeWeight: calculationResult.totalVolumeWeight,
-                totalActualWeight: calculationResult.totalActualWeight,
-                chargeableWeight: calculationResult.totalChargeableWeight,
-                totalFreightCost: calculationResult.totalFreightCost,
-                deliveryCost: calculationResult.deliveryCost,
-                totalAdditionalCharges: calculationResult.totalAdditionalCharges,
+                totalVolumeWeight: freshCalculationResult.totalVolumeWeight,
+                totalActualWeight: freshCalculationResult.totalActualWeight,
+                chargeableWeight: freshCalculationResult.totalChargeableWeight,
+                totalFreightCost: freshCalculationResult.totalFreightCost,
+                deliveryCost: freshCalculationResult.deliveryCost,
+                totalAdditionalCharges: freshCalculationResult.totalAdditionalCharges,
                 // Ensure we have good conversion between snake_case and camelCase
                 companyName: savedQuotation.company_name,
                 deliveryVehicleType: savedQuotation.delivery_vehicle_type,
                 deliveryServiceRequired: savedQuotation.delivery_service_required,
                 additionalCharges: savedQuotation.additional_charges,
                 contactPerson: savedQuotation.contact_person,
-                freightRate: (calculationResult.totalFreightCost / calculationResult.totalChargeableWeight) || 0
+                freightRate: (freshCalculationResult.totalFreightCost / (freshCalculationResult.totalChargeableWeight || 1)) || 0
             };
 
             // Store in sessionStorage for preview

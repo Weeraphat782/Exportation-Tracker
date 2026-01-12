@@ -57,12 +57,13 @@ export default function ShippingCalculatorPage() {
   const [isShippingDateDialogOpen, setIsShippingDateDialogOpen] = useState(false);
   const [selectedShippingDate, setSelectedShippingDate] = useState('');
   const [quotationForShipping, setQuotationForShipping] = useState<string>('');
-  
+
   // Column visibility and presets
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(DEFAULT_VISIBLE_COLUMNS);
   const [columnPresets, setColumnPresets] = useState<ColumnPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [newPresetName, setNewPresetName] = useState('');
+
 
   // Load column presets from Supabase
   useEffect(() => {
@@ -75,21 +76,21 @@ export default function ShippingCalculatorPage() {
           const userData = JSON.parse(userString);
           userId = userData.id;
         }
-        
+
         if (!userId) return;
-        
+
         // Load presets from Supabase
         const { data, error } = await supabase
           .from('column_presets')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: true });
-        
+
         if (error) {
           console.error('Error loading presets:', error);
           return;
         }
-        
+
         if (data) {
           const presets: ColumnPreset[] = data.map(p => ({
             id: p.id,
@@ -102,7 +103,7 @@ export default function ShippingCalculatorPage() {
         console.error('Error loading column presets:', e);
       }
     }
-    
+
     // Load visible columns from localStorage (for quick access)
     const savedColumns = localStorage.getItem('visibleColumns');
     if (savedColumns) {
@@ -113,12 +114,12 @@ export default function ShippingCalculatorPage() {
         console.error('Error loading visible columns:', e);
       }
     }
-    
+
     const savedActivePreset = localStorage.getItem('activePresetId');
     if (savedActivePreset) {
       setActivePresetId(savedActivePreset);
     }
-    
+
     loadPresets();
   }, []);
 
@@ -145,7 +146,7 @@ export default function ShippingCalculatorPage() {
 
   const savePreset = async () => {
     if (!newPresetName.trim()) return;
-    
+
     try {
       // Get user ID
       let userId = '';
@@ -154,12 +155,12 @@ export default function ShippingCalculatorPage() {
         const userData = JSON.parse(userString);
         userId = userData.id;
       }
-      
+
       if (!userId) {
         toast.error('User not authenticated');
         return;
       }
-      
+
       // Save to Supabase
       const { data, error } = await supabase
         .from('column_presets')
@@ -170,19 +171,19 @@ export default function ShippingCalculatorPage() {
         })
         .select()
         .single();
-      
+
       if (error) {
         console.error('Error saving preset:', error);
         toast.error('Failed to save preset');
         return;
       }
-      
+
       const newPreset: ColumnPreset = {
         id: data.id,
         name: data.name,
         columns: data.columns as ColumnId[]
       };
-      
+
       setColumnPresets(prev => [...prev, newPreset]);
       setActivePresetId(newPreset.id);
       localStorage.setItem('activePresetId', newPreset.id);
@@ -207,13 +208,13 @@ export default function ShippingCalculatorPage() {
         .from('column_presets')
         .delete()
         .eq('id', presetId);
-      
+
       if (error) {
         console.error('Error deleting preset:', error);
         toast.error('Failed to delete preset');
         return;
       }
-      
+
       setColumnPresets(prev => prev.filter(p => p.id !== presetId));
       if (activePresetId === presetId) {
         setActivePresetId(null);
@@ -913,7 +914,7 @@ export default function ShippingCalculatorPage() {
               <CardTitle className="text-lg sm:text-xl">Quotations Management</CardTitle>
               <CardDescription className="text-sm">View and manage your shipping quotations by status</CardDescription>
             </div>
-            
+
             {/* Column Settings */}
             <Popover>
               <PopoverTrigger asChild>
@@ -931,7 +932,7 @@ export default function ShippingCalculatorPage() {
               <PopoverContent className="w-72" align="end">
                 <div className="space-y-4">
                   <div className="font-medium text-sm">Show/Hide Columns</div>
-                  
+
                   {/* Column Checkboxes */}
                   <div className="space-y-2">
                     {ALL_COLUMNS.map((column) => (
@@ -950,7 +951,7 @@ export default function ShippingCalculatorPage() {
                       </div>
                     ))}
                   </div>
-                  
+
                   <div className="border-t pt-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">Presets</span>
@@ -963,16 +964,15 @@ export default function ShippingCalculatorPage() {
                         Reset Default
                       </Button>
                     </div>
-                    
+
                     {/* Saved Presets */}
                     {columnPresets.length > 0 && (
                       <div className="space-y-1 mb-3">
                         {columnPresets.map((preset) => (
                           <div
                             key={preset.id}
-                            className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 ${
-                              activePresetId === preset.id ? 'bg-green-50 border border-green-200' : ''
-                            }`}
+                            className={`flex items-center justify-between p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 ${activePresetId === preset.id ? 'bg-green-50 border border-green-200' : ''
+                              }`}
                             onClick={() => loadPreset(preset)}
                           >
                             <span className="truncate">{preset.name}</span>
@@ -991,7 +991,7 @@ export default function ShippingCalculatorPage() {
                         ))}
                       </div>
                     )}
-                    
+
                     {/* Save New Preset */}
                     <div className="flex gap-2">
                       <Input
@@ -1015,7 +1015,7 @@ export default function ShippingCalculatorPage() {
               </PopoverContent>
             </Popover>
           </div>
-          
+
           {/* Search Input */}
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

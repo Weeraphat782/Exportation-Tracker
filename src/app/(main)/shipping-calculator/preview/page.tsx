@@ -63,7 +63,7 @@ function QuotationPreviewContent() {
       try {
         // Check for ID in URL first
         const quotationId = searchParams.get('id');
-        
+
         if (quotationId) {
           // Fetch from database
           console.log('Fetching quotation from database:', quotationId);
@@ -114,12 +114,12 @@ function QuotationPreviewContent() {
   }
 
   if (!quotationData) {
-     return (
+    return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <p className="text-red-600">Failed to load quotation data.</p>
         <Link href="/shipping-calculator">
           <Button variant="outline">
-             <ArrowLeft className="h-4 w-4 mr-2" /> Go Back
+            <ArrowLeft className="h-4 w-4 mr-2" /> Go Back
           </Button>
         </Link>
       </div>
@@ -129,7 +129,7 @@ function QuotationPreviewContent() {
   // Calculate weights
   const calculateTotalActualWeight = () => {
     if (!quotationData?.pallets?.length) return 0;
-    
+
     return quotationData.pallets.reduce((total: number, pallet: PalletWithQuantity) => {
       const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
       const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(String(pallet.quantity)) || 1;
@@ -139,13 +139,13 @@ function QuotationPreviewContent() {
 
   const calculateTotalVolumeWeight = () => {
     if (!quotationData?.pallets?.length) return 0;
-    
+
     return quotationData.pallets.reduce((total: number, pallet: PalletWithQuantity) => {
       const length = typeof pallet.length === 'number' ? pallet.length : parseFloat(pallet.length) || 0;
       const width = typeof pallet.width === 'number' ? pallet.width : parseFloat(pallet.width) || 0;
       const height = typeof pallet.height === 'number' ? pallet.height : parseFloat(pallet.height) || 0;
       const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(String(pallet.quantity)) || 1;
-      
+
       return total + ((length * width * height * quantity) / 6000);
     }, 0);
   };
@@ -155,15 +155,15 @@ function QuotationPreviewContent() {
   const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
 
   // ใช้ค่าจาก quotationData แบบ camelCase (จากหน้าคำนวณ) หรือ snake_case (จากฐานข้อมูล)
-  const totalFreightCost = quotationData.totalFreightCost !== undefined ? quotationData.totalFreightCost : 
-                          (quotationData.total_freight_cost !== undefined ? quotationData.total_freight_cost : 0);
-                          
-  const clearanceCost = quotationData.clearanceCost !== undefined ? quotationData.clearanceCost : 
-                        (quotationData.clearance_cost !== undefined ? quotationData.clearance_cost : 0);
-                        
-  const deliveryCost = quotationData.delivery_service_required ? 
-                      (quotationData.deliveryCost !== undefined ? quotationData.deliveryCost : 
-                      (quotationData.delivery_cost !== undefined ? quotationData.delivery_cost : 3500)) : 0;
+  const totalFreightCost = quotationData.totalFreightCost !== undefined ? quotationData.totalFreightCost :
+    (quotationData.total_freight_cost !== undefined ? quotationData.total_freight_cost : 0);
+
+  const clearanceCost = quotationData.clearanceCost !== undefined ? quotationData.clearanceCost :
+    (quotationData.clearance_cost !== undefined ? quotationData.clearance_cost : 0);
+
+  const deliveryCost = quotationData.delivery_service_required ?
+    (quotationData.deliveryCost !== undefined ? quotationData.deliveryCost :
+      (quotationData.delivery_cost !== undefined ? quotationData.delivery_cost : 3500)) : 0;
 
   return (
     <div className="space-y-6">
@@ -242,7 +242,7 @@ function QuotationPreviewContent() {
                 </table>
               </div>
             </div>
-            
+
             <div className="mb-8">
               <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">PALLET INFORMATION</h3>
               <table className="w-full text-sm border-collapse">
@@ -293,7 +293,7 @@ function QuotationPreviewContent() {
                     <td className="py-2">Freight Cost</td>
                     <td className="py-2 text-right">{formatNumber(totalFreightCost)}</td>
                   </tr>
-                  {clearanceCost && clearanceCost > 0 && (
+                  {(clearanceCost || 0) > 0 && (
                     <tr className="border-b">
                       <td className="py-2">Clearance Cost</td>
                       <td className="py-2 text-right">{formatNumber(clearanceCost)}</td>
@@ -339,11 +339,11 @@ function QuotationPreviewContent() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="flex justify-end mt-6 print:hidden">
         <div className="flex gap-2">
           {/* Add Document Upload button */}
-          <Button 
+          <Button
             onClick={() => router.push(`/documents-upload/${quotationData?.id}?company=${encodeURIComponent(quotationData?.company_name || '')}&destination=${encodeURIComponent(quotationData?.destination || '')}`)}
             variant="outline"
             className="h-9"
@@ -351,7 +351,7 @@ function QuotationPreviewContent() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Documents
           </Button>
-          <Button 
+          <Button
             onClick={editQuotation}
             variant="outline"
             className="h-9"
