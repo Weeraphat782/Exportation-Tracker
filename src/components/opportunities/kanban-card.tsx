@@ -77,17 +77,17 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       style={style}
       {...attributes}
       {...listeners}
-      className="cursor-grab active:cursor-grabbing"
+      onClick={() => router.push(`/opportunities/${opportunity.id}`)}
+      className="cursor-pointer active:cursor-grabbing hover:opacity-90 transition-opacity"
     >
-      <Card 
+      <Card
         data-kanban-card
-        className={`premium-shadow-hover transition-all duration-300 ${
-        opportunity.closureStatus === 'won' 
-          ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30' 
-          : opportunity.closureStatus === 'lost' 
+        className={`premium-shadow-hover transition-all duration-300 ${opportunity.closureStatus === 'won'
+          ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30'
+          : opportunity.closureStatus === 'lost'
             ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
             : 'border-none ring-1 ring-slate-100/50'
-      }`}>
+          }`}>
         <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between space-y-0">
           <div className="flex items-center gap-1.5">
             <Badge variant="outline" className={`font-semibold px-2 py-0.5 text-xs rounded-full ${STAGE_COLORS[opportunity.stage]}`}>
@@ -106,7 +106,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             )}
           </div>
           <div className="flex items-center gap-0.5">
-            <div className="p-0.5 text-gray-300">
+            <div className="p-0.5 text-gray-300 cursor-grab" onPointerDown={(e) => e.stopPropagation()}>
               <GripVertical className="h-3.5 w-3.5" />
             </div>
 
@@ -174,7 +174,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
         <CardContent className="p-3 pt-1">
           {/* Company Name - Main Title */}
           <p className="text-sm font-bold text-blue-600 truncate">{opportunity.companyName}</p>
-          
+
           {/* Topic as subtitle */}
           <h4 className="text-xs text-slate-600 line-clamp-1 mb-1">{opportunity.topic}</h4>
 
@@ -246,7 +246,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
+
                 {/* Add New Quotation Button */}
                 <Button
                   variant="outline"
