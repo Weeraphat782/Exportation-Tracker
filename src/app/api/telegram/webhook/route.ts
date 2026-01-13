@@ -164,14 +164,20 @@ export async function POST(request: NextRequest) {
             }
 
             const submittedDocs = (submissions || []) as TelegramSubmission[];
-            const submittedTypesMap = new Map<string, TelegramSubmission>(
-                submittedDocs.map((s) => [s.document_type, s])
+
+            // Group docs by type to support multiple files per type
+            const submittedGroups = new Map<string, TelegramSubmission[]>();
+            submittedDocs.forEach(doc => {
+                const group = submittedGroups.get(doc.document_type) || [];
+                group.push(doc);
+                submittedGroups.set(doc.document_type, group);
+            }
             );
 
             let responseText = `📊 *สถานะเอกสาร:* ${quote?.customer_name || 'N/A'}\n`;
             responseText += `ID: \`${quoteId}\`\n`;
 
-            const progress = Array.from(submittedTypesMap.keys()).filter(t => requiredTypes.includes(t)).length;
+            const progress = submittedGroups.size;
             const total = requiredTypes.length;
             responseText += `ความคืบหน้า: ${progress}/${total} รายการ\n`;
             responseText += `------------------------\n\n`;
@@ -179,9 +185,17 @@ export async function POST(request: NextRequest) {
             DOCUMENT_CATEGORIES.forEach(category => {
                 responseText += `*${category.name}*\n`;
                 category.types.forEach(type => {
-                    const doc = submittedTypesMap.get(type.id);
-                    if (doc) {
-                        responseText += `✅ ${type.name} ([เปิดดู](${doc.file_url}))\n`;
+                    const docs = submittedGroups.get(type.id);
+                    if (docs && docs.length > 0) {
+                        if (docs.length === 1) {
+                            responseText += `✅ ${type.name} ([เปิดดู](${docs[0].file_url}))\n`;
+                        } else {
+                            // Show multiple files if they exist
+                            responseText += `✅ ${type.name} (${docs.length} ไฟล์):\n`;
+                            docs.forEach((d, idx) => {
+                                responseText += `     └ [ไฟล์ที่ ${idx + 1}](${d.file_url})\n`;
+                            });
+                        }
                     } else {
                         responseText += `❌ ${type.name}\n`;
                     }
