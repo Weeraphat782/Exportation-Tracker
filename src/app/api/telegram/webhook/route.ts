@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
 
             responseText += `\nกรุณาอัปโหลดเอกสารที่เหลือผ่านระบบหลักครับ`;
 
-            await sendTelegramMessage(chatId, responseText, 'Markdown');
+            await sendTelegramMessage(chatId, responseText, 'Markdown', true);
             return NextResponse.json({ ok: true });
         }
 
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-async function sendTelegramMessage(chatId: number, text: string, parseMode?: string) {
+async function sendTelegramMessage(chatId: number, text: string, parseMode?: string, disablePreview: boolean = false) {
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
     try {
         const response = await fetch(url, {
@@ -225,7 +225,8 @@ async function sendTelegramMessage(chatId: number, text: string, parseMode?: str
             body: JSON.stringify({
                 chat_id: chatId,
                 text: text,
-                parse_mode: parseMode
+                parse_mode: parseMode,
+                link_preview_options: disablePreview ? { is_disabled: true } : undefined
             })
         });
         if (!response.ok) {
