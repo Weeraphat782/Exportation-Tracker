@@ -7,14 +7,20 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, FileText, Globe, Package, Calendar, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
+import { StageProgressBar } from '@/components/opportunities/stage-progress-bar';
+import { ContactWidget } from '@/components/opportunities/contact-widget';
+import { OpportunityTasks } from '@/components/opportunities/opportunity-tasks';
 
 interface OpportunityDetail extends Omit<Opportunity, 'quotationIds'> {
     description?: string;
     quotations?: Quotation[];
+    contact_person?: string;
+    contact_email?: string;
+    contact_phone?: string;
 }
 
 export default function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +36,13 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                 // Fetch opportunity with linked quotations
                 const { data, error } = await supabase
                     .from('opportunities')
-                    .select('*, quotations(*), destination:destination_id(country, port), opportunity_products(product:products(name))')
+                    .select(`
+                        *, 
+                        quotations(*), 
+                        destination:destination_id(country, port), 
+                        opportunity_products(product:products(name)),
+                        company:company_id(name, contact_person, contact_email, contact_phone)
+                    `)
                     .eq('id', id)
                     .single();
 
@@ -60,6 +72,12 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                         quotations?: Quotation[];
                         opportunity_products?: { product: { name: string } }[];
                         closure_status?: 'won' | 'lost' | null;
+                        company?: {
+                            name: string;
+                            contact_person?: string;
+                            contact_email?: string;
+                            contact_phone?: string;
+                        };
                     }
 
                     const item = data as unknown as RawSupabaseOpportunity;
@@ -74,7 +92,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                         id: item.id,
                         topic: item.topic,
                         customerName: item.customer_name || 'Unknown',
-                        companyName: item.customer_name || 'Unknown',
+                        companyName: item.company?.name || item.customer_name || 'Unknown',
                         companyId: item.company_id || undefined,
                         amount: item.amount,
                         currency: item.currency,
@@ -92,7 +110,10 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                         destinationName,
                         productName: productNames, // Map to string[]
                         quotations: item.quotations || [], // Full quotation objects
-                        closureStatus: item.closure_status || null
+                        closureStatus: item.closure_status || null,
+                        contact_person: item.company?.contact_person,
+                        contact_email: item.company?.contact_email,
+                        contact_phone: item.company?.contact_phone
                     };
 
                     setOpportunity(mapped);
@@ -149,6 +170,11 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
                 </div>
+
+                {/* Stage Progress Bar */}
+                <Card className="shadow-sm border-gray-200 overflow-hidden">
+                    <StageProgressBar currentStage={opportunity.stage} />
+                </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Main Content - Left Column (2/3) */}
@@ -294,36 +320,62 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
 
                     {/* Sidebar Info - Right Column (1/3) */}
                     <div className="space-y-6">
+                        {/* Contact Widget */}
+                        <ContactWidget
+                            companyName={opportunity.companyName}
+                            contactPerson={opportunity.contact_person}
+                            contactEmail={opportunity.contact_email}
+                            contactPhone={opportunity.contact_phone}
+                        />
+
+                        {/* Task Management */}
+                        <OpportunityTasks opportunityId={opportunity.id} />
+
                         <Card className="shadow-sm border-gray-200">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Details</CardTitle>
+                            <CardHeader className="pb-3 border-b border-gray-50">
+                                <CardTitle className="text-sm font-semibold">Deal Overview</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4 text-sm">
-                                <div>
-                                    <div className="text-gray-500 mb-1">Total Amount</div>
-                                    <div className="text-2xl font-bold text-gray-900">
-                                        {opportunity.amount.toLocaleString()} <span className="text-base font-normal text-gray-500">{opportunity.currency}</span>
+                            <CardContent className="pt-4 space-y-4 text-sm">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-gray-500">
+                                        <Flag className="h-4 w-4" />
+                                        <span>Current Stage</span>
                                     </div>
+                                    <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold">
+                                        {opportunity.stage.replace(/_/g, ' ')}
+                                    </span>
                                 </div>
-                                <div className="border-t pt-4">
-                                    <div className="text-gray-500 mb-1">Products</div>
-                                    <div className="font-medium">
+
+                                <div className="border-t border-gray-50 pt-3">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                        <Globe className="h-4 w-4" />
+                                        <span>Destination</span>
+                                    </div>
+                                    <div className="font-medium pl-6">{opportunity.destinationName || '-'}</div>
+                                </div>
+
+                                <div className="border-t border-gray-50 pt-3">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                        <Package className="h-4 w-4" />
+                                        <span>Products</span>
+                                    </div>
+                                    <div className="font-medium pl-6">
                                         {(Array.isArray(opportunity.productName) ? opportunity.productName : [opportunity.productName]).filter(Boolean).join(', ') || '-'}
                                     </div>
                                 </div>
-                                <div className="border-t pt-4">
-                                    <div className="text-gray-500 mb-1">Destination</div>
-                                    <div className="font-medium">{opportunity.destinationName || '-'}</div>
-                                </div>
-                                <div className="border-t pt-4">
-                                    <div className="text-gray-500 mb-1">Expected Close Date</div>
-                                    <div className="font-medium">{new Date(opportunity.closeDate).toLocaleDateString()}</div>
+
+                                <div className="border-t border-gray-50 pt-3">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                        <Calendar className="h-4 w-4" />
+                                        <span>Expected Close</span>
+                                    </div>
+                                    <div className="font-medium pl-6">{new Date(opportunity.closeDate).toLocaleDateString()}</div>
                                 </div>
 
                                 {opportunity.notes && (
-                                    <div className="border-t pt-4">
+                                    <div className="border-t border-gray-50 pt-3">
                                         <div className="text-gray-500 mb-1">Notes</div>
-                                        <div className="bg-yellow-50 p-3 rounded text-yellow-800 text-xs">
+                                        <div className="bg-yellow-50 p-3 rounded text-yellow-800 text-[11px] leading-relaxed italic border border-yellow-100">
                                             {opportunity.notes}
                                         </div>
                                     </div>
