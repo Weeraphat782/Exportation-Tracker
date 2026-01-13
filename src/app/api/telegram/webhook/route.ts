@@ -158,8 +158,15 @@ export async function POST(request: NextRequest) {
             // Show all documents from the upload template
             const requiredTypes = ALL_TYPES;
 
-            const submittedDocs = submissions || [];
-            const submittedTypesMap = new Map(submittedDocs.map((s: any) => [s.document_type, s]));
+            interface TelegramSubmission {
+                document_type: string;
+                file_url: string;
+            }
+
+            const submittedDocs = (submissions || []) as TelegramSubmission[];
+            const submittedTypesMap = new Map<string, TelegramSubmission>(
+                submittedDocs.map((s) => [s.document_type, s])
+            );
 
             let responseText = `📊 *สถานะเอกสาร:* ${quote?.customer_name || 'N/A'}\n`;
             responseText += `ID: \`${quoteId}\`\n`;
@@ -172,7 +179,7 @@ export async function POST(request: NextRequest) {
             DOCUMENT_CATEGORIES.forEach(category => {
                 responseText += `*${category.name}*\n`;
                 category.types.forEach(type => {
-                    const doc = submittedTypesMap.get(type.id) as any;
+                    const doc = submittedTypesMap.get(type.id);
                     if (doc) {
                         responseText += `✅ ${type.name} ([เปิดดู](${doc.file_url}))\n`;
                     } else {
