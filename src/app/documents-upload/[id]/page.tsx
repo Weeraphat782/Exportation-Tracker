@@ -31,8 +31,11 @@ const DOCUMENT_CATEGORIES = [
     types: [
       { id: 'import-permit', name: 'Import Permit' },
       { id: 'tk-10', name: 'TK 10' },
+      { id: 'tk-10-eng', name: 'TK 10 (ENG Version)' },
       { id: 'tk-11', name: 'TK 11' },
+      { id: 'tk-11-eng', name: 'TK 11 (ENG Version)' },
       { id: 'tk-31', name: 'TK 31' },
+      { id: 'tk-31-eng', name: 'TK 31 (ENG Version)' },
       { id: 'tk-32', name: 'TK 32' }
     ]
   },
@@ -50,14 +53,15 @@ const DOCUMENT_CATEGORIES = [
     id: 'additional',
     name: 'Additional Documents',
     types: [
+      { id: 'hemp-letter', name: 'Letter (Hemp Case)' },
       { id: 'additional-file', name: 'Additional File' }
     ]
   }
 ];
 
 // Flatten all document types for easier lookup
-const ALL_DOCUMENT_TYPES = DOCUMENT_CATEGORIES.flatMap(category => 
-  category.types.map(type => ({...type, category: category.id}))
+const ALL_DOCUMENT_TYPES = DOCUMENT_CATEGORIES.flatMap(category =>
+  category.types.map(type => ({ ...type, category: category.id }))
 );
 
 // Allowed file types and size limits
@@ -114,7 +118,7 @@ export default function DocumentUploadPage() {
   const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
-  
+
   // Toggle section open/closed
   const toggleSection = (sectionId: string) => {
     setOpenSections(prev => ({
@@ -168,9 +172,9 @@ export default function DocumentUploadPage() {
   // Add file to upload queue
   const addToQueue = (file: File, documentType: string, documentTypeName: string, note: string) => {
     setUploadQueue(prev => [
-      ...prev, 
-      { 
-        file: file, 
+      ...prev,
+      {
+        file: file,
         documentType: documentType,
         documentTypeName: documentTypeName,
         notes: note,
@@ -201,7 +205,7 @@ export default function DocumentUploadPage() {
       const fileId = uploadQueue.find(
         item => item.file.name === fileToRemove.name && item.documentType === documentTypeId
       )?.id;
-      
+
       if (fileId) {
         removeFromQueue(fileId);
       }
@@ -221,11 +225,11 @@ export default function DocumentUploadPage() {
 
     try {
       console.log(`Starting upload for ${uploadQueue.length} files`);
-      
+
       const uploadPromises = uploadQueue.map(async (queuedFile, index) => {
         try {
           console.log(`Processing file ${index + 1}/${uploadQueue.length}: ${queuedFile.file.name}`);
-          
+
           // 1. Get Signed URL from our backend
           console.log('Step 1: Getting signed URL...');
           const generateUrlResponse = await fetch('/api/generate-upload-url', {
@@ -253,13 +257,13 @@ export default function DocumentUploadPage() {
 
           const generateUrlResult = await generateUrlResponse.json();
           const { signedUrl, path: filePath, originalFileName } = generateUrlResult;
-          
+
           if (!signedUrl || !filePath) {
             throw new Error('Invalid response from generate-upload-url API');
           }
-          
+
           console.log('Step 1 completed: Signed URL obtained');
-          
+
           // 2. Upload file directly to Supabase Storage using the Signed URL
           console.log('Step 2: Uploading to storage...');
           const storageResponse = await fetch(signedUrl, {
@@ -280,7 +284,7 @@ export default function DocumentUploadPage() {
             console.error('Storage upload error:', errorText);
             throw new Error(`Storage upload failed: ${errorText}`);
           }
-          
+
           console.log('Step 2 completed: File uploaded to storage');
 
           // 3. Confirm successful upload with our backend to save DB record
@@ -297,7 +301,7 @@ export default function DocumentUploadPage() {
               documentTypeName: queuedFile.documentTypeName,
               originalFileName: originalFileName || queuedFile.file.name,
               notes: queuedFile.notes || '',
-              companyName: companyName, 
+              companyName: companyName,
             }),
           });
 
@@ -313,7 +317,7 @@ export default function DocumentUploadPage() {
 
           const confirmResult = await confirmResponse.json();
           console.log('Step 3 completed: Upload confirmed');
-            
+
           // Add to successfully uploaded files list for UI update
           setUploadedFiles(prev => [
             ...prev,
@@ -328,7 +332,7 @@ export default function DocumentUploadPage() {
 
           console.log(`Successfully processed: ${queuedFile.file.name}`);
           return { success: true, fileName: queuedFile.file.name };
-          
+
         } catch (err: unknown) {
           console.error(`Error processing ${queuedFile.file.name}:`, err);
           const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -349,21 +353,21 @@ export default function DocumentUploadPage() {
         const errorDetails = failedUploads.map(f => `${f.fileName}: ${f.error}`).join('\n');
         console.error('Failed uploads:', errorDetails);
         setError(`Failed to upload ${failedUploads.length} file(s):\n${errorDetails}`);
-      } 
-      
+      }
+
       if (successfulUploads.length > 0) {
         setSuccess(true);
         // Clear the upload queue for successful uploads
-        setUploadQueue(prev => prev.filter(item => 
+        setUploadQueue(prev => prev.filter(item =>
           !successfulUploads.some(success => success.fileName === item.file.name)
         ));
-        
+
         // Hide success message after 5 seconds
         setTimeout(() => {
           setSuccess(false);
         }, 5000);
       }
-      
+
     } catch (err: unknown) {
       console.error('Critical error in handleSubmitAll:', err);
       const errorMessage = err instanceof Error ? err.message : 'A critical error occurred during upload';
@@ -383,9 +387,9 @@ export default function DocumentUploadPage() {
     try {
       setPreviewLoading(prev => ({ ...prev, [documentTypeId]: true }));
       setError(null);
-      
+
       const template = await getDocumentTemplate(documentTypeId);
-      
+
       if (template && template.file_url) {
         // Open the URL directly in a new tab
         window.open(template.file_url, '_blank');
@@ -405,9 +409,9 @@ export default function DocumentUploadPage() {
       <Card className="shadow-lg">
         <div className="flex justify-center pt-3">
           <div className="relative w-[212px] h-[50px]">
-            <Image 
-              src="/logo.png" 
-              alt="Company Logo" 
+            <Image
+              src="/logo.png"
+              alt="Company Logo"
               fill
               style={{ objectFit: 'contain' }}
               priority
@@ -448,7 +452,7 @@ export default function DocumentUploadPage() {
               <span>Documents uploaded successfully!</span>
             </div>
           )}
-          
+
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700">
               <AlertCircle className="h-5 w-5" />
@@ -471,13 +475,13 @@ export default function DocumentUploadPage() {
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-slate-50">
                   <div className="flex items-center">
                     <h3 className="text-lg font-medium">{category.name}</h3>
-                    
+
                     {/* Show count of files selected for this category */}
                     {(() => {
                       const fileCount = category.types.reduce((count, type) => {
                         return count + (selectedFiles[type.id]?.length || 0);
                       }, 0);
-                      
+
                       if (fileCount > 0) {
                         return (
                           <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
@@ -494,13 +498,12 @@ export default function DocumentUploadPage() {
                   <div className="p-4 space-y-4 bg-white">
                     {category.types.map(docType => {
                       const hasFiles = selectedFiles[docType.id]?.length > 0;
-                      
+
                       return (
-                        <div 
-                          key={docType.id} 
-                          className={`border-b pb-4 last:border-b-0 last:pb-0 ${
-                            hasFiles ? 'bg-green-50 rounded-md p-3 border border-green-200' : ''
-                          }`}
+                        <div
+                          key={docType.id}
+                          className={`border-b pb-4 last:border-b-0 last:pb-0 ${hasFiles ? 'bg-green-50 rounded-md p-3 border border-green-200' : ''
+                            }`}
                         >
                           <div className="flex flex-wrap md:flex-nowrap md:items-start gap-4">
                             <div className="w-full md:w-1/3">
@@ -516,7 +519,7 @@ export default function DocumentUploadPage() {
                                 onChange={(e) => handleFileChange(e, docType.id)}
                                 accept={ALLOWED_FILE_TYPES.join(',')}
                               />
-                              
+
                               {/* Display selected files */}
                               {selectedFiles[docType.id]?.length > 0 && (
                                 <div className="mt-2 space-y-2">
@@ -538,16 +541,16 @@ export default function DocumentUploadPage() {
                                   </ul>
                                 </div>
                               )}
-                              
+
                               <div className="flex justify-between">
                                 <p className="text-xs text-gray-500">
-                                  {hasFiles 
-                                    ? `${selectedFiles[docType.id].length} file(s) selected` 
+                                  {hasFiles
+                                    ? `${selectedFiles[docType.id].length} file(s) selected`
                                     : 'No file chosen'}
                                 </p>
-                                <Button 
-                                  type="button" 
-                                  size="sm" 
+                                <Button
+                                  type="button"
+                                  size="sm"
                                   variant="ghost"
                                   onClick={() => handlePreview(docType.id, docType.name)}
                                   disabled={previewLoading[docType.id]}

@@ -17,13 +17,17 @@ const DOCUMENT_TYPES = [
   { id: 'id-card-copy', name: 'ID Card Copy', category: 'Company Information' },
   { id: 'import-permit', name: 'Import Permit', category: 'Permits & TK Forms' },
   { id: 'tk-10', name: 'TK 10', category: 'Permits & TK Forms' },
+  { id: 'tk-10-eng', name: 'TK 10 (ENG Version)', category: 'Permits & TK Forms' },
   { id: 'tk-11', name: 'TK 11', category: 'Permits & TK Forms' },
+  { id: 'tk-11-eng', name: 'TK 11 (ENG Version)', category: 'Permits & TK Forms' },
   { id: 'tk-31', name: 'TK 31', category: 'Permits & TK Forms' },
+  { id: 'tk-31-eng', name: 'TK 31 (ENG Version)', category: 'Permits & TK Forms' },
   { id: 'tk-32', name: 'TK 32', category: 'Permits & TK Forms' },
   { id: 'purchase-order', name: 'Purchase Order', category: 'Shipping Documents' },
   { id: 'msds', name: 'MSDS', category: 'Shipping Documents' },
   { id: 'commercial-invoice', name: 'Commercial Invoice', category: 'Shipping Documents' },
   { id: 'packing-list', name: 'Packing List', category: 'Shipping Documents' },
+  { id: 'hemp-letter', name: 'Letter (Hemp Case)', category: 'Additional Documents' },
   { id: 'additional-file', name: 'Additional File', category: 'Additional Documents' },
 ];
 
@@ -135,7 +139,7 @@ export default function TemplatesAdminPage() {
         {
           loading: 'Uploading...',
           // Use the returned data (or default message if data is null/undefined)
-          success: (data) => data ? `Template for ${docType.name} uploaded successfully` : `Template updated for ${docType.name}`, 
+          success: (data) => data ? `Template for ${docType.name} uploaded successfully` : `Template updated for ${docType.name}`,
           error: (error) => error instanceof Error ? error.message : 'Failed to upload template'
         }
       );
@@ -202,7 +206,7 @@ export default function TemplatesAdminPage() {
             Upload example templates for each document type that users can preview before uploading
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="pt-6">
           {/* Templates by category */}
           <div className="space-y-6">
@@ -216,7 +220,7 @@ export default function TemplatesAdminPage() {
                     {docTypes.map((docType) => {
                       const template = templates[docType.id];
                       const hasTemplate = !!template;
-                      
+
                       return (
                         <div key={docType.id} className="border-b pb-4 last:border-b-0 last:pb-0">
                           <div className="flex flex-wrap md:flex-nowrap md:items-center gap-4">
@@ -280,7 +284,7 @@ export default function TemplatesAdminPage() {
             ))}
           </div>
         </CardContent>
-        
+
         <CardFooter className="bg-gray-50 flex justify-between">
           <p className="text-sm text-gray-500">
             Upload PDF or image examples for each document type

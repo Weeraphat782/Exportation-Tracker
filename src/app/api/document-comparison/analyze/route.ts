@@ -480,10 +480,13 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         'commercial-invoice': 'Commercial Invoice',
         'packing-list': 'Packing List',
         'tk-31': 'TK-31 Export Report',
+        'tk-10-eng': 'TK-10 Export Permit (ENG)',
+        'tk-11-eng': 'TK-11 Export Report (ENG)',
+        'tk-31-eng': 'TK-31 Export Report (ENG)',
         'tk-32': 'TK-32 Export Permit',
         'import-permit': 'Import Permit',
         'export-permit': 'Export Permit',
-        'purchase-order': 'Purchase Order',
+        'hemp-letter': 'Hemp Certification Letter',
         'bill-of-lading': 'Bill of Lading',
         'certificate-of-origin': 'Certificate of Origin',
         'other': 'Other Document'
@@ -553,7 +556,6 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
       contents.push(comparisonPrompt);
 
       // Generate comprehensive review with retry logic
-      console.log('Sending request to Gemini AI...');
       const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       const response = await retryWithBackoff(
         () => model.generateContent(contents),
@@ -661,8 +663,8 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
 
       console.log('Analysis completed successfully');
 
-    return NextResponse.json({
-      success: true,
+      return NextResponse.json({
+        success: true,
         full_feedback: fullFeedback,
         results,
         extracted_data: extractedMap,
@@ -670,7 +672,7 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         critical_checks_list: criticalChecks,
       });
 
-  } catch (error) {
+    } catch (error) {
       console.error('❌ Failed to process cross-document comparison:', error);
 
       // Provide more specific error messages based on error type

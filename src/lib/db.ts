@@ -119,6 +119,7 @@ export interface Quotation {
   total_volume_weight?: number | null; // Allow null
   chargeable_weight?: number | null; // Allow null
   internal_remark?: string | null; // Added field
+  required_doc_types?: string[] | null; // Added field for tracking required documents
 }
 
 export interface DocumentSubmission {
@@ -674,6 +675,7 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       opportunity_id: quotationData.opportunity_id || null, // Added field
       product_id: quotationData.product_id || null, // Added field
       internal_remark: quotationData.internal_remark || null, // Added field
+      required_doc_types: Array.isArray(quotationData.required_doc_types) ? quotationData.required_doc_types : null, // Added field
       // Ensure JSONB fields are properly formatted
       pallets: Array.isArray(quotationData.pallets) ? quotationData.pallets : [],
       additional_charges: Array.isArray(quotationData.additional_charges) ? quotationData.additional_charges : []
