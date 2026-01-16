@@ -661,7 +661,55 @@ ${JSON.stringify(fieldsTemplate, null, 2)}`;
         sequence_order: index + 1,
       }));
 
-      console.log('Analysis completed successfully');
+      // --- START: Save to History ---
+      try {
+        // 1. Get opportunity_id if not provided
+        let oppId = body.opportunity_id;
+        if (!oppId && quotation_id) {
+          const { data: qData } = await supabase
+            .from('quotations')
+            .select('opportunity_id')
+            .eq('id', quotation_id)
+            .single();
+          oppId = qData?.opportunity_id;
+        }
+
+        if (oppId) {
+          // 2. Get current max version
+          const { data: latestVersion } = await supabase
+            .from('document_analysis_history')
+            .select('version')
+            .eq('quotation_id', quotation_id)
+            .order('version', { ascending: false })
+            .limit(1)
+            .single();
+
+          const nextVersion = (latestVersion?.version || 0) + 1;
+
+          // 3. Determine overall status
+          let overallStatus = 'PASS';
+          if (criticalChecksResults.some(c => c.status === 'FAIL')) overallStatus = 'FAIL';
+          else if (criticalChecksResults.some(c => c.status === 'WARNING')) overallStatus = 'WARNING';
+
+          // 4. Save to history
+          await supabase.from('document_analysis_history').insert({
+            quotation_id,
+            opportunity_id: oppId,
+            rule_id,
+            version: nextVersion,
+            results: results,
+            critical_checks_results: criticalChecksResults,
+            status: overallStatus,
+            created_by: user_id
+          });
+
+          console.log(`✅ Saved analysis history version ${nextVersion} for opportunity ${oppId}`);
+        }
+      } catch (historyError) {
+        console.error('⚠️ Failed to save analysis history:', historyError);
+        // We don't return error here to avoid breaking the core analysis response
+      }
+      // --- END: Save to History ---
 
       return NextResponse.json({
         success: true,

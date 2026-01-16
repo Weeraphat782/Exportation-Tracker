@@ -14,6 +14,7 @@ import { QuotationDocuments } from '@/components/quotations/quotation-documents'
 import { StageProgressBar } from '@/components/opportunities/stage-progress-bar';
 import { ContactWidget } from '@/components/opportunities/contact-widget';
 import { OpportunityTasks } from '@/components/opportunities/opportunity-tasks';
+import { AnalysisHistory } from '@/components/opportunities/analysis-history';
 
 interface OpportunityDetail extends Omit<Opportunity, 'quotationIds'> {
     description?: string;
@@ -330,6 +331,9 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
 
                         {/* Task Management */}
                         <OpportunityTasks opportunityId={opportunity.id} />
+
+                        {/* Document Analysis History */}
+                        <AnalysisHistory opportunityId={opportunity.id} />
 
                         <Card className="shadow-sm border-gray-200">
                             <CardHeader className="pb-3 border-b border-gray-50">
