@@ -7,7 +7,7 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Edit, FileText, Globe, Package, Calendar, Flag } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -293,6 +293,12 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                     <QuotationDocuments quotationId={quote.id} />
 
                                                     <div className="flex justify-end gap-2 mt-4">
+                                                        <Link href={`/document-comparison?quotation_id=${quote.id}&opportunity_id=${opportunity.id}`}>
+                                                            <Button className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                                                                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                                                View AI Review
+                                                            </Button>
+                                                        </Link>
                                                         <Link href={`/shipping-calculator/new?id=${quote.id}`}>
                                                             <Button variant="outline" size="sm" className="h-8 text-xs">
                                                                 <Edit className="h-3.5 w-3.5 mr-1.5" />

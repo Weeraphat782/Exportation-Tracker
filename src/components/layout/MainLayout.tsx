@@ -39,7 +39,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
     // Initial check
     checkMobile();
-    
+
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
@@ -54,20 +54,20 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         {/* Layout Container */}
         <div className="flex h-full">
           {/* Sidebar - Desktop: always visible, Mobile: overlay */}
-          <Sidebar 
-            isCollapsed={isSidebarCollapsed} 
-            toggleSidebar={toggleSidebar} 
+          <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            toggleSidebar={toggleSidebar}
             isMobile={isMobile}
             className="print:hidden"
           />
-          
+
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header */}
             <Header />
-            
+
             {/* Main Content */}
-            <main 
+            <main
               className={cn(
                 "flex-1 overflow-y-auto bg-gray-50",
                 "print:flex-none print:p-0 print:m-0 print:overflow-visible print:w-full",
@@ -82,7 +82,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
         {/* Mobile Overlay - only when sidebar is open */}
         {isMobile && !isSidebarCollapsed && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
             onClick={() => setIsSidebarCollapsed(true)}
           />

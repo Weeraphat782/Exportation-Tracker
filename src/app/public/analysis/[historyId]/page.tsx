@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock, ShieldCheck } from 'lucide-react';
 
 interface AnalysisResult {
-    document_id?: string;
+    document_id: string;
     document_name: string;
     document_type: string;
     ai_feedback: string;

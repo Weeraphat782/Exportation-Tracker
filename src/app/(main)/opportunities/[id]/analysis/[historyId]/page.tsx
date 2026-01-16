@@ -10,7 +10,7 @@ import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock, Sha
 import { toast } from 'sonner';
 
 interface AnalysisResult {
-    document_id?: string;
+    document_id: string;
     document_name: string;
     document_type: string;
     ai_feedback: string;

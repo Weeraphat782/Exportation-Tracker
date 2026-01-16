@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { History, CheckCircle2, AlertTriangle, XCircle, Clock } from 'lucide-react';
 
 interface AnalysisResult {
-    document_id?: string;
+    document_id: string;
     document_name: string;
     document_type: string;
     ai_feedback: string;
@@ -49,8 +49,13 @@ export function AnalysisHistory({ opportunityId }: { opportunityId: string }) {
 
                 if (error) throw error;
                 setHistory(data || []);
-            } catch (err) {
+            } catch (err: unknown) {
+                const supabaseError = err as { message?: string; details?: string; hint?: string; code?: string };
                 console.error('Error fetching analysis history:', err);
+                if (supabaseError.message) console.error('Error message:', supabaseError.message);
+                if (supabaseError.details) console.error('Error details:', supabaseError.details);
+                if (supabaseError.hint) console.error('Error hint:', supabaseError.hint);
+                if (supabaseError.code) console.error('Error code:', supabaseError.code);
             } finally {
                 setLoading(false);
             }
@@ -72,7 +77,17 @@ export function AnalysisHistory({ opportunityId }: { opportunityId: string }) {
     }
 
     if (history.length === 0) {
-        return null;
+        return (
+            <Card className="shadow-sm border-gray-200 bg-gray-50/30">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-500">
+                        <History className="h-4 w-4" />
+                        Analysis History
+                    </CardTitle>
+                    <CardDescription className="text-[10px]">No reviews performed yet</CardDescription>
+                </CardHeader>
+            </Card>
+        );
     }
 
     const getStatusIcon = (status: string) => {
