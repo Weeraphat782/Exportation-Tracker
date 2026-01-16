@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock, ShieldCheck } from 'lucide-react';
 
@@ -11,8 +10,8 @@ interface AnalysisHistoryItem {
     quotation_id: string;
     opportunity_id: string;
     version: number;
-    results: any[];
-    critical_checks_results: any[];
+    results: Record<string, any>[];
+    critical_checks_results: Record<string, any>[];
     status: 'PASS' | 'FAIL' | 'WARNING';
     created_at: string;
 }
@@ -133,7 +132,7 @@ export default function PublicAnalysisReportPage({ params }: { params: Promise<{
                             <h2 className="text-lg font-bold text-gray-800">Key Observations</h2>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
-                            {data.critical_checks_results?.map((check: any, idx: number) => (
+                            {data.critical_checks_results?.map((check: Record<string, any>, idx: number) => (
                                 <div key={idx} className="flex flex-col p-6 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
@@ -167,7 +166,7 @@ export default function PublicAnalysisReportPage({ params }: { params: Promise<{
                             <h2 className="text-lg font-bold text-gray-800">Detailed Document Feedback</h2>
                         </div>
                         <div className="grid grid-cols-1 gap-6">
-                            {data.results?.map((res: any, idx: number) => (
+                            {data.results?.map((res: Record<string, any>, idx: number) => (
                                 <div key={idx} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden border-l-4 border-l-blue-500">
                                     <div className="p-6">
                                         <div className="flex items-center justify-between mb-4">

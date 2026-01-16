@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileSearch, Download, Clock, Share, Link2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock, Share, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AnalysisHistoryItem {
@@ -14,8 +14,8 @@ interface AnalysisHistoryItem {
     quotation_id: string;
     opportunity_id: string;
     version: number;
-    results: any[];
-    critical_checks_results: any[];
+    results: Record<string, any>[];
+    critical_checks_results: Record<string, any>[];
     status: 'PASS' | 'FAIL' | 'WARNING';
     created_at: string;
 }
@@ -156,7 +156,7 @@ export default function AnalysisReportPage({ params }: { params: Promise<{ id: s
                         </CardHeader>
                         <CardContent className="pt-6">
                             <div className="grid grid-cols-1 gap-4">
-                                {data.critical_checks_results?.map((check: any, idx: number) => (
+                                {data.critical_checks_results?.map((check: Record<string, any>, idx: number) => (
                                     <div key={idx} className="flex flex-col p-4 rounded-lg border border-gray-100 bg-white hover:border-gray-300 transition-colors shadow-sm">
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export default function AnalysisReportPage({ params }: { params: Promise<{ id: s
                         </CardHeader>
                         <CardContent className="pt-6">
                             <div className="space-y-6">
-                                {data.results?.map((res: any, idx: number) => (
+                                {data.results?.map((res: Record<string, any>, idx: number) => (
                                     <div key={idx} className="space-y-3 p-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                                         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                                             <div className="flex items-center gap-3">

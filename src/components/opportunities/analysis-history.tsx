@@ -6,15 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronUp, FileSearch, Clock } from 'lucide-react';
+import { History, CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock } from 'lucide-react';
 
 interface AnalysisHistoryItem {
     id: string;
     quotation_id: string;
     opportunity_id: string;
     version: number;
-    results: any[];
-    critical_checks_results: any[];
+    results: Record<string, any>[];
+    critical_checks_results: Record<string, any>[];
     status: 'PASS' | 'FAIL' | 'WARNING';
     created_at: string;
 }
