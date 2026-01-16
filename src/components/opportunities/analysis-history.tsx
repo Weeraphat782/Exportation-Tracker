@@ -4,17 +4,30 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, CheckCircle2, AlertTriangle, XCircle, FileSearch, Clock } from 'lucide-react';
+import { History, CheckCircle2, AlertTriangle, XCircle, Clock } from 'lucide-react';
+
+interface AnalysisResult {
+    document_id?: string;
+    document_name: string;
+    document_type: string;
+    ai_feedback: string;
+}
+
+interface CriticalCheckResult {
+    check_name: string;
+    status: 'PASS' | 'FAIL' | 'WARNING';
+    details: string;
+    issue?: string;
+}
 
 interface AnalysisHistoryItem {
     id: string;
     quotation_id: string;
     opportunity_id: string;
     version: number;
-    results: Record<string, any>[];
-    critical_checks_results: Record<string, any>[];
+    results: AnalysisResult[];
+    critical_checks_results: CriticalCheckResult[];
     status: 'PASS' | 'FAIL' | 'WARNING';
     created_at: string;
 }
