@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Plus, Trash, Minus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check } from 'lucide-react';
 import {
     calculateVolumeWeight,
     // getTotalVolumeWeight, // Removed unused import
@@ -599,6 +599,58 @@ function ShippingCalculatorPageContent() {
         mode: 'onChange',
     });
 
+    // --- State for Bulk Actions ---
+    const [bulkLength, setBulkLength] = useState(0);
+    const [bulkWidth, setBulkWidth] = useState(0);
+    const [bulkHeight, setBulkHeight] = useState(0);
+    const [bulkWeight, setBulkWeight] = useState(0);
+    const [bulkQuantity, setBulkQuantity] = useState(1);
+    const [bulkRate, setBulkRate] = useState(0);
+
+    const handleBulkAdd = () => {
+        if (bulkQuantity <= 0) {
+            toast.error("Invalid Quantity", { description: "Quantity must be at least 1." });
+            return;
+        }
+
+        // Add multiple pallets with the same dimensions
+        for (let i = 0; i < bulkQuantity; i++) {
+            appendPallet({
+                length: bulkLength,
+                width: bulkWidth,
+                height: bulkHeight,
+                weight: bulkWeight,
+                quantity: 1, // Individual pallets in the list generally have qty 1
+                overriddenRate: bulkRate > 0 ? bulkRate : 0
+            });
+        }
+
+        toast.success(`Added ${bulkQuantity} Pallets`, {
+            description: `${bulkLength}x${bulkWidth}x${bulkHeight} cm, ${bulkWeight} kg`
+        });
+
+        // Optional: Reset bulk inputs (except dimensions maybe?)
+        // setBulkQuantity(1);
+    };
+
+    const handleBulkRateOverride = () => {
+        const currentPallets = getValues('pallets');
+        if (!currentPallets || currentPallets.length === 0) return;
+
+        // Apply bulk rate to all pallets currently in the form
+        const updatedPallets = currentPallets.map(pallet => ({
+            ...pallet,
+            overriddenRate: bulkRate
+        }));
+
+        // Use reset with keepValues: false might be tricky, let's use setValue instead
+        form.setValue('pallets', updatedPallets, { shouldValidate: true, shouldDirty: true });
+
+        toast.success("Bulk Rate Applied", {
+            description: `All pallets set to ${bulkRate.toFixed(2)} THB/kg`
+        });
+    };
+
     // Destructure methods and formState
     const {
         control,
@@ -800,7 +852,8 @@ function ShippingCalculatorPageContent() {
                                     width: Number(p.width) || 0,
                                     height: Number(p.height) || 0,
                                     weight: Number(p.weight) || 0,
-                                    quantity: Number(p.quantity) || 1
+                                    quantity: Number(p.quantity) || 1,
+                                    overriddenRate: Number(p.overridden_rate) || 0
                                 }))
                                 : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
@@ -830,7 +883,8 @@ function ShippingCalculatorPageContent() {
                                 width: Number(p.width) || 0,
                                 height: Number(p.height) || 0,
                                 weight: Number(p.weight) || 0,
-                                quantity: Number(p.quantity) || 1
+                                quantity: Number(p.quantity) || 1,
+                                overriddenRate: Number(p.overridden_rate) || 0
                             })) : [],
                             Array.isArray(typedExistingQuotation.additional_charges) ? typedExistingQuotation.additional_charges.map(c => ({
                                 name: c.name || '',
@@ -858,7 +912,8 @@ function ShippingCalculatorPageContent() {
                                     width: Number(p.width) || 0,
                                     height: Number(p.height) || 0,
                                     weight: Number(p.weight) || 0,
-                                    quantity: Number(p.quantity) || 1
+                                    quantity: Number(p.quantity) || 1,
+                                    overriddenRate: Number(p.overridden_rate) || 0
                                 })) : []
                             )),
                             additionalCharges: JSON.parse(JSON.stringify(
@@ -1454,6 +1509,116 @@ function ShippingCalculatorPageContent() {
                             <CardTitle className="text-lg">Shipment Details (Pallets)</CardTitle>
                         </CardHeader>
                         <CardContent>
+                            {/* Bulk Action Tools */}
+                            <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl shadow-sm">
+                                <div className="flex items-center gap-2 mb-4 text-slate-700 font-bold border-b pb-2">
+                                    <Zap className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                    <span>Bulk Action Tools</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Sub-section: Bulk Add */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <Layers className="h-3 w-3" />
+                                            <span>Bulk Add Pallets</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-400">Length (cm)</label>
+                                                <Input type="number" value={bulkLength} onChange={(e) => setBulkLength(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-400">Width (cm)</label>
+                                                <Input type="number" value={bulkWidth} onChange={(e) => setBulkWidth(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-400">Height (cm)</label>
+                                                <Input type="number" value={bulkHeight} onChange={(e) => setBulkHeight(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-400">Weight (kg)</label>
+                                                <Input type="number" value={bulkWeight} onChange={(e) => setBulkWeight(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-slate-400">Quantity</label>
+                                                <Input type="number" value={bulkQuantity} onChange={(e) => setBulkQuantity(parseInt(e.target.value) || 1)} className="h-8 text-xs" min="1" />
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={handleBulkAdd}
+                                            className="w-full h-8 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                        >
+                                            <Plus className="h-3 w-3 mr-1" /> Add {bulkQuantity} Pallets
+                                        </Button>
+                                    </div>
+
+                                    {/* Sub-section: Bulk Override */}
+                                    <div className="space-y-3 border-l pl-6 hidden lg:block">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <Zap className="h-3 w-3" />
+                                            <span>Bulk Rate Override</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-400">New Rate (THB/kg)</label>
+                                            <Input
+                                                type="number"
+                                                value={bulkRate}
+                                                onChange={(e) => setBulkRate(parseFloat(e.target.value) || 0)}
+                                                className="h-9 border-blue-200 focus:border-blue-500 bg-blue-50/10"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div className="pt-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleBulkRateOverride}
+                                                className="w-full h-9 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                disabled={palletFields.length === 0}
+                                            >
+                                                <Check className="h-3 w-3 mr-1" /> Apply to All {palletFields.length} Pallets
+                                            </Button>
+                                            <p className="text-[10px] text-slate-400 mt-1.5 italic text-center">This will update all manual rate fields below.</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile version of Bulk Override (no border-l) */}
+                                    <div className="space-y-3 pt-4 border-t lg:hidden">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <Zap className="h-3 w-3" />
+                                            <span>Bulk Rate Override</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] text-slate-400">New Rate (THB/kg)</label>
+                                            <Input
+                                                type="number"
+                                                value={bulkRate}
+                                                onChange={(e) => setBulkRate(parseFloat(e.target.value) || 0)}
+                                                className="h-9"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleBulkRateOverride}
+                                            className="w-full text-xs"
+                                            disabled={palletFields.length === 0}
+                                        >
+                                            Apply to All Pallets
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
                             {palletFields.map((field, index) => (
                                 <PalletItem
                                     key={field.id}
