@@ -150,138 +150,166 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
     }
 
     return (
-        <div className="min-h-screen bg-gray-50/30 p-8">
+        <div className="min-h-screen bg-gray-50/30 p-4 md:p-8">
+            <style jsx global>{`
+                /* Hide sidebar and header on mobile for a clean screenshot report */
+                @media (max-width: 1023px) {
+                    aside, header, nav[aria-label="Breadcrumb"] {
+                        display: none !important;
+                    }
+                    main {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        background: white !important;
+                    }
+                }
+            `}</style>
+
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header Section */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" size="sm" onClick={() => router.push('/opportunities')}>
+                        <Button variant="outline" size="sm" onClick={() => router.push('/opportunities')} className="hidden sm:flex">
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Return
                         </Button>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-gray-900">{opportunity.topic}</h1>
+                            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 line-clamp-1">
+                                {opportunity.topic}
+                            </h1>
                             <div className="flex items-center gap-2 text-sm text-gray-500">
-                                <span>{opportunity.customerName}</span>
+                                <span className="font-extrabold text-blue-600">{opportunity.customerName}</span>
                                 <span>•</span>
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100`}>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider bg-gray-100 border`}>
                                     {opportunity.stage.replace(/_/g, ' ').toUpperCase()}
                                 </span>
                             </div>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <Link href={`/shipping-calculator/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId}&customerName=${opportunity.customerName}&destinationId=${opportunity.destinationId}`}>
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 font-bold">
+                                <Edit className="h-4 w-4 mr-2" />
+                                <span className="hidden sm:inline">New Quote</span>
+                                <span className="sm:hidden">Quote</span>
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Stage Progress Bar */}
-                <Card className="shadow-sm border-gray-200 overflow-hidden">
+                <Card className="shadow-sm border-gray-200 overflow-hidden hidden sm:block">
                     <StageProgressBar currentStage={opportunity.stage} />
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content - Left Column (2/3) */}
-                    <div className="md:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 space-y-6">
 
                         {/* Quotations Section */}
-                        <Card className="shadow-sm border-gray-200">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                        <Card className="shadow-sm border-gray-200 lg:border lg:shadow-sm border-none shadow-none">
+                            <CardHeader className="lg:px-6 lg:pt-6 px-0 pt-0 pb-2">
+                                <CardTitle className="flex items-center gap-2 text-lg">
                                     <FileText className="h-5 w-5 text-emerald-600" />
                                     Quotations
                                 </CardTitle>
-                                <CardDescription>All quotations linked to this opportunity</CardDescription>
+                                <CardDescription className="hidden lg:block">All quotations linked to this opportunity</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-8">
+                            <CardContent className="space-y-6 lg:px-6 px-0 pb-0">
                                 {opportunity.quotations && opportunity.quotations.length > 0 ? (
                                     opportunity.quotations.map((quote, index) => (
-                                        <div key={quote.id} className="space-y-4">
+                                        <div key={quote.id} className="space-y-3">
                                             {opportunity.quotations && opportunity.quotations.length > 1 && (
-                                                <div className="flex items-center gap-2 pb-2 border-b">
+                                                <div className="flex items-center gap-2 pb-2 border-b hidden lg:flex">
                                                     <div className="font-bold text-lg text-gray-700">Quotation #{index + 1}</div>
                                                     <div className="text-sm text-gray-400 font-mono">{quote.id}</div>
                                                 </div>
                                             )}
 
-                                            <Card className="bg-white border-gray-200">
+                                            <Card className="bg-white border-gray-200 shadow-sm">
                                                 <CardContent className="p-4">
                                                     <div className="flex justify-between items-start mb-4">
                                                         <div>
-                                                            <div className="font-semibold text-lg flex items-center gap-2">
-                                                                <span className="font-mono text-gray-700">{quote.id}</span>
-                                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${quote.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                            <div className="font-semibold text-base flex items-center gap-2">
+                                                                <span className="font-mono text-gray-500 text-xs hidden lg:inline">{quote.id}</span>
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${quote.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
                                                                     quote.status === 'sent' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                                                         'bg-gray-50 text-gray-600 border-gray-200'
                                                                     }`}>
                                                                     {quote.status.toUpperCase()}
                                                                 </span>
                                                             </div>
-                                                            <div className="text-sm text-gray-500 mt-1">
-                                                                Created: {new Date(quote.created_at).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                            <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">
+                                                                Created: {new Date(quote.created_at).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric' })}
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
-                                                            <div className="text-xl font-bold text-emerald-700">
-                                                                {quote.total_cost.toLocaleString()} <span className="text-sm font-normal text-gray-500">THB</span>
+                                                            <div className="text-xl font-black text-emerald-700">
+                                                                {quote.total_cost.toLocaleString()} <span className="text-xs font-normal text-gray-400">THB</span>
                                                             </div>
-                                                            <div className="text-xs text-gray-500">Net Total</div>
+                                                            <div className="text-[10px] text-gray-400 uppercase font-black tracking-tight">Net Total</div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-md mb-4 border border-gray-100">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50/50 p-3 rounded-xl mb-4 border border-slate-100">
                                                         <div className="space-y-2">
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-500">Freight Cost:</span>
-                                                                <span className="font-medium text-gray-900">{(quote.total_freight_cost || 0).toLocaleString()}</span>
+                                                                <span className="text-gray-500 font-medium">Freight Cost:</span>
+                                                                <span className="font-black text-gray-900">{(quote.total_freight_cost || 0).toLocaleString()}</span>
                                                             </div>
 
                                                             {/* Additional Charges */}
                                                             {quote.additional_charges && quote.additional_charges.length > 0 && (
-                                                                <div className="pt-2 border-t border-gray-200 mt-2">
-                                                                    <div className="text-xs font-bold text-gray-500 mb-1 uppercase">Additional Charges</div>
+                                                                <div className="pt-2 border-t border-slate-200 mt-2">
+                                                                    <div className="text-[9px] font-black text-gray-400 mb-1.5 uppercase tracking-widest">Additional Charges</div>
                                                                     {quote.additional_charges.map((charge, i) => (
-                                                                        <div key={i} className="flex justify-between text-xs mb-1">
-                                                                            <span className="text-gray-600 truncate mr-2">{charge.description}</span>
-                                                                            <span className="font-medium whitespace-nowrap">{Number(charge.amount).toLocaleString()}</span>
+                                                                        <div key={i} className="flex justify-between text-[11px] mb-1">
+                                                                            <span className="text-gray-600 truncate mr-2 italic">{charge.description}</span>
+                                                                            <span className="font-bold text-slate-800">{Number(charge.amount).toLocaleString()}</span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
                                                             )}
 
                                                             {(quote.clearance_cost || 0) > 0 && (
-                                                                <div className="flex justify-between pt-1 border-t border-gray-200 mt-1">
-                                                                    <span className="text-gray-500">Clearance:</span>
-                                                                    <span className="font-medium text-gray-900">{quote.clearance_cost?.toLocaleString()}</span>
+                                                                <div className="flex justify-between pt-1 border-t border-slate-200 mt-1">
+                                                                    <span className="text-gray-500 font-medium">Clearance:</span>
+                                                                    <span className="font-bold text-gray-900">{quote.clearance_cost?.toLocaleString()}</span>
                                                                 </div>
                                                             )}
                                                             {(quote.delivery_cost || 0) > 0 && quote.delivery_service_required && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-gray-500">Delivery:</span>
-                                                                    <span className="font-medium text-gray-900">{quote.delivery_cost?.toLocaleString()}</span>
+                                                                    <span className="text-gray-500 font-medium">Delivery:</span>
+                                                                    <span className="font-bold text-gray-900">{quote.delivery_cost?.toLocaleString()}</span>
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        <div className="space-y-3 border-l pl-4 border-gray-200">
+                                                        <div className="space-y-3 sm:border-l sm:pl-4 border-slate-200">
                                                             {/* Pallet Info */}
                                                             <div>
-                                                                <div className="text-xs font-bold text-gray-500 mb-1 uppercase">Pallet Details</div>
-                                                                <div className="font-medium text-gray-900">
+                                                                <div className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest text-report-mode-essential">Pallet Details</div>
+                                                                <div className="font-bold text-gray-900">
                                                                     {quote.pallets?.length || 0} Pallets
                                                                     {quote.pallets && quote.pallets.length > 0 && (
-                                                                        <span className="text-gray-500 font-normal ml-1 text-xs">
+                                                                        <span className="text-slate-400 font-medium ml-1 text-[10px]">
                                                                             ({quote.pallets[0].length}x{quote.pallets[0].width}x{quote.pallets[0].height} cm)
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-xs text-gray-500 mt-0.5">
-                                                                    Dest: {quote.destination}
+                                                                <div className="text-[10px] text-gray-500 mt-0.5 font-medium">
+                                                                    Dest: <span className="text-blue-600 font-bold">{quote.destination}</span>
                                                                 </div>
                                                             </div>
 
                                                             {/* Notes */}
                                                             {quote.notes && (
                                                                 <div className="pt-1">
-                                                                    <div className="text-xs font-bold text-gray-500 mb-1 uppercase">Notes</div>
-                                                                    <div className="text-xs text-gray-700 bg-yellow-50 p-2 rounded border border-yellow-100 italic">
+                                                                    <div className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">Notes</div>
+                                                                    <div className="text-[11px] text-gray-700 bg-amber-50/50 p-2 rounded-lg border border-amber-100/50 italic leading-relaxed">
                                                                         {quote.notes}
                                                                     </div>
                                                                 </div>
@@ -289,24 +317,27 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                         </div>
                                                     </div>
 
-                                                    {/* Attached Documents */}
-                                                    <QuotationDocuments quotationId={quote.id} />
+                                                    {/* Attached & Missing Documents */}
+                                                    <QuotationDocuments
+                                                        quotationId={quote.id}
+                                                        requiredDocTypes={quote.required_doc_types}
+                                                    />
 
-                                                    <div className="flex justify-end gap-2 mt-4">
+                                                    <div className="flex justify-end gap-2 mt-4 hidden lg:flex">
                                                         <Link href={`/document-comparison?quotation_id=${quote.id}&opportunity_id=${opportunity.id}`}>
-                                                            <Button className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
+                                                            <Button className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-sm">
                                                                 <Eye className="h-3.5 w-3.5 mr-1.5" />
-                                                                View AI Review
+                                                                AI Review
                                                             </Button>
                                                         </Link>
                                                         <Link href={`/shipping-calculator/new?id=${quote.id}`}>
-                                                            <Button variant="outline" size="sm" className="h-8 text-xs">
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200">
                                                                 <Edit className="h-3.5 w-3.5 mr-1.5" />
                                                                 Edit
                                                             </Button>
                                                         </Link>
                                                         <Link href={`/shipping-calculator/preview?id=${quote.id}`}>
-                                                            <Button variant="outline" size="sm" className="h-8 text-xs">
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200">
                                                                 <FileText className="h-3.5 w-3.5 mr-1.5" />
                                                                 PDF
                                                             </Button>
@@ -317,7 +348,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+                                    <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
                                         No quotations created yet.
                                     </div>
                                 )}
@@ -326,66 +357,68 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                     </div>
 
                     {/* Sidebar Info - Right Column (1/3) */}
-                    <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 content-start lg:space-y-6">
                         {/* Contact Widget */}
-                        <ContactWidget
-                            companyName={opportunity.companyName}
-                            contactPerson={opportunity.contact_person}
-                            contactEmail={opportunity.contact_email}
-                            contactPhone={opportunity.contact_phone}
-                        />
+                        <div className="lg:contents">
+                            <ContactWidget
+                                companyName={opportunity.companyName}
+                                contactPerson={opportunity.contact_person}
+                                contactEmail={opportunity.contact_email}
+                                contactPhone={opportunity.contact_phone}
+                            />
+                        </div>
 
-                        {/* Task Management */}
-                        <OpportunityTasks opportunityId={opportunity.id} />
+                        {/* Task Management & Analysis History - Hidden on mobile report */}
+                        <div className="hidden lg:block space-y-6">
+                            <OpportunityTasks opportunityId={opportunity.id} />
+                            <AnalysisHistory opportunityId={opportunity.id} />
+                        </div>
 
-                        {/* Document Analysis History */}
-                        <AnalysisHistory opportunityId={opportunity.id} />
-
-                        <Card className="shadow-sm border-gray-200">
-                            <CardHeader className="pb-3 border-b border-gray-50">
-                                <CardTitle className="text-sm font-semibold">Deal Overview</CardTitle>
+                        <Card className="shadow-sm border-gray-200 lg:bg-white bg-slate-50/30 lg:border border-none lg:shadow-sm shadow-none">
+                            <CardHeader className="pb-3 border-b border-gray-50 lg:px-6 px-0">
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider text-gray-500">Deal Overview</CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-4 space-y-4 text-sm">
+                            <CardContent className="pt-4 space-y-4 text-sm lg:px-6 px-0">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-gray-500">
+                                    <div className="flex items-center gap-2 text-gray-500 font-medium">
                                         <Flag className="h-4 w-4" />
                                         <span>Current Stage</span>
                                     </div>
-                                    <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px] uppercase font-bold">
+                                    <span className="font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full text-[10px] uppercase tracking-widest border border-emerald-200">
                                         {opportunity.stage.replace(/_/g, ' ')}
                                     </span>
                                 </div>
 
                                 <div className="border-t border-gray-50 pt-3">
-                                    <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-2 font-medium">
                                         <Globe className="h-4 w-4" />
                                         <span>Destination</span>
                                     </div>
-                                    <div className="font-medium pl-6">{opportunity.destinationName || '-'}</div>
+                                    <div className="font-bold text-slate-800 pl-6">{opportunity.destinationName || '-'}</div>
                                 </div>
 
                                 <div className="border-t border-gray-50 pt-3">
-                                    <div className="flex items-center gap-2 text-gray-500 mb-2">
+                                    <div className="flex items-center gap-2 text-gray-500 mb-2 font-medium">
                                         <Package className="h-4 w-4" />
                                         <span>Products</span>
                                     </div>
-                                    <div className="font-medium pl-6">
+                                    <div className="font-bold text-slate-800 pl-6">
                                         {(Array.isArray(opportunity.productName) ? opportunity.productName : [opportunity.productName]).filter(Boolean).join(', ') || '-'}
                                     </div>
                                 </div>
 
-                                <div className="border-t border-gray-50 pt-3">
+                                <div className="border-t border-gray-50 pt-3 font-medium">
                                     <div className="flex items-center gap-2 text-gray-500 mb-2">
                                         <Calendar className="h-4 w-4" />
                                         <span>Expected Close</span>
                                     </div>
-                                    <div className="font-medium pl-6">{new Date(opportunity.closeDate).toLocaleDateString()}</div>
+                                    <div className="font-bold text-slate-800 pl-6">{new Date(opportunity.closeDate).toLocaleDateString()}</div>
                                 </div>
 
                                 {opportunity.notes && (
                                     <div className="border-t border-gray-50 pt-3">
-                                        <div className="text-gray-500 mb-1">Notes</div>
-                                        <div className="bg-yellow-50 p-3 rounded text-yellow-800 text-[11px] leading-relaxed italic border border-yellow-100">
+                                        <div className="text-gray-500 mb-1 font-medium">Notes</div>
+                                        <div className="bg-amber-50/50 p-3 rounded text-amber-900 text-[11px] leading-relaxed italic border border-amber-100/50">
                                             {opportunity.notes}
                                         </div>
                                     </div>

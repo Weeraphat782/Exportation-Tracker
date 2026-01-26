@@ -30,21 +30,21 @@ export default function OpportunitiesPage() {
 
   const fetchOpportunities = useCallback(async () => {
     setLoading(true);
-    
+
     // Get current user for filtering
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id;
-    
+
     let query = supabase
       .from('opportunities')
       // Select opportunity fields AND linked quotations(id)
       .select('*, quotations(id), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
-    
+
     // Filter by owner_id if user is logged in
     if (userId) {
       query = query.eq('owner_id', userId);
     }
-    
+
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
@@ -84,8 +84,8 @@ export default function OpportunitiesPage() {
       // Map DB fields to Frontend types
       const mapped: Opportunity[] = (data as unknown as RawSupabaseOpportunity[]).map((item) => {
         // item.quotations will be an array of objects { id: ... } - get ALL quotation IDs
-        const quotationIds = item.quotations && item.quotations.length > 0 
-          ? item.quotations.map(q => q.id) 
+        const quotationIds = item.quotations && item.quotations.length > 0
+          ? item.quotations.map(q => q.id)
           : [];
 
         // Extract destination name
@@ -153,6 +153,18 @@ export default function OpportunitiesPage() {
   const [showLost, setShowLost] = useState<boolean>(false);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+
+  // Auto-switch to list view on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setViewMode('list');
+      }
+    };
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch companies for filter
   useEffect(() => {
@@ -388,16 +400,17 @@ export default function OpportunitiesPage() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-8 pt-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Opportunities</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">Opportunities</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage your sales pipeline and track potential deals.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" onClick={fetchOpportunities} disabled={loading}>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={fetchOpportunities} disabled={loading} className="h-9 w-9">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
           <OpportunityDialog
@@ -407,9 +420,10 @@ export default function OpportunitiesPage() {
               if (!open) setEditingOpportunity(undefined);
             }}
             trigger={
-              <Button>
+              <Button size="sm" className="md:size-default">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                New Opportunity
+                <span className="hidden xs:inline">New Opportunity</span>
+                <span className="xs:hidden">New</span>
               </Button>
             }
             initialData={editingOpportunity}
@@ -418,27 +432,31 @@ export default function OpportunitiesPage() {
           />
         </div>
       </div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-6">
-          {/* View Toggle */}
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-            <TabsList className="grid w-[200px] grid-cols-2">
-              <TabsTrigger value="kanban" className="flex items-center gap-1.5">
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
-              </TabsTrigger>
-              <TabsTrigger value="list" className="flex items-center gap-1.5">
-                <List className="h-4 w-4" />
-                List
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+
+      {/* Filters Section */}
+      <div className="flex flex-col gap-4 bg-white p-3 md:p-4 rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 md:gap-6">
+          {/* View Toggle - Hidden on very small screens, though we could just keep it */}
+          <div className="hidden sm:block">
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList className="grid w-[180px] grid-cols-2 h-9 p-1">
+                <TabsTrigger value="kanban" className="text-xs flex items-center gap-1.5">
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Kanban
+                </TabsTrigger>
+                <TabsTrigger value="list" className="text-xs flex items-center gap-1.5">
+                  <List className="h-3.5 w-3.5" />
+                  List
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {/* Company Filter */}
-          <div className="flex items-center gap-2 border-l pl-4">
-            <label className="text-sm font-medium text-gray-700">Company:</label>
+          <div className="flex items-center gap-2 flex-1 min-w-[200px] sm:border-l sm:pl-4">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Company</label>
             <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="h-9">
                 <SelectValue placeholder="All Companies" />
               </SelectTrigger>
               <SelectContent>
@@ -453,34 +471,34 @@ export default function OpportunitiesPage() {
           </div>
 
           {/* Won/Lost Filters */}
-          <div className="flex items-center gap-4 border-l pl-4">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-4 border-t pt-3 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-4 w-full sm:w-auto">
+            <div className="flex items-center space-x-2 bg-emerald-50/50 px-3 py-1.5 rounded-lg border border-emerald-100">
               <Checkbox
                 id="show-won"
                 checked={showWon}
                 onCheckedChange={(checked) => setShowWon(checked as boolean)}
               />
-              <Label 
-                htmlFor="show-won" 
-                className="text-sm font-medium flex items-center gap-1 cursor-pointer text-emerald-700"
+              <Label
+                htmlFor="show-won"
+                className="text-xs font-bold flex items-center gap-1 cursor-pointer text-emerald-700"
               >
-                <Trophy className="h-3.5 w-3.5" />
-                Won ({opportunities.filter(o => o.closureStatus === 'won').length})
+                <Trophy className="h-3 w-3" />
+                WON ({opportunities.filter(o => o.closureStatus === 'won').length})
               </Label>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 bg-red-50/50 px-3 py-1.5 rounded-lg border border-red-100">
               <Checkbox
                 id="show-lost"
                 checked={showLost}
                 onCheckedChange={(checked) => setShowLost(checked as boolean)}
               />
-              <Label 
-                htmlFor="show-lost" 
-                className="text-sm font-medium flex items-center gap-1 cursor-pointer text-red-600"
+              <Label
+                htmlFor="show-lost"
+                className="text-xs font-bold flex items-center gap-1 cursor-pointer text-red-600"
               >
-                <XCircle className="h-3.5 w-3.5" />
-                Lost ({opportunities.filter(o => o.closureStatus === 'lost').length})
+                <XCircle className="h-3 w-3" />
+                LOST ({opportunities.filter(o => o.closureStatus === 'lost').length})
               </Label>
             </div>
           </div>
