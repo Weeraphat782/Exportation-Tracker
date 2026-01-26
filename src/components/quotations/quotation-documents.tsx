@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { getDocumentSubmissions, DocumentSubmission } from '@/lib/db';
-import { FileText, ExternalLink, Loader2, File, CheckCircle } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { getDocumentSubmissions, deleteDocumentSubmission, DocumentSubmission } from '@/lib/db';
+import { FileText, ExternalLink, Loader2, File, CheckCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { InternalUploadDialog } from './internal-upload-dialog';
+import { toast } from 'sonner';
 
 
 const ALL_DOC_CATEGORIES = [
@@ -59,23 +61,40 @@ export function QuotationDocuments({ quotationId, requiredDocTypes }: QuotationD
     const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchDocuments = async () => {
-            setLoading(true);
-            try {
-                const docs = await getDocumentSubmissions(quotationId);
-                setDocuments(docs || []);
-            } catch (error) {
-                console.error("Error fetching documents:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchDocuments = useCallback(async () => {
+        setLoading(true);
+        try {
+            const docs = await getDocumentSubmissions(quotationId);
+            setDocuments(docs || []);
+        } catch (error) {
+            console.error("Error fetching documents:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [quotationId]);
 
+    useEffect(() => {
         if (quotationId) {
             fetchDocuments();
         }
-    }, [quotationId]);
+    }, [quotationId, fetchDocuments]);
+
+    const handleDelete = async (docId: string, fileName: string) => {
+        if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+
+        try {
+            const success = await deleteDocumentSubmission(docId);
+            if (success) {
+                toast.success('Document deleted');
+                fetchDocuments(); // Refresh the list
+            } else {
+                toast.error('Failed to delete document');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('An error occurred');
+        }
+    };
 
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -132,13 +151,20 @@ export function QuotationDocuments({ quotationId, requiredDocTypes }: QuotationD
                         </p>
                     </div>
                 </div>
-                <div className="flex gap-1 bg-white/5 p-1.5 rounded-full border border-white/10">
-                    {processedCategories.map((cat) => (
-                        <div
-                            key={cat.id}
-                            className={`h-1.5 w-1.5 rounded-full transition-all duration-500 ${cat.matchedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}
-                        />
-                    ))}
+                <div className="flex items-center gap-3">
+                    <div className="hidden sm:flex gap-1 bg-white/5 p-1.5 rounded-full border border-white/10">
+                        {processedCategories.map((cat) => (
+                            <div
+                                key={cat.id}
+                                className={`h-1.5 w-1.5 rounded-full transition-all duration-500 ${cat.matchedCount > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}
+                            />
+                        ))}
+                    </div>
+                    <InternalUploadDialog
+                        quotationId={quotationId}
+                        companyName="Internal Upload"
+                        onUploadSuccess={fetchDocuments}
+                    />
                 </div>
             </div>
 
@@ -203,11 +229,21 @@ export function QuotationDocuments({ quotationId, requiredDocTypes }: QuotationD
                                         {formatDocName(doc.document_type || 'file')}
                                     </span>
                                 </div>
-                                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0 ml-1">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full border border-transparent hover:border-emerald-100">
-                                        <ExternalLink className="h-4 w-4" />
+                                <div className="flex items-center gap-1 ml-1 shrink-0">
+                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full border border-transparent hover:border-emerald-100">
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </a>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full"
+                                        onClick={() => handleDelete(doc.id, doc.file_name)}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
-                                </a>
+                                </div>
                             </div>
                         ))}
                     </div>
