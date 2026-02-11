@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // import { uploadFile } from '@/lib/storage'; // Removed as unused
 import { /* createDocumentSubmission, */ getDocumentTemplate, /* updateQuotation */ } from '@/lib/db'; // Removed updateQuotation as unused
-import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText } from 'lucide-react';
+import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText, Leaf } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from 'next/image';
 
 // Document categories and types
@@ -59,10 +60,25 @@ const DOCUMENT_CATEGORIES = [
   }
 ];
 
+// Thai GACP specific document types
+const GACP_DOCS_STANDARD = [
+  { id: 'thai-gacp-certificate-standard', name: 'Thai GACP or GACP Certificate' }
+];
+
+const GACP_DOCS_FARM = [
+  { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
+  { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
+  { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
+];
+
 // Flatten all document types for easier lookup
-const ALL_DOCUMENT_TYPES = DOCUMENT_CATEGORIES.flatMap(category =>
-  category.types.map(type => ({ ...type, category: category.id }))
-);
+const ALL_DOCUMENT_TYPES = [
+  ...DOCUMENT_CATEGORIES.flatMap(category =>
+    category.types.map(type => ({ ...type, category: category.id }))
+  ),
+  ...GACP_DOCS_STANDARD,
+  ...GACP_DOCS_FARM
+];
 
 // Allowed file types and size limits
 const ALLOWED_FILE_TYPES = [
@@ -108,7 +124,8 @@ export default function DocumentUploadPage() {
     'company-info': true,
     'permits-forms': true,
     'shipping-docs': true,
-    'additional': true
+    'additional': true,
+    'gacp-certification': true
   });
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const [notes] = useState<Record<string, string>>({});
@@ -118,6 +135,17 @@ export default function DocumentUploadPage() {
   const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
+  const [isThaiGacp, setIsThaiGacp] = useState(false);
+
+  // Computed document categories based on Thai GACP toggle
+  const currentCategories = [
+    ...DOCUMENT_CATEGORIES,
+    {
+      id: 'gacp-certification',
+      name: 'Thai GACP or GACP Certificate',
+      types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD
+    }
+  ];
 
   // Toggle section open/closed
   const toggleSection = (sectionId: string) => {
@@ -438,10 +466,6 @@ export default function DocumentUploadPage() {
                 <span className="text-gray-600">Destination:</span>
                 <span className="font-medium">{destination}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">Quotation ID:</span>
-                <span className="font-medium">{quotationId}</span>
-              </div>
             </div>
           </div>
 
@@ -465,7 +489,7 @@ export default function DocumentUploadPage() {
 
           {/* Document Upload Sections */}
           <div className="space-y-4 mb-6">
-            {DOCUMENT_CATEGORIES.map(category => (
+            {currentCategories.map(category => (
               <Collapsible
                 key={category.id}
                 open={openSections[category.id]}
@@ -478,7 +502,7 @@ export default function DocumentUploadPage() {
 
                     {/* Show count of files selected for this category */}
                     {(() => {
-                      const fileCount = category.types.reduce((count, type) => {
+                      const fileCount = (category.types as { id: string }[]).reduce((count: number, type: { id: string }) => {
                         return count + (selectedFiles[type.id]?.length || 0);
                       }, 0);
 
@@ -496,7 +520,28 @@ export default function DocumentUploadPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="p-4 space-y-4 bg-white">
-                    {category.types.map(docType => {
+                    {category.id === 'gacp-certification' && (
+                      <div className="mb-4 flex items-start space-x-3 p-4 bg-emerald-50 border border-emerald-100 rounded-xl transition-all">
+                        <div className="p-2 bg-emerald-100 rounded-lg mt-1">
+                          <Leaf className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor="thai-gacp" className="text-sm font-bold text-emerald-900 cursor-pointer">
+                            ใช้เอกสาร GACP ของฟาร์มอื่น (ซื้อมาขายไป)
+                          </Label>
+                          <p className="text-xs text-emerald-700 mt-1">
+                            *กรณีฟาร์มเป็น GACP อยู่แล้ว ไม่ต้องติ๊ก แต่ถ้าไปซื้อของมาจากฟาร์มอื่น ต้องติ๊กเพื่ออัปโหลดเอกสารฟาร์ม (Farm PO, Farm Invoice, Farm GACP)
+                          </p>
+                        </div>
+                        <Checkbox
+                          id="thai-gacp"
+                          checked={isThaiGacp}
+                          onCheckedChange={(checked) => setIsThaiGacp(!!checked)}
+                          className="h-5 w-5 border-emerald-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                        />
+                      </div>
+                    )}
+                    {(category.types as { id: string; name: string }[]).map((docType) => {
                       const hasFiles = selectedFiles[docType.id]?.length > 0;
 
                       return (
@@ -652,6 +697,6 @@ export default function DocumentUploadPage() {
           </p>
         </CardFooter>
       </Card>
-    </div>
+    </div >
   );
 } 
