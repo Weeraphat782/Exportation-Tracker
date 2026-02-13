@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation } from '@/lib/db';
+import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -57,6 +57,14 @@ export default function ShippingCalculatorPage() {
   const [isShippingDateDialogOpen, setIsShippingDateDialogOpen] = useState(false);
   const [selectedShippingDate, setSelectedShippingDate] = useState('');
   const [quotationForShipping, setQuotationForShipping] = useState<string>('');
+
+  // Assign Customer state
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [assignQuotationId, setAssignQuotationId] = useState('');
+  const [customerUsers, setCustomerUsers] = useState<{ id: string; email: string; full_name: string; company: string }[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
   // Column visibility and presets
   const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(DEFAULT_VISIBLE_COLUMNS);
@@ -433,6 +441,51 @@ export default function ShippingCalculatorPage() {
       default:
         return status;
     }
+  };
+
+  // ============ ASSIGN CUSTOMER ============
+  const handleOpenAssignDialog = async (quotationId: string) => {
+    setAssignQuotationId(quotationId);
+    setSelectedCustomerId('');
+    setCustomerSearchTerm('');
+    setIsAssignDialogOpen(true);
+
+    // Load customer users
+    const customers = await getCustomerUsers();
+    setCustomerUsers(customers);
+
+    // Pre-select if already assigned
+    const quotation = quotations.find(q => q.id === quotationId);
+    if (quotation?.customer_user_id) {
+      setSelectedCustomerId(quotation.customer_user_id);
+    }
+  };
+
+  const handleAssignCustomer = async () => {
+    if (!assignQuotationId) return;
+    setIsAssigning(true);
+
+    const success = await assignCustomerToQuotation(
+      assignQuotationId,
+      selectedCustomerId || null
+    );
+
+    if (success) {
+      // Update local state
+      setQuotations(prev =>
+        prev.map(q =>
+          q.id === assignQuotationId
+            ? { ...q, customer_user_id: selectedCustomerId || null }
+            : q
+        )
+      );
+      toast.success(selectedCustomerId ? 'Customer assigned successfully' : 'Customer unassigned');
+      setIsAssignDialogOpen(false);
+    } else {
+      toast.error('Failed to assign customer');
+    }
+
+    setIsAssigning(false);
   };
 
   const handleDeleteQuotation = async (id: string) => {
@@ -860,6 +913,12 @@ export default function ShippingCalculatorPage() {
                           </Link>
                         </DropdownMenuItem>
 
+                        {/* Assign Customer */}
+                        <DropdownMenuItem onClick={() => handleOpenAssignDialog(quotation.id)}>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          {quotation.customer_user_id ? 'Change Customer' : 'Assign Customer'}
+                        </DropdownMenuItem>
+
                         {/* Mark as Completed */}
                         {showCompleteButton && quotation.status !== 'completed' && (
                           <DropdownMenuItem
@@ -1182,6 +1241,89 @@ export default function ShippingCalculatorPage() {
               className="bg-green-600 hover:bg-green-700"
             >
               {isUpdating ? 'Processing...' : 'Complete Quotation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ============ ASSIGN CUSTOMER DIALOG ============ */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Customer</DialogTitle>
+            <DialogDescription>
+              Select a customer to assign this quotation to. The customer will be able to view this quotation in their portal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search customer..."
+                value={customerSearchTerm}
+                onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Customer List */}
+            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {/* Unassign option */}
+              <button
+                onClick={() => setSelectedCustomerId('')}
+                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                  selectedCustomerId === '' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-500'
+                }`}
+              >
+                <div className="font-medium">— No customer (Unassign)</div>
+              </button>
+
+              {customerUsers
+                .filter(c => {
+                  if (!customerSearchTerm) return true;
+                  const q = customerSearchTerm.toLowerCase();
+                  return (
+                    c.full_name.toLowerCase().includes(q) ||
+                    c.email.toLowerCase().includes(q) ||
+                    c.company.toLowerCase().includes(q)
+                  );
+                })
+                .map((customer) => (
+                  <button
+                    key={customer.id}
+                    onClick={() => setSelectedCustomerId(customer.id)}
+                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                      selectedCustomerId === customer.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900">{customer.full_name || customer.email}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {customer.company && <span>{customer.company} &middot; </span>}
+                      {customer.email}
+                    </div>
+                  </button>
+                ))}
+
+              {customerUsers.length === 0 && (
+                <div className="px-4 py-6 text-center text-sm text-gray-400">
+                  No customer accounts found. Customers need to register first.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignCustomer}
+              disabled={isAssigning}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isAssigning ? 'Assigning...' : selectedCustomerId ? 'Assign Customer' : 'Unassign'}
             </Button>
           </DialogFooter>
         </DialogContent>

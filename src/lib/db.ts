@@ -120,6 +120,8 @@ export interface Quotation {
   chargeable_weight?: number | null; // Allow null
   internal_remark?: string | null; // Added field
   required_doc_types?: string[] | null; // Added field for tracking required documents
+  customer_user_id?: string | null; // Assigned customer user ID
+  quotation_no?: string; // Auto-generated quotation number
 }
 
 export interface DocumentSubmission {
@@ -150,6 +152,60 @@ export interface Setting {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+}
+
+// ============================================================
+// CUSTOMER ASSIGNMENT FUNCTIONS
+// ============================================================
+
+/**
+ * ดึง customer ทั้งหมดสำหรับ dropdown assign
+ */
+export async function getCustomerUsers(): Promise<{ id: string; email: string; full_name: string; company: string }[]> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, company, role')
+      .eq('role', 'customer')
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching customer users:', error);
+      return [];
+    }
+
+    return (data || []).map(p => ({
+      id: p.id,
+      email: p.email || '',
+      full_name: p.full_name || '',
+      company: p.company || '',
+    }));
+  } catch (error) {
+    console.error('Error in getCustomerUsers:', error);
+    return [];
+  }
+}
+
+/**
+ * Assign customer ให้กับ quotation
+ */
+export async function assignCustomerToQuotation(quotationId: string, customerUserId: string | null): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .update({ customer_user_id: customerUserId })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error assigning customer:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in assignCustomerToQuotation:', error);
+    return false;
+  }
 }
 
 // PROFILE FUNCTIONS

@@ -527,10 +527,10 @@ export default function DocumentUploadPage() {
                         </div>
                         <div className="flex-1">
                           <Label htmlFor="thai-gacp" className="text-sm font-bold text-emerald-900 cursor-pointer">
-                            ใช้เอกสาร GACP ของฟาร์มอื่น (ซื้อมาขายไป)
+                            Using GACP documents from another farm (purchased goods)
                           </Label>
                           <p className="text-xs text-emerald-700 mt-1">
-                            *กรณีฟาร์มเป็น GACP อยู่แล้ว ไม่ต้องติ๊ก แต่ถ้าไปซื้อของมาจากฟาร์มอื่น ต้องติ๊กเพื่ออัปโหลดเอกสารฟาร์ม (Farm PO, Farm Invoice, Farm GACP)
+                            *If your farm already has GACP certification, leave this unchecked. Check this box only if you purchased goods from another farm — you will need to upload farm-level documents (Farm PO, Farm Invoice, Farm GACP).
                           </p>
                         </div>
                         <Checkbox
