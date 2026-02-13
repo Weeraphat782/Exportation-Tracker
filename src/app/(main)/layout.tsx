@@ -17,14 +17,21 @@ import { supabase } from '@/lib/supabase';
  */
 function StaffRouteGuard({ children }: { children: ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    // Only check role if user is logged in
-    if (!user) return;
+    // Still loading auth — wait
+    if (authLoading) return;
 
+    // No user — redirect to login
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+
+    // User exists — check role
     let cancelled = false;
-    setChecking(true);
 
     const checkRole = async () => {
       try {
@@ -41,20 +48,25 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Staff or admin — authorized
+        setAuthorized(true);
         setChecking(false);
       } catch {
-        if (!cancelled) setChecking(false);
+        // If profile check fails, still allow (don't lock out existing staff)
+        if (!cancelled) {
+          setAuthorized(true);
+          setChecking(false);
+        }
       }
     };
 
     checkRole();
 
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, authLoading]);
 
-  // ถ้ากำลังโหลด auth หรือ check role → แสดง loading
-  // แต่ถ้าไม่มี user เลย ไม่ต้อง loading (ปล่อยให้แต่ละหน้าจัดการ)
-  if (user && (authLoading || checking)) {
+  // Show loading while auth or role check is in progress
+  if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -64,6 +76,9 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  // Not authorized — don't render anything (redirect is in progress)
+  if (!authorized) return null;
 
   return <>{children}</>;
 }
