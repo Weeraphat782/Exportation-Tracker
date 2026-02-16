@@ -88,7 +88,7 @@ function HeroSection() {
                     <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
                       <Globe className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-white font-semibold text-sm">CantrakExport</span>
+                    <span className="text-white font-semibold text-sm">OMG Exp</span>
                   </div>
                   <span className="text-emerald-400 text-xs font-medium">Live Dashboard</span>
                 </div>
@@ -368,7 +368,7 @@ function WhyChooseUsSection() {
                   {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />)}
                 </div>
                 <p className="text-sm text-gray-600 italic mb-3">
-                  &ldquo;CantrakExport transformed our shipping process. What used to take days of paperwork is now handled in hours with their digital platform.&rdquo;
+                  &ldquo;OMG Exp transformed our shipping process. What used to take days of paperwork is now handled in hours with their digital platform.&rdquo;
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-emerald-200 rounded-full flex items-center justify-center text-emerald-700 font-semibold text-sm">K</div>
@@ -400,7 +400,7 @@ function CTASection() {
           Ready to simplify your exports?
         </h2>
         <p className="text-emerald-100 text-lg mb-8 max-w-2xl mx-auto">
-          Join hundreds of Thai exporters who trust CantrakExport for their international shipping needs. Get started in minutes.
+          Join hundreds of Thai exporters who trust OMG Exp for their international shipping needs. Get started in minutes.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link

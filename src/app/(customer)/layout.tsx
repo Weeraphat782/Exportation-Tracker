@@ -7,7 +7,6 @@ import {
   Globe,
   LayoutDashboard,
   FileText,
-  Upload,
   Plane,
   User,
   LogOut,
@@ -20,7 +19,6 @@ import { CustomerAuthProvider, useCustomerAuth } from '@/contexts/customer-auth-
 const navItems = [
   { href: '/portal', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portal/quotations', label: 'My Quotations', icon: FileText },
-  { href: '/portal/documents', label: 'Documents', icon: Upload },
   { href: '/portal/shipments', label: 'Shipments', icon: Plane },
   { href: '/portal/profile', label: 'My Profile', icon: User },
 ];
@@ -47,11 +45,13 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100">
           <Link href="/portal" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center">
-              <Globe className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <Globe className="w-4 h-4 text-white hidden" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-gray-900 leading-tight">CantrakExport</span>
+              <span className="text-sm font-bold text-gray-900 leading-tight">OMG Exp</span>
               <span className="text-[9px] text-emerald-600 font-medium -mt-0.5">Client Portal</span>
             </div>
           </Link>
@@ -69,11 +69,10 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-700 shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                  ? 'bg-emerald-50 text-emerald-700 shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
               >
                 <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-emerald-600' : 'text-gray-400'}`} />
                 {item.label}
@@ -93,7 +92,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
               <div className="text-xs text-gray-500 truncate">{profile?.email || ''}</div>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => signOut()}
             className="flex items-center gap-2 w-full mt-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
@@ -131,7 +130,7 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="flex items-center gap-2">
         {/* Notifications */}
         <div className="relative">
-          <button 
+          <button
             className="p-2 rounded-lg hover:bg-gray-100 relative"
             onClick={() => setNotifOpen(!notifOpen)}
           >

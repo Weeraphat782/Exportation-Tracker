@@ -68,7 +68,7 @@ export interface FreightRate {
 }
 
 // Define Pallet and AdditionalCharge interfaces locally if they are not exported from db.ts
-interface Pallet {
+export interface Pallet {
   length: number | string;
   width: number | string;
   height: number | string;
@@ -77,7 +77,7 @@ interface Pallet {
   overridden_rate?: number | string;
 }
 
-interface AdditionalCharge {
+export interface AdditionalCharge {
   name: string;
   description: string;
   amount: number | string; // Allow string as well for form input
@@ -122,6 +122,10 @@ export interface Quotation {
   required_doc_types?: string[] | null; // Added field for tracking required documents
   customer_user_id?: string | null; // Assigned customer user ID
   quotation_no?: string; // Auto-generated quotation number
+  opportunities?: {
+    stage: string;
+    closure_status?: string | null;
+  } | null;
 }
 
 export interface DocumentSubmission {
@@ -129,9 +133,12 @@ export interface DocumentSubmission {
   quotation_id: string;
   company_name: string;
   document_type: string;
+  document_type_name?: string;
   document_type_id?: string;
   category?: string;
   file_name: string;
+  original_file_name?: string;
+  file_path?: string;
   file_url: string;
   file_size?: number;
   mime_type?: string;

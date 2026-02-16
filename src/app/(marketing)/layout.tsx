@@ -24,11 +24,14 @@ function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/site" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center shadow-md">
-              <Globe className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-md">
+              {/* Replace src with your logo: /images/logo.png */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <Globe className="w-5 h-5 text-white hidden" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-gray-900 leading-tight tracking-tight">CantrakExport</span>
+              <span className="text-lg font-bold text-gray-900 leading-tight tracking-tight">OMG Exp</span>
               <span className="text-[10px] text-emerald-600 font-medium -mt-0.5">Global Logistics Solutions</span>
             </div>
           </Link>
@@ -125,10 +128,12 @@ function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center">
-                <Globe className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+                <Globe className="w-5 h-5 text-white hidden" />
               </div>
-              <span className="text-lg font-bold text-white">CantrakExport</span>
+              <span className="text-lg font-bold text-white">OMG Exp</span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
               Your trusted partner for international export logistics. From Thailand to the world — we handle freight, customs, and documentation.
@@ -179,7 +184,7 @@ function Footer() {
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>info@cantrakexport.com</span>
+                <span>info@omgexp.com</span>
               </li>
             </ul>
           </div>
@@ -189,7 +194,7 @@ function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-gray-500">&copy; 2026 CantrakExport. All rights reserved.</p>
+          <p className="text-xs text-gray-500">&copy; 2026 OMG Exp. All rights reserved.</p>
           <div className="flex gap-6 text-xs text-gray-500">
             <span className="hover:text-gray-400 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-gray-400 cursor-pointer">Terms of Service</span>

@@ -10,35 +10,8 @@ import {
 import { getCustomerQuotations } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
 
-const statusFilters = [
-  { label: 'All', value: 'all' },
-  { label: 'Draft', value: 'draft' },
-  { label: 'Sent', value: 'sent' },
-  { label: 'Accepted', value: 'accepted' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Shipped', value: 'Shipped' },
-];
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-600',
-    sent: 'bg-blue-50 text-blue-700',
-    accepted: 'bg-emerald-50 text-emerald-700',
-    rejected: 'bg-red-50 text-red-700',
-    completed: 'bg-violet-50 text-violet-700',
-    docs_uploaded: 'bg-cyan-50 text-cyan-700',
-    Shipped: 'bg-blue-50 text-blue-700',
-  };
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] || styles.draft}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-}
 
 export default function QuotationsListPage() {
-  const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +24,6 @@ export default function QuotationsListPage() {
   }, []);
 
   const filtered = quotations.filter(q => {
-    if (activeFilter !== 'all' && q.status !== activeFilter) return false;
     const query = searchQuery.toLowerCase();
     if (query) {
       const qNo = (q.quotation_no || '').toLowerCase();
@@ -82,22 +54,7 @@ export default function QuotationsListPage() {
 
       {/* Filters & Search */}
       <div className="bg-white rounded-xl border border-gray-100 p-4">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {statusFilters.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setActiveFilter(f.value)}
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeFilter === f.value
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col sm:flex-row gap-4 justify-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -141,7 +98,6 @@ export default function QuotationsListPage() {
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Destination</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Method</th>
                     <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Amount</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Status</th>
                     <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Actions</th>
                   </tr>
                 </thead>
@@ -167,9 +123,6 @@ export default function QuotationsListPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-sm font-medium text-gray-900">{formatAmount(q.total_cost)}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <StatusBadge status={q.status} />
                       </td>
                       <td className="px-5 py-4 text-right">
                         <Link href={`/portal/quotations/${q.id}`} className="p-2 rounded-lg hover:bg-gray-100 transition-colors inline-flex" title="View details">
