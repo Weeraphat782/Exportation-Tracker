@@ -11,6 +11,7 @@ import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe } from '
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
+import { ShippingDocumentsUpload } from '@/components/quotations/shipping-documents-upload';
 import { StageProgressBar } from '@/components/opportunities/stage-progress-bar';
 import { ContactWidget } from '@/components/opportunities/contact-widget';
 import { OpportunityTasks } from '@/components/opportunities/opportunity-tasks';
@@ -30,8 +31,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
     const [opportunity, setOpportunity] = useState<OpportunityDetail | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchOpportunity = async () => {
+    const fetchOpportunity = async () => {
             setLoading(true);
             try {
                 // Fetch opportunity with linked quotations
@@ -127,9 +127,11 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
             }
         };
 
+    useEffect(() => {
         if (id) {
             fetchOpportunity();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     if (loading) {
@@ -321,6 +323,18 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                     <QuotationDocuments
                                                         quotationId={quote.id}
                                                         requiredDocTypes={quote.required_doc_types}
+                                                    />
+
+                                                    {/* AWB & Customs Declaration - Staff Upload */}
+                                                    <ShippingDocumentsUpload
+                                                        quotationId={quote.id}
+                                                        awbFileUrl={quote.awb_file_url}
+                                                        awbFileName={quote.awb_file_name}
+                                                        awbUploadedAt={quote.awb_uploaded_at}
+                                                        customsDeclarationFileUrl={quote.customs_declaration_file_url}
+                                                        customsDeclarationFileName={quote.customs_declaration_file_name}
+                                                        customsDeclarationUploadedAt={quote.customs_declaration_uploaded_at}
+                                                        onUpdate={() => fetchOpportunity()}
                                                     />
 
                                                     <div className="flex justify-end gap-2 mt-4 hidden lg:flex">

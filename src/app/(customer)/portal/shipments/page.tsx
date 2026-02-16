@@ -3,21 +3,30 @@
 import { useEffect, useState } from 'react';
 import {
   Plane, Package, MapPin, CalendarDays,
-  CheckCircle2, Inbox, Loader2
+  CheckCircle2, Inbox, Loader2, FileText, Download
 } from 'lucide-react';
+import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { getCustomerQuotations } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
 
 export default function ShipmentsPage() {
+  const { user, isLoading: authLoading } = useCustomerAuth();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCustomerQuotations()
+    if (authLoading) return;
+
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    getCustomerQuotations(user.id)
       .then((data) => setQuotations(data))
-      .catch((err) => console.error('Shipments fetch error:', err))
+      .catch((err) => console.error('[Shipments] Fetch error:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id, authLoading]);
 
 
   const formatDate = (dateStr: string) => {
@@ -215,6 +224,52 @@ export default function ShipmentsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Shipping Documents (AWB & Customs Declaration) */}
+                {(q.awb_file_url || q.customs_declaration_file_url) && (
+                  <div className="px-6 pb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1 h-4 bg-blue-600 rounded-full" />
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Shipping Documents</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {q.awb_file_url && (
+                        <a
+                          href={q.awb_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-200 transition-all group/doc"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover/doc:bg-blue-200 transition-colors">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-blue-800">AWB (Air Waybill)</div>
+                            <div className="text-[10px] text-blue-500 truncate">{q.awb_file_name || 'Download'}</div>
+                          </div>
+                          <Download className="w-4 h-4 text-blue-400 flex-shrink-0 group-hover/doc:text-blue-600 transition-colors" />
+                        </a>
+                      )}
+                      {q.customs_declaration_file_url && (
+                        <a
+                          href={q.customs_declaration_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-xl border border-amber-100 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-200 transition-all group/doc"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover/doc:bg-amber-200 transition-colors">
+                            <FileText className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-bold text-amber-800">Customs Declaration</div>
+                            <div className="text-[10px] text-amber-500 truncate">{q.customs_declaration_file_name || 'Download'}</div>
+                          </div>
+                          <Download className="w-4 h-4 text-amber-400 flex-shrink-0 group-hover/doc:text-amber-600 transition-colors" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Footer/Details */}
                 <div className="bg-gray-50/50 border-t border-gray-50 px-6 py-3 flex items-center justify-between">

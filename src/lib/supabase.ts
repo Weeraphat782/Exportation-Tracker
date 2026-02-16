@@ -18,9 +18,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Log initial session for debugging
-if (typeof window !== 'undefined') {
-  supabase.auth.getSession().then(({ data }) => {
-    console.log('Initial session check:', data.session ? 'Session exists' : 'No session');
-  });
-} 
+// Note: No initial getSession() call here — it can hang if the token is expired
+// and autoRefreshToken acquires the navigator lock.
+// For customer portal, session-helper.ts handles proactive token refresh. 

@@ -22,6 +22,7 @@ import type { FreightRate } from '@/lib/customer-db';
 import { uploadFile } from '@/lib/storage';
 import { toast } from 'react-hot-toast';
 import { getDocumentTemplate } from '@/lib/db';
+import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import {
     Collapsible,
     CollapsibleContent,
@@ -139,6 +140,7 @@ export default function QuotationDetailPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const { user, isLoading: authLoading } = useCustomerAuth();
     const [quotation, setQuotation] = useState<Quotation | null>(null);
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
@@ -212,10 +214,15 @@ export default function QuotationDetailPage() {
         if (!id) return;
 
         const loadData = async () => {
+            if (authLoading) return;
+            if (!user?.id) {
+                setLoading(false);
+                return;
+            }
             try {
                 const [qData, docsData] = await Promise.all([
-                    getCustomerQuotationById(id),
-                    getCustomerDocuments()
+                    getCustomerQuotationById(id, user.id),
+                    getCustomerDocuments(user.id)
                 ]);
 
                 if (!qData) {
@@ -225,7 +232,23 @@ export default function QuotationDetailPage() {
                 }
                 setQuotation(qData);
                 setPallets(qData.pallets || []);
-                setDocuments(docsData.filter(d => d.quotation_id === id));
+                const filteredDocs = docsData.filter(d => d.quotation_id === id);
+                setDocuments(filteredDocs);
+
+                // Auto-collapse sections based on existing documents
+                setOpenSections(prev => {
+                    const next = { ...prev };
+                    [...DOCUMENT_CATEGORIES, {
+                        id: 'gacp-certification',
+                        types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD
+                    }].forEach(cat => {
+                        const hasDocs = filteredDocs.some(doc =>
+                            cat.types.some(t => t.id === doc.document_type)
+                        );
+                        if (hasDocs) next[cat.id] = false;
+                    });
+                    return next;
+                });
 
                 // Fetch freight rates for this destination
                 if (qData.destination_id) {
@@ -241,7 +264,7 @@ export default function QuotationDetailPage() {
         };
 
         loadData();
-    }, [id, router]);
+    }, [id, user?.id, authLoading, isThaiGacp, router]);
 
     const handlePalletChange = (index: number, field: string, value: string | number) => {
         const newPallets = [...pallets];
@@ -435,9 +458,25 @@ export default function QuotationDetailPage() {
                 toast.success(`Successfully uploaded ${successCount} document(s)`);
                 setUploadQueue([]);
                 const docsData = await getCustomerDocuments();
-                setDocuments(docsData.filter(d => d.quotation_id === id).sort((a, b) =>
+                const filteredDocs = docsData.filter(d => d.quotation_id === id);
+                setDocuments(filteredDocs.sort((a, b) =>
                     new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime()
                 ));
+
+                // Auto-collapse updated sections
+                setOpenSections(prev => {
+                    const next = { ...prev };
+                    [...DOCUMENT_CATEGORIES, {
+                        id: 'gacp-certification',
+                        types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD
+                    }].forEach(cat => {
+                        const hasDocs = filteredDocs.some(doc =>
+                            cat.types.some(t => t.id === doc.document_type)
+                        );
+                        if (hasDocs) next[cat.id] = false;
+                    });
+                    return next;
+                });
             }
         } catch (err) {
             console.error('Submit all error:', err);
@@ -458,7 +497,7 @@ export default function QuotationDetailPage() {
     if (!quotation) return null;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             {/* Breadcrumbs & Actions */}
             <div className="flex items-center justify-between">
                 <button
@@ -859,50 +898,54 @@ export default function QuotationDetailPage() {
                                                     </div>
                                                 )}
 
-                                                <div className="space-y-4">
-                                                    {category.types.map((docType) => (
-                                                        <div key={docType.id} className="flex flex-col md:flex-row md:items-center gap-4 group/item">
-                                                            <div className="w-full md:w-1/3">
-                                                                <Label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5">
-                                                                    {docType.name}
-                                                                    <span className="text-red-400 font-bold">*</span>
-                                                                </Label>
-                                                            </div>
-                                                            <div className="flex-1 flex items-center gap-2">
-                                                                <div className="relative flex-1">
-                                                                    <input
-                                                                        type="file"
-                                                                        id={docType.id}
-                                                                        className="sr-only"
-                                                                        onChange={(e) => handleFileUpload(e.target.files, docType.id, docType.name)}
-                                                                        accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
-                                                                    />
-                                                                    <label
-                                                                        htmlFor={docType.id}
-                                                                        className="flex-1 flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-500 hover:border-emerald-500 hover:text-emerald-600 cursor-pointer transition-all shadow-sm"
-                                                                    >
-                                                                        <span className="truncate max-w-[150px]">
-                                                                            {uploadQueue.find(q => q.documentType === docType.id)?.file.name || 'Select file...'}
-                                                                        </span>
-                                                                        <Upload className="w-4 h-4 opacity-50" />
-                                                                    </label>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {category.types.map((docType) => {
+                                                        const isUploaded = documents.some(d => d.document_type === docType.id);
+                                                        return (
+                                                            <div key={docType.id} className="flex flex-col space-y-2 p-3 bg-gray-50/30 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors group/item relative">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                                        {isUploaded && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                                                                        {docType.name}
+                                                                        <span className="text-red-400 font-bold">*</span>
+                                                                    </Label>
                                                                 </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handlePreview(docType.id, docType.name)}
-                                                                    disabled={previewLoading[docType.id]}
-                                                                    className="p-2.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl border border-gray-100 shadow-sm transition-all shrink-0"
-                                                                    title="View Template"
-                                                                >
-                                                                    {previewLoading[docType.id] ? (
-                                                                        <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-                                                                    ) : (
-                                                                        <Eye className="w-4 h-4" />
-                                                                    )}
-                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="relative flex-1">
+                                                                        <input
+                                                                            type="file"
+                                                                            id={docType.id}
+                                                                            className="sr-only"
+                                                                            onChange={(e) => handleFileUpload(e.target.files, docType.id, docType.name)}
+                                                                            accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+                                                                        />
+                                                                        <label
+                                                                            htmlFor={docType.id}
+                                                                            className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500 hover:border-emerald-500 hover:text-emerald-600 cursor-pointer transition-all shadow-sm"
+                                                                        >
+                                                                            <span className="truncate flex-1">
+                                                                                {uploadQueue.find(q => q.documentType === docType.id)?.file.name || 'Select file...'}
+                                                                            </span>
+                                                                            <Upload className="w-3 h-3 opacity-50" />
+                                                                        </label>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handlePreview(docType.id, docType.name)}
+                                                                        disabled={previewLoading[docType.id]}
+                                                                        className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg border border-gray-100 shadow-sm transition-all shrink-0"
+                                                                        title="View Template"
+                                                                    >
+                                                                        {previewLoading[docType.id] ? (
+                                                                            <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                                                                        ) : (
+                                                                            <Eye className="w-3 h-3" />
+                                                                        )}
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </CollapsibleContent>
@@ -981,37 +1024,37 @@ export default function QuotationDetailPage() {
                                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">No documents submitted yet</p>
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 gap-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {documents.map((doc) => (
-                                            <div key={doc.id} className="flex items-center justify-between p-4.5 bg-white border border-gray-100 rounded-3xl hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all group overflow-hidden relative">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 group-hover:bg-emerald-50 transition-colors shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                            <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-2xl hover:border-emerald-200 hover:shadow-lg transition-all group overflow-hidden relative">
+                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 shrink-0 group-hover:bg-emerald-50 transition-colors">
                                                         <FileIcon mimeType={doc.mime_type} />
                                                     </div>
-                                                    <div>
-                                                        <div className="text-sm font-bold text-gray-900 truncate max-w-[200px] md:max-w-md group-hover:text-emerald-700 transition-colors">
+                                                    <div className="overflow-hidden">
+                                                        <div className="text-xs font-bold text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
                                                             {doc.file_name}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className="text-[10px] text-emerald-600/80 font-black uppercase tracking-tighter">{doc.document_type}</span>
-                                                            <span className="text-[10px] text-gray-300">•</span>
-                                                            <span className="text-[10px] text-gray-400 font-medium">
-                                                                {new Date(doc.submitted_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <span className="text-[9px] text-emerald-600/80 font-black uppercase tracking-tight truncate max-w-[80px]">{doc.document_type}</span>
+                                                            <span className="text-[9px] text-gray-300">•</span>
+                                                            <span className="text-[9px] text-gray-400 font-medium">
+                                                                {new Date(doc.submitted_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-5">
+                                                <div className="flex items-center gap-2 shrink-0">
                                                     <DocStatusBadge status={doc.status || 'submitted'} />
                                                     {doc.file_url && (
                                                         <a
                                                             href={doc.file_url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:bg-emerald-600 hover:text-white transition-all shadow-sm group-hover:shadow-lg group-hover:shadow-emerald-200 active:scale-90"
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-400 hover:bg-emerald-600 hover:text-white transition-all active:scale-90"
                                                             title="Download/Preview"
                                                         >
-                                                            <Download className="w-4 h-4" />
+                                                            <Download className="w-3.5 h-3.5" />
                                                         </a>
                                                     )}
                                                 </div>

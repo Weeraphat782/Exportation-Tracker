@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  FileText, Upload, Plane, Clock, CheckCircle2,
+  FileText, Plane, Clock, CheckCircle2,
   ArrowRight, Eye,
   MapPin, Loader2
 } from 'lucide-react';
@@ -46,7 +46,7 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
 
 // ============ PAGE ============
 export default function CustomerDashboard() {
-  const { profile } = useCustomerAuth();
+  const { user, profile, isLoading: authLoading } = useCustomerAuth();
   const displayName = profile?.full_name || profile?.company || 'Customer';
 
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,14 @@ export default function CustomerDashboard() {
   const [recentQuotations, setRecentQuotations] = useState<Quotation[]>([]);
 
   useEffect(() => {
-    getCustomerStats()
+    if (authLoading) return;
+
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    getCustomerStats(user.id)
       .then((data) => {
         setStats({
           activeQuotations: data.activeQuotations,
@@ -69,9 +76,9 @@ export default function CustomerDashboard() {
         });
         setRecentQuotations(data.recentQuotations);
       })
-      .catch((err) => console.error('Dashboard fetch error:', err))
+      .catch((err) => console.error('[Dashboard] Fetch error:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id, authLoading]);
 
   const statCards = [
     { label: 'Total Quotations', value: stats.totalQuotations.toString(), icon: FileText, color: 'emerald' },
@@ -103,16 +110,14 @@ export default function CustomerDashboard() {
         {statCards.map((stat, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                stat.color === 'emerald' ? 'bg-emerald-50' :
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color === 'emerald' ? 'bg-emerald-50' :
                 stat.color === 'amber' ? 'bg-amber-50' :
-                stat.color === 'blue' ? 'bg-blue-50' : 'bg-violet-50'
-              }`}>
-                <stat.icon className={`w-5 h-5 ${
-                  stat.color === 'emerald' ? 'text-emerald-600' :
+                  stat.color === 'blue' ? 'bg-blue-50' : 'bg-violet-50'
+                }`}>
+                <stat.icon className={`w-5 h-5 ${stat.color === 'emerald' ? 'text-emerald-600' :
                   stat.color === 'amber' ? 'text-amber-600' :
-                  stat.color === 'blue' ? 'text-blue-600' : 'text-violet-600'
-                }`} />
+                    stat.color === 'blue' ? 'text-blue-600' : 'text-violet-600'
+                  }`} />
               </div>
             </div>
             <div className="text-2xl font-bold text-gray-900">
@@ -187,38 +192,6 @@ export default function CustomerDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="space-y-2">
-              <Link href="/portal/quotations" className="flex items-center gap-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors group">
-                <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center group-hover:bg-emerald-100">
-                  <FileText className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">View Quotations</div>
-                  <div className="text-xs text-gray-500">Check your quotes</div>
-                </div>
-              </Link>
-              <Link href="/portal/documents" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 transition-colors group">
-                <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Upload Documents</div>
-                  <div className="text-xs text-gray-500">Submit required paperwork</div>
-                </div>
-              </Link>
-              <Link href="/portal/shipments" className="flex items-center gap-3 p-3 rounded-lg hover:bg-violet-50 transition-colors group">
-                <div className="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center group-hover:bg-violet-100">
-                  <Plane className="w-4 h-4 text-violet-600" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">Track Shipments</div>
-                  <div className="text-xs text-gray-500">Monitor delivery progress</div>
-                </div>
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

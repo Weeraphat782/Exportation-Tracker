@@ -62,17 +62,6 @@ function useDragToScroll() {
         }
     }, [isDragging]);
 
-    // Horizontal scroll with mouse wheel (Shift + Scroll OR just scroll when hovering)
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-        if (containerRef.current) {
-            // If scrolling vertically but container has horizontal overflow
-            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                e.preventDefault();
-                containerRef.current.scrollLeft += e.deltaY;
-            }
-        }
-    }, []);
-
     return {
         containerRef,
         isDragging,
@@ -81,7 +70,6 @@ function useDragToScroll() {
             onMouseMove: handleMouseMove,
             onMouseUp: handleMouseUp,
             onMouseLeave: handleMouseLeave,
-            onWheel: handleWheel,
         }
     };
 }

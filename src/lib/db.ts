@@ -122,6 +122,15 @@ export interface Quotation {
   required_doc_types?: string[] | null; // Added field for tracking required documents
   customer_user_id?: string | null; // Assigned customer user ID
   quotation_no?: string; // Auto-generated quotation number
+
+  // AWB & Customs Declaration - uploaded by staff
+  awb_file_url?: string | null;
+  awb_file_name?: string | null;
+  awb_uploaded_at?: string | null;
+  customs_declaration_file_url?: string | null;
+  customs_declaration_file_name?: string | null;
+  customs_declaration_uploaded_at?: string | null;
+
   opportunities?: {
     stage: string;
     closure_status?: string | null;

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getStoredSession, isTokenExpired, ensureValidSession } from '@/lib/session-helper';
 import type { Quotation, DocumentSubmission } from '@/lib/db';
 
 export interface FreightRate {
@@ -15,26 +16,71 @@ export interface FreightRate {
 // Customer-specific database functions
 // ใช้สำหรับ customer portal เท่านั้น
 // RLS policies ทำหน้าที่ filter ข้อมูลอัตโนมัติ
+//
+// ทุก query function จะเช็ค token ก่อน:
+// - ถ้ายังไม่หมดอายุ → query ปกติ
+// - ถ้าหมดอายุ → stopAutoRefresh → refresh ด้วย fetch() → setSession → startAutoRefresh → query
 // ============================================================
 
 /**
- * ดึง quotations ทั้งหมดที่ assign ให้ customer
- * ใช้ denormalized fields (company_name, destination) เพราะ customer
- * ไม่มี access ไปยังตาราง companies/destinations โดยตรง
+ * ตรวจสอบ + refresh token ก่อนทำ query
+ * ป้องกันไม่ให้ Supabase client ค้างจาก internal lock
  */
-export async function getCustomerQuotations(): Promise<Quotation[]> {
+async function prepareSession(): Promise<boolean> {
+  const stored = getStoredSession();
+  if (!stored) return false;
+
+  if (!isTokenExpired(stored)) {
+    return true;
+  }
+
+  // Token หมดอายุ → หยุด auto-refresh → refresh เอง → sync กลับ → เปิด auto-refresh
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    supabase.auth.stopAutoRefresh();
+
+    const freshSession = await ensureValidSession();
+    if (!freshSession) {
+      supabase.auth.startAutoRefresh();
+      return false;
+    }
+
+    await supabase.auth.setSession({
+      access_token: freshSession.access_token,
+      refresh_token: freshSession.refresh_token,
+    });
+
+    supabase.auth.startAutoRefresh();
+    return true;
+  } catch (err) {
+    console.error('prepareSession error:', err);
+    supabase.auth.startAutoRefresh();
+    return false;
+  }
+}
+
+/**
+ * ดึง quotations ทั้งหมดที่ assign ให้ customer
+ */
+export async function getCustomerQuotations(providedUserId?: string): Promise<Quotation[]> {
+  try {
+    const sessionReady = await prepareSession();
+    if (!sessionReady && !providedUserId) return [];
+
+    let userId = providedUserId;
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      userId = user.id;
+    }
 
     const { data, error } = await supabase
       .from('quotations')
       .select('*, opportunities(stage, closure_status)')
-      .eq('customer_user_id', user.id)
+      .eq('customer_user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching customer quotations:', error);
+      console.error('getCustomerQuotations error:', error.message);
       return [];
     }
 
@@ -48,24 +94,31 @@ export async function getCustomerQuotations(): Promise<Quotation[]> {
 /**
  * ดึง quotation เดี่ยวสำหรับ customer
  */
-export async function getCustomerQuotationById(id: string): Promise<Quotation | null> {
+export async function getCustomerQuotationById(id: string, providedUserId?: string): Promise<Quotation | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const sessionReady = await prepareSession();
+    if (!sessionReady && !providedUserId) return null;
+
+    let userId = providedUserId;
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      userId = user.id;
+    }
 
     const { data, error } = await supabase
       .from('quotations')
       .select('*')
       .eq('id', id)
-      .eq('customer_user_id', user.id)
+      .eq('customer_user_id', userId)
       .single();
 
     if (error) {
-      console.error('Error fetching customer quotation:', error);
+      console.error('getCustomerQuotationById error:', error.message);
       return null;
     }
 
-    return data as Quotation;
+    return data as Quotation | null;
   } catch (err) {
     console.error('getCustomerQuotationById exception:', err);
     return null;
@@ -75,24 +128,28 @@ export async function getCustomerQuotationById(id: string): Promise<Quotation | 
 /**
  * ดึง document_submissions สำหรับ quotations ที่ assign ให้ customer
  */
-export async function getCustomerDocuments(): Promise<(DocumentSubmission & { quotation_display_id?: string })[]> {
+export async function getCustomerDocuments(providedUserId?: string): Promise<(DocumentSubmission & { quotation_display_id?: string })[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const sessionReady = await prepareSession();
+    if (!sessionReady && !providedUserId) return [];
 
-    // ดึง quotation IDs ของ customer ก่อน
+    let userId = providedUserId;
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      userId = user.id;
+    }
+
     const { data: quotations } = await supabase
       .from('quotations')
       .select('id')
-      .eq('customer_user_id', user.id);
+      .eq('customer_user_id', userId);
 
     if (!quotations || quotations.length === 0) return [];
 
     const quotationIds = quotations.map(q => q.id);
-    // ใช้ id ย่อเป็น display ID เพราะ quotation_no ไม่มีใน DB
     const quotationMap = new Map(quotations.map(q => [q.id, q.id.slice(0, 8).toUpperCase()]));
 
-    // ดึง documents สำหรับ quotations เหล่านั้น
     const { data: docs, error } = await supabase
       .from('document_submissions')
       .select('*')
@@ -100,15 +157,14 @@ export async function getCustomerDocuments(): Promise<(DocumentSubmission & { qu
       .order('submitted_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching customer documents:', error);
+      console.error('getCustomerDocuments error:', error.message);
       return [];
     }
 
-    // เพิ่ม quotation display ID เข้าไปในแต่ละ document
     return (docs || []).map(doc => ({
       ...doc,
       quotation_display_id: quotationMap.get(doc.quotation_id) || 'N/A',
-    })) as (DocumentSubmission & { quotation_display_id?: string })[];
+    }));
   } catch (err) {
     console.error('getCustomerDocuments exception:', err);
     return [];
@@ -118,9 +174,9 @@ export async function getCustomerDocuments(): Promise<(DocumentSubmission & { qu
 /**
  * ดึง customer stats สำหรับ dashboard
  */
-export async function getCustomerStats() {
+export async function getCustomerStats(providedUserId?: string) {
   try {
-    const quotations = await getCustomerQuotations();
+    const quotations = await getCustomerQuotations(providedUserId);
 
     const activeStatuses = ['draft', 'sent', 'accepted', 'docs_uploaded'];
     const inTransitStatuses = ['Shipped'];
@@ -152,10 +208,11 @@ export async function getCustomerStats() {
  */
 export async function updateCustomerQuotation(id: string, updates: Partial<Quotation>): Promise<boolean> {
   try {
+    await prepareSession();
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // เช็คก่อนว่า quotation นี้เป็นของ customer จริงๆ (กันเหนียว แม้ RLS จะกันอยู่แล้ว)
     const { data: checkData, error: checkError } = await supabase
       .from('quotations')
       .select('id')
@@ -191,10 +248,11 @@ export async function updateCustomerQuotation(id: string, updates: Partial<Quota
  */
 export async function submitCustomerDocument(document: Omit<DocumentSubmission, 'id' | 'submitted_at'>): Promise<boolean> {
   try {
+    await prepareSession();
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    // เช็คว่า quotation นี้เป็นของเขาจริงมั้ย
     const { data: qCheck } = await supabase
       .from('quotations')
       .select('id')
@@ -220,7 +278,6 @@ export async function submitCustomerDocument(document: Omit<DocumentSubmission, 
       return false;
     }
 
-    // อัปเดตสถานะ quotation เป็น docs_uploaded ถ้ายังไม่ใช่สถานะที่สูงกว่านั้น
     const { data: quotation } = await supabase
       .from('quotations')
       .select('status')
@@ -246,6 +303,8 @@ export async function submitCustomerDocument(document: Omit<DocumentSubmission, 
  */
 export async function getCustomerSetting<T>(category: string, key: string, defaultValue: T): Promise<T> {
   try {
+    await prepareSession();
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return defaultValue;
 
@@ -274,17 +333,26 @@ export async function getCustomerSetting<T>(category: string, key: string, defau
  */
 export async function saveCustomerSetting(category: string, key: string, value: unknown): Promise<boolean> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    await prepareSession();
 
-    // หา id เดิมก่อนถ้ามี
-    const { data: existing } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('saveCustomerSetting: no user');
+      return false;
+    }
+
+    const { data: existing, error: selectError } = await supabase
       .from('settings')
       .select('id')
       .eq('user_id', user.id)
       .eq('category', category)
       .eq('settings_key', key)
       .maybeSingle();
+
+    if (selectError) {
+      console.error('saveCustomerSetting select error:', selectError.message);
+      return false;
+    }
 
     if (existing) {
       const { error } = await supabase
@@ -295,7 +363,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
         })
         .eq('id', existing.id);
 
-      if (error) console.error('saveCustomerSetting update error:', error);
+      if (error) console.error('saveCustomerSetting update error:', error.message);
       return !error;
     } else {
       const { error } = await supabase
@@ -309,7 +377,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
           updated_at: new Date().toISOString()
         });
 
-      if (error) console.error('saveCustomerSetting insert error:', error);
+      if (error) console.error('saveCustomerSetting insert error:', error.message);
       return !error;
     }
   } catch (err) {
@@ -320,10 +388,11 @@ export async function saveCustomerSetting(category: string, key: string, value: 
 
 /**
  * ดึงอัตราค่าขนส่งสำหรับสถานที่ปลายทางเฉพาะ
- * ใช้สำหรับคำนวณราคาแบบ Real-time ใน portal
  */
 export async function getFreightRatesByDestination(destinationId: string): Promise<FreightRate[]> {
   try {
+    await prepareSession();
+
     const { data, error } = await supabase
       .from('freight_rates')
       .select('*')

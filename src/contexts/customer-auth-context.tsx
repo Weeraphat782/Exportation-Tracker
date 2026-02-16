@@ -1,19 +1,24 @@
 'use client';
 
-import { 
-  createContext, 
-  useContext, 
-  useState, 
-  useEffect, 
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
   useRef,
-  ReactNode 
+  ReactNode
 } from 'react';
-import { 
-  User, 
-  Session, 
-  AuthError 
+import {
+  User,
+  Session,
+  AuthError
 } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import {
+  getStoredSession,
+  isTokenExpired,
+  ensureValidSession,
+} from '@/lib/session-helper';
 
 type CustomerProfile = {
   id: string;
@@ -41,6 +46,49 @@ type CustomerAuthContextType = {
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
 
+/**
+ * Refresh session แบบปลอดภัย — ใช้ fetch() ตรง + หยุด auto-refresh ชั่วคราว
+ * เพื่อป้องกัน navigator.locks ค้าง
+ *
+ * Flow:
+ * 1. stopAutoRefresh() → ป้องกัน Supabase client ชิง lock
+ * 2. refresh ด้วย fetch() ตรง (5s timeout)
+ * 3. setSession() → sync token ใหม่เข้า client (lock ว่างแล้ว)
+ * 4. startAutoRefresh() → เปิด timer ใหม่
+ */
+async function safeRefreshAndSync(): Promise<boolean> {
+  try {
+    // หยุด auto-refresh ก่อน เพื่อป้องกัน lock ค้าง
+    supabase.auth.stopAutoRefresh();
+
+    const freshSession = await ensureValidSession();
+    if (!freshSession) {
+      supabase.auth.startAutoRefresh();
+      return false;
+    }
+
+    // Sync token ใหม่เข้า Supabase client (lock ว่างเพราะ stopAutoRefresh แล้ว)
+    const { error } = await supabase.auth.setSession({
+      access_token: freshSession.access_token,
+      refresh_token: freshSession.refresh_token,
+    });
+
+    // เปิด auto-refresh ใหม่
+    supabase.auth.startAutoRefresh();
+
+    if (error) {
+      console.error('[SafeRefresh] setSession error:', error.message);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[SafeRefresh] error:', err);
+    supabase.auth.startAutoRefresh();
+    return false;
+  }
+}
+
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -48,7 +96,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
 
-  // Fetch customer profile — with timeout to prevent hanging
   const fetchProfile = async (userId: string): Promise<CustomerProfile | null> => {
     try {
       const { data, error } = await supabase
@@ -73,28 +120,50 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
     const initialize = async () => {
       try {
-        // 1. Get current session
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Customer auth - getSession error:', error.message);
+        console.log('Customer auth - Initializing...');
+
+        // เช็คว่า token หมดอายุหรือไม่ (อ่านจาก localStorage ตรง, instant)
+        const stored = getStoredSession();
+
+        if (!stored) {
+          console.log('Customer auth - No stored session');
+          setIsLoading(false);
+          return;
         }
+
+        if (isTokenExpired(stored)) {
+          // Token หมดอายุ → refresh แบบปลอดภัย (stop auto-refresh → fetch → setSession → start)
+          console.log('Customer auth - Token expired, doing safe refresh...');
+          const success = await safeRefreshAndSync();
+
+          if (!mountedRef.current) return;
+
+          if (!success) {
+            console.warn('Customer auth - Refresh failed');
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Token ยังใช้ได้ → getSession ปกติ (token ไม่หมดอายุ → ไม่ trigger internal refresh → ไม่ค้าง)
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
 
         if (!mountedRef.current) return;
 
         if (currentSession?.user) {
+          console.log('Customer auth - Session found:', currentSession.user.id);
           setSession(currentSession);
           setUser(currentSession.user);
-          
-          // 2. Fetch profile (with safety)
+
           const prof = await fetchProfile(currentSession.user.id);
           if (!mountedRef.current) return;
           setProfile(prof);
+        } else {
+          console.log('Customer auth - No user in session');
         }
       } catch (err) {
-        console.error('Customer auth - initialize error:', err);
+        console.error('Customer auth - init error:', err);
       } finally {
-        // ✅ Always set loading to false, even on error
         if (mountedRef.current) {
           setIsLoading(false);
         }
@@ -103,14 +172,15 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
     initialize();
 
-    // Listen for auth state changes
+    // Listen for auth state changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log(`Customer auth - Event: ${event}`);
         if (!mountedRef.current) return;
 
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        
+
         if (newSession?.user) {
           const prof = await fetchProfile(newSession.user.id);
           if (mountedRef.current) {
@@ -119,17 +189,43 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
         }
-        
+
         if (mountedRef.current) {
           setIsLoading(false);
         }
       }
     );
 
+    // visibilitychange: เมื่อ tab กลับมา visible → เช็ค + refresh token ถ้าจำเป็น
+    // วิธีนี้ refresh token ก่อนที่ component จะ fetch data → ไม่ค้าง
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!mountedRef.current) return;
+
+      const stored = getStoredSession();
+      if (!stored) return;
+
+      if (isTokenExpired(stored)) {
+        console.log('Customer auth - Tab visible + token expired, refreshing...');
+        await safeRefreshAndSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Periodic check: ทุก 4 นาที เช็คว่า token ใกล้หมดอายุ → refresh ล่วงหน้า
+    const refreshInterval = setInterval(async () => {
+      if (!mountedRef.current) return;
+      const stored = getStoredSession();
+      if (stored && isTokenExpired(stored)) {
+        console.log('Customer auth - Periodic check: token expired, refreshing...');
+        await safeRefreshAndSync();
+      }
+    }, 4 * 60 * 1000);
+
     // Failsafe: force loading to false after 5 seconds
-    const timeout = setTimeout(() => {
-      if (mountedRef.current) {
-        console.warn('Customer auth - Loading timeout, forcing isLoading=false');
+    const failsafe = setTimeout(() => {
+      if (mountedRef.current && isLoading) {
+        console.warn('Customer auth - Failsafe: forcing isLoading=false');
         setIsLoading(false);
       }
     }, 5000);
@@ -137,7 +233,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mountedRef.current = false;
       subscription.unsubscribe();
-      clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(refreshInterval);
+      clearTimeout(failsafe);
     };
   }, []);
 
@@ -149,19 +247,19 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      
+
       if (error) {
         return { error, success: false };
       }
-      
+
       if (data?.session) {
         const prof = await fetchProfile(data.session.user.id);
-        
+
         if (!prof || prof.role !== 'customer') {
           await supabase.auth.signOut();
-          return { 
-            error: new Error('This account is not registered as a customer. Please use the staff login instead.') as unknown as AuthError, 
-            success: false 
+          return {
+            error: new Error('This account is not registered as a customer. Please use the staff login instead.') as unknown as AuthError,
+            success: false
           };
         }
 
@@ -194,7 +292,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           }
         },
       });
-      
+
       if (error) {
         return { error, success: false };
       }

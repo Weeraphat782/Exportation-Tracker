@@ -11,17 +11,27 @@ import { getCustomerQuotations } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
 
 
+import { useCustomerAuth } from '@/contexts/customer-auth-context';
+
 export default function QuotationsListPage() {
+  const { user, isLoading: authLoading } = useCustomerAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCustomerQuotations()
+    if (authLoading) return;
+
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    getCustomerQuotations(user.id)
       .then((data) => setQuotations(data))
-      .catch((err) => console.error('Quotations fetch error:', err))
+      .catch((err) => console.error('[Quotations] Fetch error:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user?.id, authLoading]);
 
   const filtered = quotations.filter(q => {
     const query = searchQuery.toLowerCase();

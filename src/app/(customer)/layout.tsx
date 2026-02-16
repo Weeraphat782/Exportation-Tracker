@@ -84,12 +84,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         {/* Bottom section */}
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100">
           <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-            <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-semibold text-sm">
+            <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-semibold text-sm" suppressHydrationWarning>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{profile?.company || profile?.full_name || 'Customer'}</div>
-              <div className="text-xs text-gray-500 truncate">{profile?.email || ''}</div>
+              <div className="text-sm font-medium text-gray-900 truncate" suppressHydrationWarning>{profile?.company || profile?.full_name || 'Customer'}</div>
+              <div className="text-xs text-gray-500 truncate" suppressHydrationWarning>{profile?.email || ''}</div>
             </div>
           </div>
           <button
@@ -123,7 +123,7 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
         </button>
         <div>
           <h1 className="text-sm font-semibold text-gray-400">Welcome back,</h1>
-          <p className="text-base font-bold text-gray-900 -mt-0.5">{displayName}</p>
+          <p className="text-base font-bold text-gray-900 -mt-0.5" suppressHydrationWarning>{displayName}</p>
         </div>
       </div>
 
@@ -150,7 +150,7 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
         </div>
 
         {/* User avatar */}
-        <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-semibold text-sm ml-1">
+        <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-semibold text-sm ml-1" suppressHydrationWarning>
           {initials}
         </div>
       </div>
