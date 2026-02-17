@@ -1,5 +1,4 @@
-import { supabase } from '@/lib/supabase';
-import { getStoredSession, isTokenExpired, ensureValidSession } from '@/lib/session-helper';
+import { queryClient, loadSession } from '@/lib/customer-query-client';
 import type { Quotation, DocumentSubmission } from '@/lib/db';
 
 export interface FreightRate {
@@ -15,65 +14,30 @@ export interface FreightRate {
 // ============================================================
 // Customer-specific database functions
 // ใช้สำหรับ customer portal เท่านั้น
-// RLS policies ทำหน้าที่ filter ข้อมูลอัตโนมัติ
 //
-// ทุก query function จะเช็ค token ก่อน:
-// - ถ้ายังไม่หมดอายุ → query ปกติ
-// - ถ้าหมดอายุ → stopAutoRefresh → refresh ด้วย fetch() → setSession → startAutoRefresh → query
+// ใช้ queryClient (ไม่ใช่ main supabase client) เพื่อ bypass navigator.locks
+// queryClient ไม่มี autoRefreshToken, ไม่มี persistSession → ไม่มี lock → ไม่ค้าง
+//
+// ก่อนทุก query: loadSession() อ่าน token จาก localStorage → sync เข้า queryClient
+// ถ้า token หมดอายุ → refresh ด้วย fetch() ตรง (5s timeout)
 // ============================================================
-
-/**
- * ตรวจสอบ + refresh token ก่อนทำ query
- * ป้องกันไม่ให้ Supabase client ค้างจาก internal lock
- */
-async function prepareSession(): Promise<boolean> {
-  const stored = getStoredSession();
-  if (!stored) return false;
-
-  if (!isTokenExpired(stored)) {
-    return true;
-  }
-
-  // Token หมดอายุ → หยุด auto-refresh → refresh เอง → sync กลับ → เปิด auto-refresh
-  try {
-    supabase.auth.stopAutoRefresh();
-
-    const freshSession = await ensureValidSession();
-    if (!freshSession) {
-      supabase.auth.startAutoRefresh();
-      return false;
-    }
-
-    await supabase.auth.setSession({
-      access_token: freshSession.access_token,
-      refresh_token: freshSession.refresh_token,
-    });
-
-    supabase.auth.startAutoRefresh();
-    return true;
-  } catch (err) {
-    console.error('prepareSession error:', err);
-    supabase.auth.startAutoRefresh();
-    return false;
-  }
-}
 
 /**
  * ดึง quotations ทั้งหมดที่ assign ให้ customer
  */
 export async function getCustomerQuotations(providedUserId?: string): Promise<Quotation[]> {
   try {
-    const sessionReady = await prepareSession();
-    if (!sessionReady && !providedUserId) return [];
+    const ready = await loadSession();
+    if (!ready && !providedUserId) return [];
 
     let userId = providedUserId;
     if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await queryClient.auth.getUser();
       if (!user) return [];
       userId = user.id;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await queryClient
       .from('quotations')
       .select('*, opportunities(stage, closure_status)')
       .eq('customer_user_id', userId)
@@ -96,19 +60,19 @@ export async function getCustomerQuotations(providedUserId?: string): Promise<Qu
  */
 export async function getCustomerQuotationById(id: string, providedUserId?: string): Promise<Quotation | null> {
   try {
-    const sessionReady = await prepareSession();
-    if (!sessionReady && !providedUserId) return null;
+    const ready = await loadSession();
+    if (!ready && !providedUserId) return null;
 
     let userId = providedUserId;
     if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await queryClient.auth.getUser();
       if (!user) return null;
       userId = user.id;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await queryClient
       .from('quotations')
-      .select('*')
+      .select('*, opportunities(stage, closure_status)')
       .eq('id', id)
       .eq('customer_user_id', userId)
       .single();
@@ -130,17 +94,17 @@ export async function getCustomerQuotationById(id: string, providedUserId?: stri
  */
 export async function getCustomerDocuments(providedUserId?: string): Promise<(DocumentSubmission & { quotation_display_id?: string })[]> {
   try {
-    const sessionReady = await prepareSession();
-    if (!sessionReady && !providedUserId) return [];
+    const ready = await loadSession();
+    if (!ready && !providedUserId) return [];
 
     let userId = providedUserId;
     if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await queryClient.auth.getUser();
       if (!user) return [];
       userId = user.id;
     }
 
-    const { data: quotations } = await supabase
+    const { data: quotations } = await queryClient
       .from('quotations')
       .select('id')
       .eq('customer_user_id', userId);
@@ -150,7 +114,7 @@ export async function getCustomerDocuments(providedUserId?: string): Promise<(Do
     const quotationIds = quotations.map(q => q.id);
     const quotationMap = new Map(quotations.map(q => [q.id, q.id.slice(0, 8).toUpperCase()]));
 
-    const { data: docs, error } = await supabase
+    const { data: docs, error } = await queryClient
       .from('document_submissions')
       .select('*')
       .in('quotation_id', quotationIds)
@@ -204,16 +168,16 @@ export async function getCustomerStats(providedUserId?: string) {
 }
 
 /**
- * อัปเดต quotation สำหรับ customer (จำกัดเฉพาะบาง field เช่น pallets)
+ * อัปเดต quotation สำหรับ customer
  */
 export async function updateCustomerQuotation(id: string, updates: Partial<Quotation>): Promise<boolean> {
   try {
-    await prepareSession();
+    await loadSession();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await queryClient.auth.getUser();
     if (!user) return false;
 
-    const { data: checkData, error: checkError } = await supabase
+    const { data: checkData, error: checkError } = await queryClient
       .from('quotations')
       .select('id')
       .eq('id', id)
@@ -225,7 +189,7 @@ export async function updateCustomerQuotation(id: string, updates: Partial<Quota
       return false;
     }
 
-    const { error } = await supabase
+    const { error } = await queryClient
       .from('quotations')
       .update(updates)
       .eq('id', id)
@@ -248,12 +212,12 @@ export async function updateCustomerQuotation(id: string, updates: Partial<Quota
  */
 export async function submitCustomerDocument(document: Omit<DocumentSubmission, 'id' | 'submitted_at'>): Promise<boolean> {
   try {
-    await prepareSession();
+    await loadSession();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await queryClient.auth.getUser();
     if (!user) return false;
 
-    const { data: qCheck } = await supabase
+    const { data: qCheck } = await queryClient
       .from('quotations')
       .select('id')
       .eq('id', document.quotation_id)
@@ -265,7 +229,7 @@ export async function submitCustomerDocument(document: Omit<DocumentSubmission, 
       return false;
     }
 
-    const { error } = await supabase
+    const { error } = await queryClient
       .from('document_submissions')
       .insert({
         ...document,
@@ -278,14 +242,14 @@ export async function submitCustomerDocument(document: Omit<DocumentSubmission, 
       return false;
     }
 
-    const { data: quotation } = await supabase
+    const { data: quotation } = await queryClient
       .from('quotations')
       .select('status')
       .eq('id', document.quotation_id)
       .single();
 
     if (quotation && ['draft', 'sent', 'accepted'].includes(quotation.status)) {
-      await supabase
+      await queryClient
         .from('quotations')
         .update({ status: 'docs_uploaded' })
         .eq('id', document.quotation_id);
@@ -303,12 +267,12 @@ export async function submitCustomerDocument(document: Omit<DocumentSubmission, 
  */
 export async function getCustomerSetting<T>(category: string, key: string, defaultValue: T): Promise<T> {
   try {
-    await prepareSession();
+    await loadSession();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await queryClient.auth.getUser();
     if (!user) return defaultValue;
 
-    const { data, error } = await supabase
+    const { data, error } = await queryClient
       .from('settings')
       .select('settings_value')
       .eq('user_id', user.id)
@@ -333,15 +297,15 @@ export async function getCustomerSetting<T>(category: string, key: string, defau
  */
 export async function saveCustomerSetting(category: string, key: string, value: unknown): Promise<boolean> {
   try {
-    await prepareSession();
+    await loadSession();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await queryClient.auth.getUser();
     if (!user) {
       console.error('saveCustomerSetting: no user');
       return false;
     }
 
-    const { data: existing, error: selectError } = await supabase
+    const { data: existing, error: selectError } = await queryClient
       .from('settings')
       .select('id')
       .eq('user_id', user.id)
@@ -355,7 +319,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
     }
 
     if (existing) {
-      const { error } = await supabase
+      const { error } = await queryClient
         .from('settings')
         .update({
           settings_value: value,
@@ -366,7 +330,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
       if (error) console.error('saveCustomerSetting update error:', error.message);
       return !error;
     } else {
-      const { error } = await supabase
+      const { error } = await queryClient
         .from('settings')
         .insert({
           user_id: user.id,
@@ -391,9 +355,9 @@ export async function saveCustomerSetting(category: string, key: string, value: 
  */
 export async function getFreightRatesByDestination(destinationId: string): Promise<FreightRate[]> {
   try {
-    await prepareSession();
+    await loadSession();
 
-    const { data, error } = await supabase
+    const { data, error } = await queryClient
       .from('freight_rates')
       .select('*')
       .eq('destination_id', destinationId);

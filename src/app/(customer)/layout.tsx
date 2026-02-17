@@ -5,8 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Globe,
-  LayoutDashboard,
-  FileText,
   Plane,
   User,
   LogOut,
@@ -17,9 +15,7 @@ import {
 import { CustomerAuthProvider, useCustomerAuth } from '@/contexts/customer-auth-context';
 
 const navItems = [
-  { href: '/portal', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/portal/quotations', label: 'My Quotations', icon: FileText },
-  { href: '/portal/shipments', label: 'Shipments', icon: Plane },
+  { href: '/portal', label: 'My Shipments', icon: Plane },
   { href: '/portal/profile', label: 'My Profile', icon: User },
 ];
 
@@ -63,7 +59,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         {/* Nav Items */}
         <nav className="p-3 space-y-1 mt-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = item.href === '/portal'
+              ? pathname === '/portal' || pathname.startsWith('/portal/shipments')
+              : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}

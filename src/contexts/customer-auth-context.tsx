@@ -14,6 +14,7 @@ import {
   AuthError
 } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/customer-query-client';
 import {
   getStoredSession,
   isTokenExpired,
@@ -46,49 +47,6 @@ type CustomerAuthContextType = {
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
 
-/**
- * Refresh session แบบปลอดภัย — ใช้ fetch() ตรง + หยุด auto-refresh ชั่วคราว
- * เพื่อป้องกัน navigator.locks ค้าง
- *
- * Flow:
- * 1. stopAutoRefresh() → ป้องกัน Supabase client ชิง lock
- * 2. refresh ด้วย fetch() ตรง (5s timeout)
- * 3. setSession() → sync token ใหม่เข้า client (lock ว่างแล้ว)
- * 4. startAutoRefresh() → เปิด timer ใหม่
- */
-async function safeRefreshAndSync(): Promise<boolean> {
-  try {
-    // หยุด auto-refresh ก่อน เพื่อป้องกัน lock ค้าง
-    supabase.auth.stopAutoRefresh();
-
-    const freshSession = await ensureValidSession();
-    if (!freshSession) {
-      supabase.auth.startAutoRefresh();
-      return false;
-    }
-
-    // Sync token ใหม่เข้า Supabase client (lock ว่างเพราะ stopAutoRefresh แล้ว)
-    const { error } = await supabase.auth.setSession({
-      access_token: freshSession.access_token,
-      refresh_token: freshSession.refresh_token,
-    });
-
-    // เปิด auto-refresh ใหม่
-    supabase.auth.startAutoRefresh();
-
-    if (error) {
-      console.error('[SafeRefresh] setSession error:', error.message);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error('[SafeRefresh] error:', err);
-    supabase.auth.startAutoRefresh();
-    return false;
-  }
-}
-
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -96,9 +54,10 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
 
+  // ใช้ queryClient สำหรับ fetch profile (ไม่ใช้ main supabase client → ไม่ค้าง)
   const fetchProfile = async (userId: string): Promise<CustomerProfile | null> => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await queryClient
         .from('profiles')
         .select('id, email, full_name, company, role')
         .eq('id', userId)
@@ -122,45 +81,38 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('Customer auth - Initializing...');
 
-        // เช็คว่า token หมดอายุหรือไม่ (อ่านจาก localStorage ตรง, instant)
-        const stored = getStoredSession();
+        // Step 1: อ่าน session จาก localStorage + refresh ถ้าจำเป็น (ไม่ผ่าน main client)
+        const freshSession = await ensureValidSession();
+        if (!mountedRef.current) return;
 
-        if (!stored) {
-          console.log('Customer auth - No stored session');
+        if (!freshSession) {
+          console.log('Customer auth - No valid session');
           setIsLoading(false);
           return;
         }
 
-        if (isTokenExpired(stored)) {
-          // Token หมดอายุ → refresh แบบปลอดภัย (stop auto-refresh → fetch → setSession → start)
-          console.log('Customer auth - Token expired, doing safe refresh...');
-          const success = await safeRefreshAndSync();
-
-          if (!mountedRef.current) return;
-
-          if (!success) {
-            console.warn('Customer auth - Refresh failed');
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Token ยังใช้ได้ → getSession ปกติ (token ไม่หมดอายุ → ไม่ trigger internal refresh → ไม่ค้าง)
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        // Step 2: โหลดเข้า queryClient เพื่อได้ proper User/Session objects
+        const { data, error } = await queryClient.auth.setSession({
+          access_token: freshSession.access_token,
+          refresh_token: freshSession.refresh_token,
+        });
 
         if (!mountedRef.current) return;
 
-        if (currentSession?.user) {
-          console.log('Customer auth - Session found:', currentSession.user.id);
-          setSession(currentSession);
-          setUser(currentSession.user);
-
-          const prof = await fetchProfile(currentSession.user.id);
-          if (!mountedRef.current) return;
-          setProfile(prof);
-        } else {
-          console.log('Customer auth - No user in session');
+        if (error || !data?.session?.user) {
+          console.error('Customer auth - setSession error:', error?.message);
+          setIsLoading(false);
+          return;
         }
+
+        console.log('Customer auth - Session loaded:', data.session.user.email);
+        setSession(data.session);
+        setUser(data.session.user);
+
+        // Step 3: Fetch profile ด้วย queryClient (ไม่ค้าง)
+        const prof = await fetchProfile(data.session.user.id);
+        if (!mountedRef.current) return;
+        setProfile(prof);
       } catch (err) {
         console.error('Customer auth - init error:', err);
       } finally {
@@ -172,74 +124,54 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
     initialize();
 
-    // Listen for auth state changes (sign-in, sign-out, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log(`Customer auth - Event: ${event}`);
-        if (!mountedRef.current) return;
-
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          const prof = await fetchProfile(newSession.user.id);
-          if (mountedRef.current) {
-            setProfile(prof);
-          }
-        } else {
-          setProfile(null);
-        }
-
-        if (mountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // visibilitychange: เมื่อ tab กลับมา visible → เช็ค + refresh token ถ้าจำเป็น
-    // วิธีนี้ refresh token ก่อนที่ component จะ fetch data → ไม่ค้าง
+    // visibilitychange: เมื่อ tab กลับมา → refresh token + sync queryClient
     const handleVisibilityChange = async () => {
       if (document.visibilityState !== 'visible') return;
       if (!mountedRef.current) return;
 
       const stored = getStoredSession();
-      if (!stored) return;
+      if (!stored || !isTokenExpired(stored)) return;
 
-      if (isTokenExpired(stored)) {
-        console.log('Customer auth - Tab visible + token expired, refreshing...');
-        await safeRefreshAndSync();
+      console.log('Customer auth - Tab visible + token expired, refreshing...');
+      const fresh = await ensureValidSession();
+      if (!fresh || !mountedRef.current) return;
+
+      // Sync เข้า queryClient
+      const { data } = await queryClient.auth.setSession({
+        access_token: fresh.access_token,
+        refresh_token: fresh.refresh_token,
+      });
+
+      if (data?.session?.user && mountedRef.current) {
+        setSession(data.session);
+        setUser(data.session.user);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Periodic check: ทุก 4 นาที เช็คว่า token ใกล้หมดอายุ → refresh ล่วงหน้า
+    // Periodic refresh: ทุก 4 นาที
     const refreshInterval = setInterval(async () => {
       if (!mountedRef.current) return;
       const stored = getStoredSession();
       if (stored && isTokenExpired(stored)) {
-        console.log('Customer auth - Periodic check: token expired, refreshing...');
-        await safeRefreshAndSync();
+        const fresh = await ensureValidSession();
+        if (fresh && mountedRef.current) {
+          await queryClient.auth.setSession({
+            access_token: fresh.access_token,
+            refresh_token: fresh.refresh_token,
+          });
+        }
       }
     }, 4 * 60 * 1000);
 
-    // Failsafe: force loading to false after 5 seconds
-    const failsafe = setTimeout(() => {
-      if (mountedRef.current && isLoading) {
-        console.warn('Customer auth - Failsafe: forcing isLoading=false');
-        setIsLoading(false);
-      }
-    }, 5000);
-
     return () => {
       mountedRef.current = false;
-      subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(refreshInterval);
-      clearTimeout(failsafe);
     };
   }, []);
 
-  // Customer sign in
+  // Customer sign in — ใช้ main supabase client (เพื่อ store session ลง localStorage)
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -253,6 +185,12 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data?.session) {
+        // Sync เข้า queryClient ด้วย
+        await queryClient.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
         const prof = await fetchProfile(data.session.user.id);
 
         if (!prof || prof.role !== 'customer') {
@@ -310,6 +248,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     await supabase.auth.signOut();
     setProfile(null);
+    setUser(null);
+    setSession(null);
     window.location.href = '/site';
     setIsLoading(false);
   };

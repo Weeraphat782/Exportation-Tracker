@@ -9,7 +9,7 @@ export default function NewQuotationPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/portal/quotations" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+        <Link href="/portal" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
           <ArrowLeft className="w-5 h-5 text-gray-500" />
         </Link>
         <div>
@@ -45,8 +45,8 @@ export default function NewQuotationPage() {
 
       {/* Back */}
       <div className="text-center">
-        <Link href="/portal/quotations" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-          &larr; Back to quotations
+        <Link href="/portal" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          &larr; Back to My Shipments
         </Link>
       </div>
     </div>

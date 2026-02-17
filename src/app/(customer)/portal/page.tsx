@@ -1,199 +1,268 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  FileText, Plane, Clock, CheckCircle2,
-  ArrowRight, Eye,
-  MapPin, Loader2
+    Plane, Package, MapPin, CalendarDays,
+    CheckCircle2, Inbox, Loader2, FileText,
+    Search, ArrowRight, Eye
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import { getCustomerStats } from '@/lib/customer-db';
+import { getCustomerQuotations } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
 
-// ============ STATUS BADGE ============
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-600',
-    sent: 'bg-blue-50 text-blue-700',
-    accepted: 'bg-emerald-50 text-emerald-700',
-    rejected: 'bg-red-50 text-red-700',
-    completed: 'bg-violet-50 text-violet-700',
-    pending: 'bg-amber-50 text-amber-700',
-    docs_uploaded: 'bg-cyan-50 text-cyan-700',
-    Shipped: 'bg-blue-50 text-blue-700',
-  };
+// ============ HELPERS ============
 
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] || styles.draft}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
-}
-
-// ============ EMPTY STATE ============
-function EmptyState({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-        <Icon className="w-8 h-8 text-gray-300" />
-      </div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">{title}</h3>
-      <p className="text-xs text-gray-500 max-w-[250px]">{description}</p>
-    </div>
-  );
-}
-
-// ============ PAGE ============
-export default function CustomerDashboard() {
-  const { user, profile, isLoading: authLoading } = useCustomerAuth();
-  const displayName = profile?.full_name || profile?.company || 'Customer';
-
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    activeQuotations: 0,
-    inTransit: 0,
-    completed: 0,
-    totalQuotations: 0,
-  });
-  const [recentQuotations, setRecentQuotations] = useState<Quotation[]>([]);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-
-    getCustomerStats(user.id)
-      .then((data) => {
-        setStats({
-          activeQuotations: data.activeQuotations,
-          inTransit: data.inTransit,
-          completed: data.completed,
-          totalQuotations: data.totalQuotations,
-        });
-        setRecentQuotations(data.recentQuotations);
-      })
-      .catch((err) => console.error('[Dashboard] Fetch error:', err))
-      .finally(() => setLoading(false));
-  }, [user?.id, authLoading]);
-
-  const statCards = [
-    { label: 'Total Quotations', value: stats.totalQuotations.toString(), icon: FileText, color: 'emerald' },
-    { label: 'Active', value: stats.activeQuotations.toString(), icon: Clock, color: 'amber' },
-    { label: 'In Transit', value: stats.inTransit.toString(), icon: Plane, color: 'blue' },
-    { label: 'Completed', value: stats.completed.toString(), icon: CheckCircle2, color: 'violet' },
-  ];
-
-  const formatDate = (dateStr: string) => {
+function formatDate(dateStr: string) {
     try {
-      return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch { return dateStr; }
-  };
+}
 
-  const formatAmount = (amount: number) => {
+function formatAmount(amount: number) {
     return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  };
+}
 
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Welcome, {displayName}</h1>
-        <p className="text-sm text-gray-500 mt-1">Overview of your export activities</p>
-      </div>
+function getStageDisplay(stage?: string, status?: string) {
+    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5, barColor: 'bg-emerald-500' };
+    if (status === 'Shipped') return { label: 'Shipped', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
+    switch (stage) {
+        case 'payment_received': return { label: 'Payment Received', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5, barColor: 'bg-emerald-500' };
+        case 'awb_received': return { label: 'AWB Received', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
+        case 'booking_requested': return { label: 'Booking Requested', color: 'text-cyan-700', bgColor: 'bg-cyan-50 border-cyan-200', step: 3, barColor: 'bg-cyan-500' };
+        case 'pending_booking': return { label: 'Pending Booking', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200', step: 2, barColor: 'bg-purple-500' };
+        case 'pending_docs': return { label: 'Pending Documents', color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200', step: 1, barColor: 'bg-amber-500' };
+        default: return { label: 'Preparing', color: 'text-slate-700', bgColor: 'bg-slate-50 border-slate-200', step: 0, barColor: 'bg-slate-400' };
+    }
+}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color === 'emerald' ? 'bg-emerald-50' :
-                stat.color === 'amber' ? 'bg-amber-50' :
-                  stat.color === 'blue' ? 'bg-blue-50' : 'bg-violet-50'
-                }`}>
-                <stat.icon className={`w-5 h-5 ${stat.color === 'emerald' ? 'text-emerald-600' :
-                  stat.color === 'amber' ? 'text-amber-600' :
-                    stat.color === 'blue' ? 'text-blue-600' : 'text-violet-600'
-                  }`} />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin text-gray-300" /> : stat.value}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
-          </div>
-        ))}
-      </div>
+// ============ MINI PROGRESS BAR ============
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Quotations — 2 cols */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Recent Quotations</h2>
-            <Link href="/portal/quotations" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
-              View all <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-            </div>
-          ) : recentQuotations.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No quotations yet"
-              description="Your quotations will appear here once our team assigns them to you."
-            />
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {recentQuotations.map((q) => (
-                <div key={q.id} className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-gray-400" />
+function MiniProgress({ step }: { step: number }) {
+    return (
+        <div className="flex items-center gap-1 w-full max-w-[140px]">
+            {[1, 2, 3, 4, 5].map((s) => (
+                <div
+                    key={s}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${s <= step
+                        ? step === 5 ? 'bg-emerald-500' : 'bg-blue-500'
+                        : 'bg-gray-100'
+                        }`}
+                />
+            ))}
+        </div>
+    );
+}
+
+// ============ SHIPMENT LIST CARD ============
+
+function ShipmentListCard({ q }: { q: Quotation }) {
+    const sc = getStageDisplay(q.opportunities?.stage, q.status);
+
+    return (
+        <Link
+            href={`/portal/shipments/${q.id}`}
+            className="block bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-emerald-200 transition-all group"
+        >
+            <div className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Left: Icon + Info */}
+                    <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${sc.step === 5 ? 'bg-emerald-50 text-emerald-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                            }`}>
+                            <Plane className={`w-6 h-6 ${sc.step >= 4 ? 'animate-bounce' : ''}`} />
+                        </div>
+                        <div className="space-y-1.5 min-w-0">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                                <span className="text-base font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
+                                    {sc.step === 4 && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5 animate-pulse" />}
+                                    {sc.label}
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                                <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                                    <MapPin className="w-3.5 h-3.5" /> {q.destination || 'N/A'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Package className="w-3.5 h-3.5 text-gray-400" /> {q.pallets?.length || 0} pallets
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <CalendarDays className="w-3.5 h-3.5 text-gray-400" /> {formatDate(q.created_at)}
+                                </span>
+                            </div>
+                            {/* Mini progress */}
+                            <div className="pt-1">
+                                <MiniProgress step={sc.step} />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {q.destination || q.company_name || 'N/A'}
-                      </div>
+
+                    {/* Right: Amount + Arrow */}
+                    <div className="flex items-center gap-4 sm:gap-6 shrink-0 self-end sm:self-center">
+                        <div className="text-right">
+                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total</div>
+                            <div className="text-lg font-black text-gray-900">{formatAmount(q.total_cost)}</div>
+                        </div>
+                        <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
+                            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <div className="text-sm font-medium text-gray-900">{formatAmount(q.total_cost)}</div>
-                      <div className="text-xs text-gray-400">{formatDate(q.created_at)}</div>
-                    </div>
-                    <StatusBadge status={q.status} />
-                    <Link href={`/portal/quotations/${q.id}`} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                      <Eye className="w-4 h-4 text-gray-400" />
-                    </Link>
-                  </div>
                 </div>
-              ))}
             </div>
-          )}
-        </div>
 
-        {/* Right Column - Quick Actions */}
+            {/* Footer */}
+            <div className="bg-gray-50/50 border-t border-gray-50 px-5 py-2 flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 font-medium">
+                    Updated: {formatDate(q.updated_at || q.created_at)}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Eye className="w-3 h-3" /> View Details
+                </span>
+            </div>
+        </Link>
+    );
+}
+
+// ============ MAIN PAGE ============
+
+export default function MyShipmentsPage() {
+    const { user, profile, isLoading: authLoading } = useCustomerAuth();
+    const displayName = profile?.full_name || profile?.company || 'Customer';
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [quotations, setQuotations] = useState<Quotation[]>([]);
+
+    const loadData = useCallback(async () => {
+        if (!user?.id) return;
+        setLoading(true);
+        try {
+            const quots = await getCustomerQuotations(user.id);
+            setQuotations(quots);
+        } catch (err) {
+            console.error('[MyShipments] Load error:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user?.id) { setLoading(false); return; }
+        loadData();
+    }, [user?.id, authLoading, loadData]);
+
+    const filtered = quotations.filter(q => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        const qNo = (q.quotation_no || '').toLowerCase();
+        const dest = (q.destination || '').toLowerCase();
+        const company = (q.company_name || '').toLowerCase();
+        return qNo.includes(query) || dest.includes(query) || company.includes(query);
+    });
+
+    const stats = useMemo(() => {
+        const total = quotations.length;
+        const active = quotations.filter(q => {
+            const s = getStageDisplay(q.opportunities?.stage, q.status);
+            return s.step > 0 && s.step < 4;
+        }).length;
+        const shipped = quotations.filter(q => {
+            const s = getStageDisplay(q.opportunities?.stage, q.status);
+            return s.step === 4;
+        }).length;
+        const delivered = quotations.filter(q => {
+            const s = getStageDisplay(q.opportunities?.stage, q.status);
+            return s.step === 5;
+        }).length;
+        return { total, active, shipped, delivered };
+    }, [quotations]);
+
+    return (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-gray-100">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Action Required</h2>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">My Shipments</h1>
+                    <p className="text-sm text-gray-500 mt-1">Track and manage all your shipments, {displayName}</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Live</span>
+                </div>
             </div>
-            <div className="p-6 text-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">All caught up!</p>
-              <p className="text-xs text-gray-400 mt-0.5">No pending actions</p>
-            </div>
-          </div>
 
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                    { label: 'Total', value: stats.total, icon: FileText, color: 'emerald' },
+                    { label: 'In Progress', value: stats.active, icon: Package, color: 'amber' },
+                    { label: 'Shipped', value: stats.shipped, icon: Plane, color: 'blue' },
+                    { label: 'Delivered', value: stats.delivered, icon: CheckCircle2, color: 'violet' },
+                ].map((s, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color === 'emerald' ? 'bg-emerald-50' : s.color === 'amber' ? 'bg-amber-50' : s.color === 'blue' ? 'bg-blue-50' : 'bg-violet-50'
+                                }`}>
+                                <s.icon className={`w-4 h-4 ${s.color === 'emerald' ? 'text-emerald-600' : s.color === 'amber' ? 'text-amber-600' : s.color === 'blue' ? 'text-blue-600' : 'text-violet-600'
+                                    }`} />
+                            </div>
+                            <div>
+                                <div className="text-xl font-bold text-gray-900">
+                                    {loading ? <Loader2 className="w-4 h-4 animate-spin text-gray-300" /> : s.value}
+                                </div>
+                                <div className="text-[10px] text-gray-500 font-medium">{s.label}</div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                    type="text"
+                    placeholder="Search by quotation number, destination..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+            </div>
+
+            {/* Shipment List */}
+            {loading ? (
+                <div className="bg-white rounded-xl border border-gray-100 flex items-center justify-center py-20">
+                    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100">
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                            <Inbox className="w-8 h-8 text-gray-300" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900 mb-1">
+                            {quotations.length === 0 ? 'No shipments yet' : 'No matching results'}
+                        </h3>
+                        <p className="text-sm text-gray-500 max-w-[320px]">
+                            {quotations.length === 0
+                                ? 'Your shipments will appear here once our team assigns quotations to your account.'
+                                : 'Try adjusting your search query.'}
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {filtered.map((q) => (
+                        <ShipmentListCard key={q.id} q={q} />
+                    ))}
+                    <div className="text-center pt-2">
+                        <span className="text-xs text-gray-400">
+                            Showing {filtered.length} of {quotations.length} shipments
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
-      </div>
-    </div>
-  );
+    );
 }
