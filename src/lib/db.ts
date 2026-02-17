@@ -131,6 +131,8 @@ export interface Quotation {
   customs_declaration_file_name?: string | null;
   customs_declaration_uploaded_at?: string | null;
 
+  share_token?: string | null;
+
   opportunities?: {
     stage: string;
     closure_status?: string | null;
@@ -973,6 +975,66 @@ export async function unlinkQuotationFromOpportunity(quotationId: string): Promi
   } catch (err) {
     console.error('Error in unlinkQuotationFromOpportunity:', err);
     return false;
+  }
+}
+
+/**
+ * สร้าง share token สำหรับ public tracking link
+ * ถ้ามี token อยู่แล้วจะ return token เดิม
+ */
+export async function generateShareToken(quotationId: string): Promise<string | null> {
+  try {
+    // Check if token already exists
+    const { data: existing } = await supabase
+      .from('quotations')
+      .select('share_token')
+      .eq('id', quotationId)
+      .single();
+
+    if (existing?.share_token) {
+      return existing.share_token;
+    }
+
+    // Generate new token
+    const token = crypto.randomUUID();
+
+    const { error } = await supabase
+      .from('quotations')
+      .update({ share_token: token })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error generating share token:', error);
+      return null;
+    }
+
+    return token;
+  } catch (err) {
+    console.error('Error in generateShareToken:', err);
+    return null;
+  }
+}
+
+/**
+ * ดึง quotation จาก share token (สำหรับ public tracking — ไม่ต้อง auth)
+ */
+export async function getQuotationByShareToken(token: string): Promise<Quotation | null> {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select('*, opportunities(stage, closure_status)')
+      .eq('share_token', token)
+      .single();
+
+    if (error) {
+      console.error('Error fetching quotation by share token:', error);
+      return null;
+    }
+
+    return data as Quotation | null;
+  } catch (err) {
+    console.error('Error in getQuotationByShareToken:', err);
+    return null;
   }
 }
 

@@ -452,6 +452,48 @@ export async function getCustomerPendingRequests(providedUserId?: string): Promi
 }
 
 /**
+ * สร้าง share token สำหรับ public tracking link (customer-side)
+ */
+export async function generateCustomerShareToken(quotationId: string): Promise<string | null> {
+  try {
+    await loadSession();
+
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return null;
+
+    // Check ownership
+    const { data: existing } = await queryClient
+      .from('quotations')
+      .select('share_token')
+      .eq('id', quotationId)
+      .eq('customer_user_id', user.id)
+      .single();
+
+    if (!existing) return null;
+    if (existing.share_token) return existing.share_token;
+
+    // Generate new token
+    const token = crypto.randomUUID();
+
+    const { error } = await queryClient
+      .from('quotations')
+      .update({ share_token: token })
+      .eq('id', quotationId)
+      .eq('customer_user_id', user.id);
+
+    if (error) {
+      console.error('Error generating share token:', error);
+      return null;
+    }
+
+    return token;
+  } catch (err) {
+    console.error('generateCustomerShareToken exception:', err);
+    return null;
+  }
+}
+
+/**
  * ดึงอัตราค่าขนส่งสำหรับสถานที่ปลายทางเฉพาะ
  */
 export async function getFreightRatesByDestination(destinationId: string): Promise<FreightRate[]> {

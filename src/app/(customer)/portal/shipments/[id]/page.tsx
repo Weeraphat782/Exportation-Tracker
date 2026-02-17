@@ -8,7 +8,7 @@ import {
     CheckCircle2, Loader2, FileText, Download,
     Save, Trash2, Plus, Info, XCircle, Clock,
     Image as ImageIcon, FileSpreadsheet, Upload,
-    ChevronUp, ChevronDown, Eye, Calculator
+    ChevronUp, ChevronDown, Eye, Calculator, Share2, Check
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import {
@@ -17,6 +17,7 @@ import {
     updateCustomerQuotation,
     submitCustomerDocument,
     getFreightRatesByDestination,
+    generateCustomerShareToken,
 } from '@/lib/customer-db';
 import { calculateVolumeWeight } from '@/lib/calculators';
 import type { Quotation, DocumentSubmission, AdditionalCharge, Pallet } from '@/lib/db';
@@ -218,6 +219,10 @@ export default function ShipmentDetailPage() {
     const [isThaiGacp, setIsThaiGacp] = useState(false);
     const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
 
+    // Share link state
+    const [sharing, setSharing] = useState(false);
+    const [shareCopied, setShareCopied] = useState(false);
+
     // Documents & Upload sections collapsed
     const [docsOpen, setDocsOpen] = useState(false);
     const [submittedOpen, setSubmittedOpen] = useState(false);
@@ -394,6 +399,28 @@ export default function ShipmentDetailPage() {
         finally { setUploading(false); }
     };
 
+    // ---- Share handler ----
+    const handleShare = async () => {
+        if (!quotation) return;
+        setSharing(true);
+        try {
+            const token = quotation.share_token || await generateCustomerShareToken(quotation.id);
+            if (token) {
+                const url = `${window.location.origin}/track/${token}`;
+                await navigator.clipboard.writeText(url);
+                setShareCopied(true);
+                toast.success('Tracking link copied to clipboard!');
+                setTimeout(() => setShareCopied(false), 3000);
+            } else {
+                toast.error('Failed to generate share link');
+            }
+        } catch {
+            toast.error('Failed to copy link');
+        } finally {
+            setSharing(false);
+        }
+    };
+
     // ---- Loading / Not found ----
     if (loading) {
         return (
@@ -440,9 +467,29 @@ export default function ShipmentDetailPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-slate-50 px-5 py-3 rounded-xl border border-slate-100 shrink-0">
-                            <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest text-right mb-0.5">Total</div>
-                            <div className="text-2xl font-black text-gray-900">{formatAmount(totals.totalCost)}</div>
+                        <div className="flex items-start gap-3 shrink-0">
+                            <button
+                                onClick={handleShare}
+                                disabled={sharing}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+                                    shareCopied
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                }`}
+                            >
+                                {sharing ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : shareCopied ? (
+                                    <Check className="w-4 h-4 text-emerald-600" />
+                                ) : (
+                                    <Share2 className="w-4 h-4" />
+                                )}
+                                {shareCopied ? 'Copied!' : 'Share'}
+                            </button>
+                            <div className="bg-slate-50 px-5 py-3 rounded-xl border border-slate-100">
+                                <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest text-right mb-0.5">Total</div>
+                                <div className="text-2xl font-black text-gray-900">{formatAmount(totals.totalCost)}</div>
+                            </div>
                         </div>
                     </div>
                     <TrackingProgress sc={sc} />
