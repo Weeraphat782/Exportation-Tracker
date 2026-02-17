@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { useAuth } from '@/contexts/auth-context';
+import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -85,10 +85,12 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <StaffRouteGuard>
-      <MainLayout>
-        {children}
-      </MainLayout>
-    </StaffRouteGuard>
+    <AuthProvider>
+      <StaffRouteGuard>
+        <MainLayout>
+          {children}
+        </MainLayout>
+      </StaffRouteGuard>
+    </AuthProvider>
   );
 }
