@@ -5,10 +5,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Inbox, Loader2, FileText,
-    Search, ArrowRight, Eye
+    Search, ArrowRight, Eye, Clock, PlusCircle
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import { getCustomerQuotations } from '@/lib/customer-db';
+import { getCustomerQuotations, getCustomerPendingRequests } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
 
 // ============ HELPERS ============
@@ -132,13 +132,19 @@ export default function MyShipmentsPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [quotations, setQuotations] = useState<Quotation[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<Quotation[]>([]);
 
     const loadData = useCallback(async () => {
         if (!user?.id) return;
         setLoading(true);
         try {
-            const quots = await getCustomerQuotations(user.id);
-            setQuotations(quots);
+            const [quots, pending] = await Promise.all([
+                getCustomerQuotations(user.id),
+                getCustomerPendingRequests(user.id),
+            ]);
+            // Filter out pending_approval from main list (they show in separate section)
+            setQuotations(quots.filter(q => q.status !== 'pending_approval'));
+            setPendingRequests(pending);
         } catch (err) {
             console.error('[MyShipments] Load error:', err);
         } finally {
@@ -186,9 +192,17 @@ export default function MyShipmentsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">My Shipments</h1>
                     <p className="text-sm text-gray-500 mt-1">Track and manage all your shipments, {displayName}</p>
                 </div>
-                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Live</span>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href="/portal/quotations/new"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                    >
+                        <PlusCircle className="w-4 h-4" /> Request Quote
+                    </Link>
+                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Live</span>
+                    </div>
                 </div>
             </div>
 
@@ -229,6 +243,58 @@ export default function MyShipmentsPage() {
                     className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
             </div>
+
+            {/* Pending Quote Requests */}
+            {!loading && pendingRequests.length > 0 && (
+                <div className="space-y-3">
+                    <h2 className="text-sm font-bold text-amber-700 uppercase tracking-wider flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Pending Quote Requests ({pendingRequests.length})
+                    </h2>
+                    {pendingRequests.map((q) => (
+                        <div
+                            key={q.id}
+                            className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5"
+                        >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                                        <Clock className="w-6 h-6" />
+                                    </div>
+                                    <div className="space-y-1.5 min-w-0">
+                                        <div className="flex items-center gap-2.5 flex-wrap">
+                                            <span className="text-base font-bold text-gray-900">
+                                                {q.quotation_no || q.id.slice(0, 8)}
+                                            </span>
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-amber-50 border-amber-200 text-amber-700">
+                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5 animate-pulse" />
+                                                Pending Approval
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                                            <span className="flex items-center gap-1">
+                                                <Package className="w-3.5 h-3.5 text-gray-400" /> {q.pallets?.length || 0} pallet type(s)
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <CalendarDays className="w-3.5 h-3.5 text-gray-400" /> {formatDate(q.created_at)}
+                                            </span>
+                                        </div>
+                                        {q.notes && (
+                                            <p className="text-xs text-gray-400 mt-1 line-clamp-1">Note: {q.notes}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <div className="text-xs text-amber-600 font-semibold">Awaiting staff review</div>
+                                    <div className="text-[10px] text-gray-400 mt-1">
+                                        Destination & pricing will be set by our team
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Shipment List */}
             {loading ? (

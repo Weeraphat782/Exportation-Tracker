@@ -545,7 +545,9 @@ function ShippingCalculatorPageContent() {
     const searchParams = useSearchParams();
     const quotationId = searchParams.get('id');
     const cloneFromId = searchParams.get('clone_from');
+    const approveFromId = searchParams.get('approve_from');
     const isEditMode = !!quotationId;
+    const isApproveMode = !!approveFromId;
 
     const [destinations, setDestinations] = useState<Destination[]>([]);
     const [freightRates, setFreightRates] = useState<FreightRate[]>([]);
@@ -1032,6 +1034,57 @@ function ShippingCalculatorPageContent() {
                     } else {
                         toast.error("Source quotation not found.");
                     }
+                } else if (approveFromId) {
+                    // --- APPROVE MODE (Customer-created quote request) ---
+                    console.log(`Effect 2: Loading customer quote request ${approveFromId} for approval`);
+                    const fetchedQuotation = await dbGetQuotationById(approveFromId);
+
+                    if (fetchedQuotation && fetchedQuotation.status === 'pending_approval') {
+                        console.log("Effect 2: Customer quote request found for approval.");
+                        const typedQ = fetchedQuotation as Quotation;
+
+                        // Set existing quotation so it updates (not creates new)
+                        setExistingQuotation(typedQ);
+
+                        reset({
+                            companyId: typedQ.company_id || '',
+                            customerName: typedQ.customer_name || '',
+                            contactPerson: typedQ.contact_person || '',
+                            contractNo: typedQ.contract_no || '',
+                            destinationId: typedQ.destination_id || '',
+                            pallets: Array.isArray(typedQ.pallets) && typedQ.pallets.length > 0
+                                ? typedQ.pallets.map(p => ({
+                                    length: Number(p.length) || 0,
+                                    width: Number(p.width) || 0,
+                                    height: Number(p.height) || 0,
+                                    weight: Number(p.weight) || 0,
+                                    quantity: Number(p.quantity) || 1,
+                                    overriddenRate: Number(p.overridden_rate) || 0
+                                }))
+                                : [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1, overriddenRate: 0 }],
+                            deliveryServiceRequired: typedQ.delivery_service_required ?? false,
+                            deliveryVehicleType: typedQ.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
+                            clearanceCost: Number(typedQ.clearance_cost) || 0,
+                            additionalCharges: Array.isArray(typedQ.additional_charges) && typedQ.additional_charges.length > 0
+                                ? typedQ.additional_charges.map(c => ({
+                                    name: c.name || '',
+                                    description: c.description || '',
+                                    amount: Number(c.amount) || 0,
+                                    productId: (c as { productId?: string }).productId || undefined
+                                }))
+                                : [{ name: '', description: '', amount: 0 }],
+                            notes: typedQ.notes || '',
+                            opportunityId: typedQ.opportunity_id || '',
+                        });
+
+                        toast.info("Customer Quote Request", {
+                            description: `Review pallet dimensions from ${typedQ.customer_name || 'customer'}. Select destination & rate, then approve.`,
+                            duration: 6000
+                        });
+                    } else {
+                        toast.error("Quote request not found or already processed.");
+                        router.push('/shipping-calculator');
+                    }
                 } else {
                     console.log("Effect 2: New quotation mode, resetting to defaults (with params).");
                     // Clear existing quotation for new mode
@@ -1063,7 +1116,7 @@ function ShippingCalculatorPageContent() {
         setFormDefaults();
 
         // Depend on isLoading, isEditMode, quotationId, cloneFromId, and potentially userId
-    }, [isLoading, isEditMode, quotationId, cloneFromId, userId, router, reset, freightRates, paramCompanyId, paramCustomerName, paramDestinationId, paramNotes, paramOpportunityId, paramVehicleType]); // Add missing dependencies
+    }, [isLoading, isEditMode, quotationId, cloneFromId, approveFromId, userId, router, reset, freightRates, paramCompanyId, paramCustomerName, paramDestinationId, paramNotes, paramOpportunityId, paramVehicleType]); // Add missing dependencies
 
     // --- Delivery Rates ---
     // Wrap deliveryRates in useMemo
@@ -1186,8 +1239,8 @@ function ShippingCalculatorPageContent() {
             total_volume_weight: calcResult.totalVolumeWeight,
             total_actual_weight: calcResult.totalActualWeight,
             chargeable_weight: calcResult.totalChargeableWeight,
-            // Preserve existing status if in edit mode, otherwise set to 'draft' by default
-            status: isEditMode && existingQuotation ? existingQuotation.status : 'draft',
+            // Preserve existing status if in edit mode; for approve mode set to 'draft'; otherwise 'draft'
+            status: isApproveMode ? 'draft' : (isEditMode && existingQuotation ? existingQuotation.status : 'draft'),
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
@@ -1201,7 +1254,7 @@ function ShippingCalculatorPageContent() {
         try {
             // Skip validation - allow saving as draft with any data
             setIsSaving(true);
-            const loadingToastId = toast.loading(isEditMode ? "Updating Quotation..." : "Saving Quotation...");
+            const loadingToastId = toast.loading(isApproveMode ? "Approving Quote Request..." : isEditMode ? "Updating Quotation..." : "Saving Quotation...");
 
             // Check prerequisites
             if (!userId) {
@@ -1257,7 +1310,21 @@ function ShippingCalculatorPageContent() {
 
             let savedQuotation: Quotation | null = null;
 
-            if (isEditMode && quotationId) {
+            if (isApproveMode && approveFromId && existingQuotation) {
+                // --- APPROVE MODE: Update customer-created quote ---
+                const {
+                    ...updateDataForDB
+                } = quotationDataForDB;
+
+                // Ensure we keep the customer_user_id from original request
+                (updateDataForDB as Record<string, unknown>).customer_user_id = existingQuotation.customer_user_id;
+
+                savedQuotation = await dbUpdateQuotation(approveFromId, updateDataForDB);
+
+                if (!savedQuotation) {
+                    throw new Error("Failed to approve quote request. The database operation returned null.");
+                }
+            } else if (isEditMode && quotationId) {
                 // Prepare update data - Omit fields not meant for update
                 const {
                     /* user_id: ignoredUserId, */
@@ -1288,7 +1355,7 @@ function ShippingCalculatorPageContent() {
             }
 
             // Success path
-            toast.success(isEditMode ? "Quotation Updated" : "Quotation Saved", {
+            toast.success(isApproveMode ? "Quote Request Approved" : isEditMode ? "Quotation Updated" : "Quotation Saved", {
                 id: loadingToastId,
                 description: `Quotation ${savedQuotation.id} saved.`, // Clearer message
                 action: {
@@ -1365,9 +1432,32 @@ function ShippingCalculatorPageContent() {
                         <ArrowLeft className="h-4 w-4" />
                         Back
                     </Button>
-                    <h1 className="text-2xl font-semibold">{isEditMode ? 'Edit Quotation' : 'New Quotation'}</h1>
+                    <h1 className="text-2xl font-semibold">
+                        {isApproveMode ? '⏳ Review & Approve Customer Request' : isEditMode ? 'Edit Quotation' : 'New Quotation'}
+                    </h1>
                     <div className="w-20"></div> {/* Spacer */}
                 </div>
+
+                {/* Approve Mode Banner */}
+                {isApproveMode && existingQuotation && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                            <span className="text-lg">📋</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-orange-800">Customer Quote Request</h3>
+                            <p className="text-sm text-orange-700 mt-1">
+                                <strong>{existingQuotation.customer_name}</strong> submitted a quote request with pallet dimensions.
+                                Please select a <strong>destination</strong>, review rates, and save to approve.
+                            </p>
+                            {existingQuotation.notes && (
+                                <p className="text-sm text-orange-600 mt-2 bg-orange-100 rounded px-3 py-1.5">
+                                    <strong>Customer Note:</strong> {existingQuotation.notes}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1875,7 +1965,7 @@ function ShippingCalculatorPageContent() {
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 <span>Saving...</span>
                             </div>
-                        ) : (isEditMode ? 'Update Quotation' : 'Confirm & Save')}
+                        ) : (isApproveMode ? 'Approve & Save' : isEditMode ? 'Update Quotation' : 'Confirm & Save')}
                     </Button>
                 </CardFooter>
             </form>

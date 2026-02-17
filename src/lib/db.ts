@@ -101,7 +101,7 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped' | 'pending_approval';
   company_name?: string | null;
   destination?: string | null;
   updated_at?: string;
@@ -679,6 +679,67 @@ export async function getQuotations(userId: string) {
   }
 }
 
+/**
+ * ดึง pending_approval quotations ที่ลูกค้าสร้าง (สำหรับ staff)
+ */
+export async function getPendingApprovalQuotations(): Promise<Quotation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select('*')
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending approval quotations:', error);
+      return [];
+    }
+
+    return (data || []) as Quotation[];
+  } catch (err) {
+    console.error('Error in getPendingApprovalQuotations:', err);
+    return [];
+  }
+}
+
+/**
+ * Approve customer quote request — staff fills in destination, company, rate and approves
+ */
+export async function approveQuoteRequest(
+  quotationId: string,
+  staffUserId: string,
+  updates: {
+    company_id?: string;
+    destination_id?: string;
+    destination?: string;
+    company_name?: string;
+    status: string;
+    [key: string]: unknown;
+  }
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .update({
+        ...updates,
+        user_id: staffUserId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', quotationId)
+      .eq('status', 'pending_approval');
+
+    if (error) {
+      console.error('Error approving quote request:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error in approveQuoteRequest:', err);
+    return false;
+  }
+}
+
 export async function getQuotationById(id: string): Promise<Quotation | null> {
   try {
     const { data, error } = await supabase
@@ -826,6 +887,92 @@ export async function updateQuotation(id: string, updates: Partial<Omit<Quotatio
   } catch (error) {
     console.error('Exception in updateQuotation:', error);
     return null;
+  }
+}
+
+/**
+ * ดึง quotations ที่ยังไม่ได้ผูกกับ opportunity ใดเลย
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getUnlinkedQuotations(userId?: string): Promise<Quotation[]> {
+  try {
+    const { data, error } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        company:companies(name),
+        destination_country:destinations(country, port)
+      `)
+      .is('opportunity_id', null)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching unlinked quotations:', error);
+      return [];
+    }
+
+    const transformedData = (data || []).map(q => ({
+      ...q,
+      company_name: q.company?.name || q.company_name,
+      destination: q.destination_country
+        ? `${q.destination_country.country}${q.destination_country.port ? ' - ' + q.destination_country.port : ''}`
+        : q.destination || 'N/A',
+    }));
+
+    return transformedData as Quotation[];
+  } catch (err) {
+    console.error('Error in getUnlinkedQuotations:', err);
+    return [];
+  }
+}
+
+/**
+ * ผูก quotation เข้ากับ opportunity (manual link)
+ */
+export async function linkQuotationToOpportunity(quotationId: string, opportunityId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .update({
+        opportunity_id: opportunityId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error linking quotation to opportunity:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error in linkQuotationToOpportunity:', err);
+    return false;
+  }
+}
+
+/**
+ * ยกเลิกการผูก quotation ออกจาก opportunity
+ */
+export async function unlinkQuotationFromOpportunity(quotationId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .update({
+        opportunity_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error unlinking quotation from opportunity:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Error in unlinkQuotationFromOpportunity:', err);
+    return false;
   }
 }
 

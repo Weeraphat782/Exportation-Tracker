@@ -145,12 +145,14 @@ export async function getCustomerStats(providedUserId?: string) {
     const activeStatuses = ['draft', 'sent', 'accepted', 'docs_uploaded'];
     const inTransitStatuses = ['Shipped'];
     const completedStatuses = ['completed'];
+    const pendingStatuses = ['pending_approval'];
 
     return {
-      totalQuotations: quotations.length,
+      totalQuotations: quotations.filter(q => !pendingStatuses.includes(q.status)).length,
       activeQuotations: quotations.filter(q => activeStatuses.includes(q.status)).length,
       inTransit: quotations.filter(q => inTransitStatuses.includes(q.status)).length,
       completed: quotations.filter(q => completedStatuses.includes(q.status)).length,
+      pendingRequests: quotations.filter(q => pendingStatuses.includes(q.status)).length,
       recentQuotations: quotations.slice(0, 5),
       allQuotations: quotations,
     };
@@ -161,6 +163,7 @@ export async function getCustomerStats(providedUserId?: string) {
       activeQuotations: 0,
       inTransit: 0,
       completed: 0,
+      pendingRequests: 0,
       recentQuotations: [],
       allQuotations: [],
     };
@@ -347,6 +350,104 @@ export async function saveCustomerSetting(category: string, key: string, value: 
   } catch (err) {
     console.error('saveCustomerSetting exception:', err);
     return false;
+  }
+}
+
+/**
+ * สร้าง quote request จากลูกค้า (pending_approval)
+ * ลูกค้าใส่แค่ pallet dimensions + notes
+ * Staff จะเป็นคน approve และใส่ destination/company/rate ภายหลัง
+ */
+export async function createCustomerQuoteRequest(
+  pallets: { length: number; width: number; height: number; weight: number; quantity: number }[],
+  notes?: string
+): Promise<{ success: boolean; quotationId?: string; error?: string }> {
+  try {
+    await loadSession();
+
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    // Get customer profile for name
+    const { data: profile } = await queryClient
+      .from('profiles')
+      .select('full_name, company, email')
+      .eq('id', user.id)
+      .single();
+
+    const customerName = profile?.full_name || profile?.email || 'Customer';
+    const companyName = profile?.company || '';
+
+    const { data, error } = await queryClient
+      .from('quotations')
+      .insert({
+        customer_user_id: user.id,
+        customer_name: customerName,
+        company_name: companyName,
+        contact_person: customerName,
+        status: 'pending_approval',
+        pallets: pallets,
+        notes: notes || null,
+        // Fields that staff will fill in later
+        user_id: null,
+        company_id: null,
+        destination_id: null,
+        destination: null,
+        additional_charges: [],
+        delivery_service_required: false,
+        delivery_vehicle_type: '4wheel',
+        total_cost: 0,
+        total_freight_cost: 0,
+        clearance_cost: 0,
+        delivery_cost: 0,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('createCustomerQuoteRequest error:', JSON.stringify(error, null, 2));
+      console.error('Error details - code:', error.code, 'message:', error.message, 'details:', error.details, 'hint:', error.hint);
+      return { success: false, error: error.message || error.code || 'Database error (check RLS policies & NOT NULL constraints)' };
+    }
+
+    return { success: true, quotationId: data?.id };
+  } catch (err) {
+    console.error('createCustomerQuoteRequest exception:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+/**
+ * ดึง pending quote requests ของลูกค้า
+ */
+export async function getCustomerPendingRequests(providedUserId?: string): Promise<Quotation[]> {
+  try {
+    const ready = await loadSession();
+    if (!ready && !providedUserId) return [];
+
+    let userId = providedUserId;
+    if (!userId) {
+      const { data: { user } } = await queryClient.auth.getUser();
+      if (!user) return [];
+      userId = user.id;
+    }
+
+    const { data, error } = await queryClient
+      .from('quotations')
+      .select('*')
+      .eq('customer_user_id', userId)
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('getCustomerPendingRequests error:', error.message);
+      return [];
+    }
+
+    return (data || []) as Quotation[];
+  } catch (err) {
+    console.error('getCustomerPendingRequests exception:', err);
+    return [];
   }
 }
 

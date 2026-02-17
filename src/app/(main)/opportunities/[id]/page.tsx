@@ -7,7 +7,7 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -16,6 +16,7 @@ import { StageProgressBar } from '@/components/opportunities/stage-progress-bar'
 import { ContactWidget } from '@/components/opportunities/contact-widget';
 import { OpportunityTasks } from '@/components/opportunities/opportunity-tasks';
 import { AnalysisHistory } from '@/components/opportunities/analysis-history';
+import { LinkQuotationDialog } from '@/components/opportunities/link-quotation-dialog';
 
 interface OpportunityDetail extends Omit<Opportunity, 'quotationIds'> {
     description?: string;
@@ -30,6 +31,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
     const router = useRouter();
     const [opportunity, setOpportunity] = useState<OpportunityDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
     const fetchOpportunity = async () => {
             setLoading(true);
@@ -191,6 +193,16 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setLinkDialogOpen(true)}
+                            className="font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        >
+                            <Link2 className="h-4 w-4 mr-2" />
+                            <span className="hidden sm:inline">Link Quote</span>
+                            <span className="sm:hidden">Link</span>
+                        </Button>
                         <Link href={`/shipping-calculator/new?opportunityId=${opportunity.id}&companyId=${opportunity.companyId}&customerName=${opportunity.customerName}&destinationId=${opportunity.destinationId}`}>
                             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 font-bold">
                                 <Edit className="h-4 w-4 mr-2" />
@@ -442,6 +454,15 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                     </div>
                 </div>
             </div>
+
+            {/* Link Quotation Dialog */}
+            <LinkQuotationDialog
+                open={linkDialogOpen}
+                onOpenChange={setLinkDialogOpen}
+                opportunityId={opportunity.id}
+                opportunityTopic={opportunity.topic}
+                onLinked={() => fetchOpportunity()}
+            />
         </div>
     );
 }

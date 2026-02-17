@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation } from '@/lib/db';
+import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation, getPendingApprovalQuotations } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -343,12 +343,18 @@ export default function ShippingCalculatorPage() {
       return;
     }
 
-    // Load from Supabase
+    // Load from Supabase (including pending approval from customers)
     async function loadQuotationsFromDB() {
       try {
-        const quotationData = await getQuotations(userId);
+        const [quotationData, pendingData] = await Promise.all([
+          getQuotations(userId),
+          getPendingApprovalQuotations(),
+        ]);
+
         if (quotationData) {
-          setQuotations(quotationData);
+          // Merge: staff quotations + pending approval (customer-created)
+          const allQuotations = [...(pendingData || []), ...(quotationData || [])];
+          setQuotations(allQuotations);
         } else {
           // Fallback to localStorage if database fetch fails
           const savedQuotations = localStorage.getItem('quotations');
@@ -419,6 +425,8 @@ export default function ShippingCalculatorPage() {
         return 'purple'; // Use the new purple variant
       case 'completed':
         return 'success';
+      case 'pending_approval':
+        return 'destructive';
       default:
         return 'outline';
     }
@@ -438,6 +446,8 @@ export default function ShippingCalculatorPage() {
         return 'Documents Uploaded';
       case 'completed':
         return 'Completed';
+      case 'pending_approval':
+        return '⏳ Customer Request';
       default:
         return status;
     }
@@ -879,6 +889,16 @@ export default function ShippingCalculatorPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
+                        {/* Review & Approve customer request */}
+                        {quotation.status === 'pending_approval' && (
+                          <DropdownMenuItem asChild>
+                            <Link href={`/shipping-calculator/new?approve_from=${quotation.id}`} className="flex items-center text-orange-600 font-semibold">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Review & Approve
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+
                         {/* Submit Draft */}
                         {quotation.status === 'draft' && (
                           <DropdownMenuItem onClick={() => handleSubmitQuotation(quotation.id)}>
