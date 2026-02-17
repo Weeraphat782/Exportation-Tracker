@@ -43,7 +43,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           <Link href="/portal" className="flex items-center gap-2.5">
             <div className="w-8 h-8 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <img src="/images/Logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
               <Globe className="w-4 h-4 text-white hidden" />
             </div>
             <div className="flex flex-col">

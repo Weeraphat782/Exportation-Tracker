@@ -27,7 +27,7 @@ function Navbar() {
             <div className="w-9 h-9 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-md">
               {/* Replace src with your logo: /images/logo.png */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+              <img src="/images/Logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
               <Globe className="w-5 h-5 text-white hidden" />
             </div>
             <div className="flex flex-col">
@@ -130,7 +130,7 @@ function Footer() {
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 relative rounded-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+                <img src="/images/Logo.png" alt="OMG Exp Logo" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
                 <Globe className="w-5 h-5 text-white hidden" />
               </div>
               <span className="text-lg font-bold text-white">OMG Exp</span>
