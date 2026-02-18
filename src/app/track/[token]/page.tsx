@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo, use } from 'react';
 import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Loader2, FileText, Download,
-    Calculator, Globe, AlertTriangle
+    Calculator, Globe, AlertTriangle,
+    Image as ImageIcon, FileSpreadsheet, Clock
 } from 'lucide-react';
 import { getQuotationByShareToken } from '@/lib/db';
 import { calculateVolumeWeight } from '@/lib/calculators';
-import type { Quotation, AdditionalCharge, Pallet } from '@/lib/db';
+import type { Quotation, DocumentSubmission, AdditionalCharge, Pallet } from '@/lib/db';
 
 // ============ CONSTANTS ============
 
@@ -86,7 +87,7 @@ function TrackingProgress({ sc }: { sc: ReturnType<typeof getStageDisplay> }) {
 export default function PublicTrackingPage({ params }: { params: Promise<{ token: string }> }) {
     const { token } = use(params);
     const [loading, setLoading] = useState(true);
-    const [quotation, setQuotation] = useState<Quotation | null>(null);
+    const [quotation, setQuotation] = useState<(Quotation & { documents?: DocumentSubmission[] }) | null>(null);
     const [notFound, setNotFound] = useState(false);
 
     useEffect(() => {
@@ -338,6 +339,66 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                                     <Download className="w-4 h-4 text-amber-400 shrink-0 group-hover/doc:text-amber-600 transition-colors" />
                                 </a>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Submitted Documents */}
+                {q.documents && q.documents.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-100 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1 h-4 bg-violet-600 rounded-full" />
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Submitted Documents</span>
+                            </div>
+                            <span className="px-2 py-0.5 text-[10px] bg-violet-50 text-violet-700 rounded-full font-bold border border-violet-100">
+                                {q.documents.length} files
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {q.documents.map((doc: DocumentSubmission) => {
+                                const statusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
+                                    approved: { label: 'Approved', className: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
+                                    submitted: { label: 'Under Review', className: 'bg-blue-50 text-blue-700', icon: Clock },
+                                    reviewed: { label: 'Reviewed', className: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
+                                    rejected: { label: 'Rejected', className: 'bg-red-50 text-red-700', icon: AlertTriangle },
+                                    pending: { label: 'Pending', className: 'bg-amber-50 text-amber-700', icon: Clock },
+                                };
+                                const sc2 = statusConfig[doc.status || 'submitted'] || statusConfig.submitted;
+                                const StatusIcon = sc2.icon;
+                                const mime = doc.mime_type || '';
+                                const DocIcon = mime.includes('spreadsheet') || mime.includes('excel')
+                                    ? FileSpreadsheet : mime.includes('image') ? ImageIcon : FileText;
+                                const iconColor = mime.includes('spreadsheet') || mime.includes('excel')
+                                    ? 'text-emerald-500' : mime.includes('image') ? 'text-violet-500' : 'text-blue-500';
+
+                                return (
+                                    <div key={doc.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-gray-200 transition-all group/doc">
+                                        <div className="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0 group-hover/doc:border-violet-200 transition-colors">
+                                            <DocIcon className={`w-5 h-5 ${iconColor}`} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-bold text-gray-900 truncate">{doc.document_type_name || doc.document_type}</div>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${sc2.className}`}>
+                                                    <StatusIcon className="w-2.5 h-2.5" /> {sc2.label}
+                                                </span>
+                                                {doc.submitted_at && (
+                                                    <span className="text-[9px] text-gray-400">
+                                                        {formatDate(doc.submitted_at)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {doc.file_url && (
+                                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-100 text-gray-400 hover:bg-violet-600 hover:text-white hover:border-violet-600 transition-all shrink-0">
+                                                <Download className="w-3.5 h-3.5" />
+                                            </a>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

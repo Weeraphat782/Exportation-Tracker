@@ -1018,7 +1018,7 @@ export async function generateShareToken(quotationId: string): Promise<string | 
 /**
  * ดึง quotation จาก share token (สำหรับ public tracking — ไม่ต้อง auth)
  */
-export async function getQuotationByShareToken(token: string): Promise<Quotation | null> {
+export async function getQuotationByShareToken(token: string): Promise<(Quotation & { documents?: DocumentSubmission[] }) | null> {
   try {
     const { data, error } = await supabase
       .from('quotations')
@@ -1031,7 +1031,15 @@ export async function getQuotationByShareToken(token: string): Promise<Quotation
       return null;
     }
 
-    return data as Quotation | null;
+    if (!data) return null;
+
+    const { data: docs } = await supabase
+      .from('document_submissions')
+      .select('*')
+      .eq('quotation_id', data.id)
+      .order('submitted_at', { ascending: false });
+
+    return { ...data, documents: docs || [] } as (Quotation & { documents?: DocumentSubmission[] }) | null;
   } catch (err) {
     console.error('Error in getQuotationByShareToken:', err);
     return null;
