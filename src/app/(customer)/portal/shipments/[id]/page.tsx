@@ -676,6 +676,104 @@ export default function ShipmentDetailPage() {
                 </div>
             </div>
 
+            {/* ===== DOCUMENT CHECKLIST ===== */}
+            {(() => {
+                const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const uploadedTypes = documents.map(d => normalize(d.document_type || ''));
+                const allCategories = [
+                    ...DOCUMENT_CATEGORIES,
+                    ...(isThaiGacp ? [{
+                        id: 'gacp-standard', name: 'GACP Certification',
+                        types: [{ id: 'thai-gacp-certificate-standard', name: 'Thai GACP Certificate' }]
+                    }] : [{
+                        id: 'gacp-farm', name: 'GACP Certification (Farm)',
+                        types: [
+                            { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
+                            { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
+                            { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
+                        ]
+                    }])
+                ];
+                const processed = allCategories.map(cat => {
+                    const types = cat.types.map(type => ({
+                        ...type,
+                        isUploaded: uploadedTypes.some(u =>
+                            u === normalize(type.id) || u.includes(normalize(type.id)) || normalize(type.id).includes(u)
+                        )
+                    }));
+                    return { ...cat, types, uploadedCount: types.filter(t => t.isUploaded).length };
+                });
+                const totalTypes = processed.reduce((s, c) => s + c.types.length, 0);
+                const totalUploaded = processed.reduce((s, c) => s + c.uploadedCount, 0);
+                const allDone = totalUploaded === totalTypes;
+
+                return (
+                    <div className="bg-white rounded-xl border border-gray-100 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${allDone ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                                    {allDone
+                                        ? <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                        : <FileText className="w-5 h-5 text-amber-600" />
+                                    }
+                                </div>
+                                <div>
+                                    <span className="text-sm font-bold text-gray-900">Document Checklist</span>
+                                    <p className="text-[10px] text-gray-400">
+                                        {allDone ? 'All documents uploaded!' : `${totalUploaded} of ${totalTypes} documents uploaded`}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${allDone ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                {totalUploaded} / {totalTypes}
+                            </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full h-2 bg-gray-100 rounded-full mb-4 overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-all duration-700 ${allDone ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                style={{ width: `${totalTypes > 0 ? (totalUploaded / totalTypes) * 100 : 0}%` }}
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            {processed.map(cat => {
+                                const missing = cat.types.filter(t => !t.isUploaded);
+                                const catDone = missing.length === 0;
+                                return (
+                                    <div key={cat.id} className={`rounded-xl p-3 border transition-all ${catDone ? 'border-emerald-100 bg-emerald-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            {catDone
+                                                ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                : <div className="w-4 h-4 rounded-full border-2 border-amber-400 shrink-0 flex items-center justify-center"><div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" /></div>
+                                            }
+                                            <span className="text-xs font-bold text-gray-700">{cat.name}</span>
+                                            <span className={`ml-auto text-[9px] font-bold ${catDone ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                {cat.uploadedCount}/{cat.types.length}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 ml-6">
+                                            {cat.types.map(type => (
+                                                <span
+                                                    key={type.id}
+                                                    className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${type.isUploaded
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-red-50 text-red-600 border-red-100'
+                                                    }`}
+                                                >
+                                                    {type.isUploaded ? '✓' : '✗'} {type.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* ===== DOCUMENTS UPLOAD (Collapsed) ===== */}
             <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-5 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors shadow-sm">
