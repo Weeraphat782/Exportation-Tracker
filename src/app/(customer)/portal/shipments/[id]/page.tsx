@@ -50,8 +50,11 @@ const DOCUMENT_CATEGORIES = [
         types: [
             { id: 'import-permit', name: 'Import Permit' },
             { id: 'tk-10', name: 'TK 10' },
+            { id: 'tk-10-eng', name: 'TK 10 (ENG Version)' },
             { id: 'tk-11', name: 'TK 11' },
+            { id: 'tk-11-eng', name: 'TK 11 (ENG Version)' },
             { id: 'tk-31', name: 'TK 31' },
+            { id: 'tk-31-eng', name: 'TK 31 (ENG Version)' },
             { id: 'tk-32', name: 'TK 32' }
         ]
     },
@@ -697,9 +700,7 @@ export default function ShipmentDetailPage() {
                 const processed = allCategories.map(cat => {
                     const types = cat.types.map(type => ({
                         ...type,
-                        isUploaded: uploadedTypes.some(u =>
-                            u === normalize(type.id) || u.includes(normalize(type.id)) || normalize(type.id).includes(u)
-                        )
+                        isUploaded: uploadedTypes.some(u => u === normalize(type.id))
                     }));
                     return { ...cat, types, uploadedCount: types.filter(t => t.isUploaded).length };
                 });
