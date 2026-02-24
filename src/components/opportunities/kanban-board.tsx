@@ -227,7 +227,7 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
                 style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
                 {...handlers}
             >
-                <div className="kanban-scroll-area flex gap-4 min-w-max px-1">
+                <div className="kanban-scroll-area flex gap-4 min-w-max px-6">
                     {STAGES.map((stage) => (
                         <KanbanColumn
                             key={stage}

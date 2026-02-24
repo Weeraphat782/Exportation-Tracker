@@ -1179,6 +1179,33 @@ export async function updateDocumentSubmission(id: string, updates: Partial<Docu
 
 export async function deleteDocumentSubmission(id: string) {
   try {
+    const { deleteFile } = await import('@/lib/storage');
+
+    // 1. Fetch document data first to get file path and provider
+    const { data: doc, error: fetchError } = await supabase
+      .from('document_submissions')
+      .select('file_path, file_url, storage_provider')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching document before deletion:', fetchError);
+      // Proceed with record deletion anyway if needed, but safer to return false
+      return false;
+    }
+
+    // 2. Delete the physical file from storage (R2 or Supabase)
+    const filePath = doc.file_path || doc.file_url;
+    if (filePath) {
+      const isPath = typeof filePath === 'string' && !filePath.startsWith('http');
+      const provider = doc.storage_provider || (isPath ? 'r2' : 'supabase');
+
+      // Document submissions are typically in 'documents' bucket
+      await deleteFile('documents', filePath, provider);
+      console.log(`Deleted file from ${provider}: ${filePath}`);
+    }
+
+    // 3. Delete from database
     const { error } = await supabase
       .from('document_submissions')
       .delete()

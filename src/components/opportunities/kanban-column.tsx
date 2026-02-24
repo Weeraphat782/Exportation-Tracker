@@ -5,7 +5,6 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Opportunity, STAGE_LABELS, OpportunityStage } from '@/types/opportunity';
 import { KanbanCard } from './kanban-card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface KanbanColumnProps {
@@ -43,8 +42,8 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
                 </p>
             </div>
 
-            <ScrollArea className="flex-1">
-                <div ref={setNodeRef} className={cn("flex flex-col gap-2 p-1 min-h-[150px]")}>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide">
+                <div ref={setNodeRef} className={cn("flex flex-col gap-2 px-2 py-2 min-h-[150px]")}>
                     <SortableContext items={opportunities.map(o => o.id)} strategy={verticalListSortingStrategy}>
                         {opportunities.map((opportunity) => (
                             <KanbanCard
@@ -58,7 +57,7 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
                         ))}
                     </SortableContext>
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     );
 }

@@ -127,6 +127,19 @@ export function ShippingDocumentsUpload({
     setDeleting(true);
 
     try {
+      // 1. Delete physical file from storage
+      const { deleteFile } = await import('@/lib/storage');
+      const currentFileUrl = docType === 'awb' ? awbFileUrl : customsDeclarationFileUrl;
+
+      if (currentFileUrl) {
+        // Document submissions are in 'documents' bucket
+        // If it's a Supabase path/URL, deleteFile handles extraction. 
+        // For new R2 files, currentFileUrl IS the path.
+        await deleteFile('documents', currentFileUrl, storageProvider);
+        console.log(`Deleted ${docType} file from ${storageProvider}: ${currentFileUrl}`);
+      }
+
+      // 2. Update database
       const updateData: Record<string, null> = {};
       if (docType === 'awb') {
         updateData.awb_file_url = null;

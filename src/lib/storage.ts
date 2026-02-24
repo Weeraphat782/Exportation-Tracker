@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Cloudflare R2 Client Configuration
@@ -109,12 +109,57 @@ export async function downloadFile(
  */
 export async function deleteFile(
   bucket: string,
-  path: string
+  path: string,
+  provider: 'supabase' | 'r2' = 'supabase'
 ): Promise<boolean> {
   try {
+    if (provider === 'r2') {
+      // Check if we are running in the browser
+      if (typeof window !== 'undefined') {
+        const response = await fetch(`/api/delete-file?path=${encodeURIComponent(path)}&bucket=${encodeURIComponent(bucket)}`, {
+          method: 'DELETE',
+        });
+        return response.ok;
+      }
+
+      // Server-side: Delete directly
+      const command = new DeleteObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: path,
+      });
+      await r2Client.send(command);
+      return true;
+    }
+
+    // Default to Supabase
+    let finalPath = path;
+
+    // If path is a full Supabase URL, extract the relative path
+    // Format: https://.../storage/v1/object/public/bucketName/filePath
+    if (finalPath.includes('/storage/v1/object/public/')) {
+      try {
+        const parts = finalPath.split('/storage/v1/object/public/');
+        if (parts.length > 1) {
+          const bucketAndPath = parts[1]; // e.g. "documents/folder/file.pdf"
+          const firstSlashIndex = bucketAndPath.indexOf('/');
+          if (firstSlashIndex !== -1) {
+            // Extract everything after the bucket name
+            finalPath = bucketAndPath.substring(firstSlashIndex + 1);
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing Supabase storage URL:', err);
+      }
+    }
+
+    // Ensure path is decoded if it was a URL
+    finalPath = decodeURIComponent(finalPath);
+
+    console.log(`[storage] Deleting from Supabase: bucket=${bucket}, path=${finalPath}`);
+
     const { error } = await supabase.storage
       .from(bucket)
-      .remove([path]);
+      .remove([finalPath]);
 
     if (error) {
       console.error('Error deleting file:', error);

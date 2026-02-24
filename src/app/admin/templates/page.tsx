@@ -205,8 +205,22 @@ export default function TemplatesAdminPage() {
     try {
       toast.promise(
         async () => {
-          // Delete from database first
-          const { /* data, */ error } = await supabase
+          // 1. Delete physical file from storage (R2 or Supabase)
+          const { deleteFile } = await import('@/lib/storage');
+          const template = templates[docTypeId];
+          if (template && template.file_url) {
+            // Document templates are stored in 'templates' bucket
+            // Use the raw path if available or full URL (deleteFile handles both)
+            const isPath = typeof template.file_url === 'string' && !template.file_url.startsWith('http');
+            const provider = template.storage_provider || (isPath ? 'r2' : 'supabase');
+
+            // For templates, we use 'templates' bucket
+            await deleteFile('templates', template.file_url, provider);
+            console.log(`Deleted template file from ${provider}: ${template.file_url}`);
+          }
+
+          // 2. Delete from database
+          const { error } = await supabase
             .from('document_templates')
             .delete()
             .eq('document_type_id', docTypeId);

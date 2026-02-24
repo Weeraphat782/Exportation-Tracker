@@ -105,8 +105,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-0.5">
-            <div className="p-0.5 text-gray-300 cursor-grab" onPointerDown={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-0.5 pr-0.5">
+            <div className="p-0.5 text-gray-300 cursor-grab opacity-40 hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
               <GripVertical className="h-3.5 w-3.5" />
             </div>
 
