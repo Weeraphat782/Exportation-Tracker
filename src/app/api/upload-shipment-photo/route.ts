@@ -31,67 +31,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing quotationId.' }, { status: 400 });
     }
 
-    const bucket = 'shipment-photos';
-    const uploadedPhotoUrls: string[] = [];
+
+    const uploadedPhotoPaths: string[] = [];
     const uploadErrors: UploadErrorDetail[] = [];
 
     for (const file of files) {
       if (!file.name || !file.type) {
         console.warn('[API - upload-shipment-photo] Skipping an invalid file entry:', file);
-        uploadErrors.push({ name: 'unknown', error: 'Invalid file entry in form data.'});
+        uploadErrors.push({ name: 'unknown', error: 'Invalid file entry in form data.' });
         continue;
       }
       // Create a unique filename for storage to avoid collisions
-      const fileExtension = file.name.split('.').pop() || 'png'; // Default to png if no extension
+      const fileExtension = file.name.split('.').pop() || 'png';
       const uniqueFileName = `${randomUUID()}.${fileExtension}`;
-      const filePath = `${quotationId}/${uniqueFileName}`; // Store under quotationId folder
+      const filePath = `shipment-photos/${quotationId}/${uniqueFileName}`;
 
-      // 1. Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: false, // Avoid accidental overwrites
-        });
+      try {
+        // 1. Upload to Cloudflare R2
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
 
-      if (uploadError) {
-        console.error(`Supabase Storage Upload Error for file ${file.name}:`, uploadError);
-        uploadErrors.push({ name: file.name, error: uploadError.message });
+        const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+        const { r2Client, R2_BUCKET } = await import('@/lib/storage');
+
+        await r2Client.send(new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: filePath,
+          Body: buffer,
+          ContentType: file.type,
+        }));
+
+        uploadedPhotoPaths.push(filePath);
+        console.log(`[API - upload-shipment-photo] File ${file.name} uploaded to R2: ${filePath}`);
+      } catch (uploadError: unknown) {
+        const errorMessage = uploadError instanceof Error ? uploadError.message : 'Upload failed';
+        console.error(`R2 Storage Upload Error for file ${file.name}:`, uploadError);
+        uploadErrors.push({ name: file.name, error: errorMessage });
         continue;
       }
-
-      if (!uploadData || !uploadData.path) {
-        console.error(`Supabase Storage Upload for file ${file.name} did not return a path.`);
-        uploadErrors.push({ name: file.name, error: 'Upload succeeded but no path returned from storage.' });
-        continue;
-      }
-
-      // 2. Get the public URL of the uploaded file
-      const { data: urlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(uploadData.path);
-      
-      const shipmentPhotoUrl = urlData.publicUrl;
-
-      if (!shipmentPhotoUrl) {
-        console.error(`[API - upload-shipment-photo] ERROR: Could not get public URL for shipment photo: ${uploadData.path} (File: ${file.name})`);
-        await supabase.storage.from(bucket).remove([uploadData.path]);
-        uploadErrors.push({ name: file.name, error: 'Storage upload succeeded but failed to get public URL.' });
-        continue;
-      }
-      uploadedPhotoUrls.push(shipmentPhotoUrl);
-      console.log(`[API - upload-shipment-photo] File ${file.name} uploaded. Public URL: ${shipmentPhotoUrl}`);
     }
 
-    if (uploadedPhotoUrls.length === 0 && files.length > 0) {
+    if (uploadedPhotoPaths.length === 0 && files.length > 0) {
       return NextResponse.json(
         { error: 'All file uploads failed.', details: uploadErrors },
         { status: 500 }
       );
     }
-    
-    // 3. Update the quotation record in the database with all URLs
-    console.log(`[API - upload-shipment-photo] Attempting to update quotation ID: ${quotationId} with ${uploadedPhotoUrls.length} photo URLs.`);
+
+    // 3. Update the quotation record in the database with all paths and set provider to r2
+    console.log(`[API - upload-shipment-photo] Attempting to update quotation ID: ${quotationId} with ${uploadedPhotoPaths.length} photo paths.`);
 
     // ---> START: Detailed Quotation ID Check <--- 
     const receivedQuotationIdFromFormData = formData.get('quotationId') as string | null;
@@ -99,32 +87,33 @@ export async function POST(request: NextRequest) {
     console.log('[API RAW CHECK] quotationId from formData:', receivedQuotationIdFromFormData);
     console.log(`[API RAW CHECK] Type of receivedQuotationIdFromFormData: ${typeof receivedQuotationIdFromFormData}`);
     if (receivedQuotationIdFromFormData) {
-        console.log(`[API RAW CHECK] Length of receivedQuotationIdFromFormData: ${receivedQuotationIdFromFormData.length}`);
-        // Example of a known good ID, replace if yours is different for testing
-        const knownGoodId = "c3fcce1c-a281-404b-b612-0d84651fb374"; 
-        console.log(`[API RAW CHECK] Does it match known good ID? (${knownGoodId} === receivedQuotationIdFromFormData): ${knownGoodId === receivedQuotationIdFromFormData}`);
-        for (let i = 0; i < receivedQuotationIdFromFormData.length; i++) {
-            console.log(`[API RAW CHECK] Char at ${i}: '${receivedQuotationIdFromFormData[i]}' (Code: ${receivedQuotationIdFromFormData.charCodeAt(i)})`);
-        }
+      console.log(`[API RAW CHECK] Length of receivedQuotationIdFromFormData: ${receivedQuotationIdFromFormData.length}`);
+      // Example of a known good ID, replace if yours is different for testing
+      const knownGoodId = "c3fcce1c-a281-404b-b612-0d84651fb374";
+      console.log(`[API RAW CHECK] Does it match known good ID? (${knownGoodId} === receivedQuotationIdFromFormData): ${knownGoodId === receivedQuotationIdFromFormData}`);
+      for (let i = 0; i < receivedQuotationIdFromFormData.length; i++) {
+        console.log(`[API RAW CHECK] Char at ${i}: '${receivedQuotationIdFromFormData[i]}' (Code: ${receivedQuotationIdFromFormData.charCodeAt(i)})`);
+      }
     }
     console.log('----------------------------------------------------');
     // ---> END: Detailed Quotation ID Check <--- 
 
     // Ensure shipment_photo_url is an array for the DB update
-    const { data: updateResult, error: dbError } = await supabase 
-      .from('quotations') 
+    const { data: updateResult, error: dbError } = await supabase
+      .from('quotations')
       .update({
-        shipment_photo_url: uploadedPhotoUrls, // Pass the array of URLs
-        shipment_photo_uploaded_at: new Date().toISOString(), 
+        shipment_photo_url: uploadedPhotoPaths,
+        shipment_photo_uploaded_at: new Date().toISOString(),
+        storage_provider: 'r2' // Set global provider for this quotation to R2
       })
-      .eq('id', quotationId) 
-      .select(); 
+      .eq('id', quotationId)
+      .select();
 
     console.log('[API - upload-shipment-photo] DB Update Result:', updateResult);
     console.log('[API - upload-shipment-photo] DB Update Error:', dbError);
 
     if (dbError) {
-      console.error('[API - upload-shipment-photo] ERROR: Supabase DB Update Error (Quotations - Shipment Photo):', dbError);
+      console.error('[API - upload-shipment-photo] ERROR: Supabase DB Update Error:', dbError);
       // Log the error, but consider if the file should be deleted or if a retry mechanism is needed.
       // For now, we'll return an error but the file remains in storage.
       return NextResponse.json(
@@ -140,18 +129,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Success
-    console.log(`[API - upload-shipment-photo] Successfully processed ${uploadedPhotoUrls.length} of ${files.length} files.`);
-    return NextResponse.json({ 
-      success: true, 
-      message: `Successfully uploaded ${uploadedPhotoUrls.length} of ${files.length} shipment photos and updated quotation.`,
-      photoUrls: uploadedPhotoUrls, // Return all successfully uploaded URLs
+    console.log(`[API - upload-shipment-photo] Successfully processed ${uploadedPhotoPaths.length} of ${files.length} files.`);
+    return NextResponse.json({
+      success: true,
+      message: `Successfully uploaded ${uploadedPhotoPaths.length} of ${files.length} shipment photos to R2 and updated quotation.`,
+      photoUrls: uploadedPhotoPaths,
       errors: uploadErrors.length > 0 ? uploadErrors : undefined
     });
 
   } catch (error) {
     console.error('API Route Error (upload-shipment-photo):', error);
-    if (error instanceof SyntaxError && error.message.includes('Unexpected end of JSON input')){
-         return NextResponse.json({ error: 'Invalid or empty request body.' }, { status: 400 });
+    if (error instanceof SyntaxError && error.message.includes('Unexpected end of JSON input')) {
+      return NextResponse.json({ error: 'Invalid or empty request body.' }, { status: 400 });
     }
     // Check if error is an instance of Error to safely access message property
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';

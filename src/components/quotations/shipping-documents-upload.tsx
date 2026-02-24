@@ -2,10 +2,11 @@
 
 import React, { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { uploadFile } from '@/lib/storage';
+import { getFileUrl } from '@/lib/storage';
 import { FileText, Upload, X, Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
 
 interface ShippingDocumentsUploadProps {
   quotationId: string;
@@ -15,6 +16,7 @@ interface ShippingDocumentsUploadProps {
   customsDeclarationFileUrl?: string | null;
   customsDeclarationFileName?: string | null;
   customsDeclarationUploadedAt?: string | null;
+  storageProvider?: 'supabase' | 'r2';
   onUpdate?: () => void;
 }
 
@@ -28,37 +30,77 @@ export function ShippingDocumentsUpload({
   customsDeclarationFileUrl,
   customsDeclarationFileName,
   customsDeclarationUploadedAt,
+  storageProvider = 'supabase',
   onUpdate,
 }: ShippingDocumentsUploadProps) {
   const [uploadingAwb, setUploadingAwb] = useState(false);
   const [uploadingCustoms, setUploadingCustoms] = useState(false);
   const [deletingAwb, setDeletingAwb] = useState(false);
   const [deletingCustoms, setDeletingCustoms] = useState(false);
+  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
 
   const awbInputRef = useRef<HTMLInputElement>(null);
   const customsInputRef = useRef<HTMLInputElement>(null);
+
+  // Resolve URLs on mount or when props change
+  React.useEffect(() => {
+    async function resolveUrls() {
+      const urls: Record<string, string> = {};
+      if (awbFileUrl) {
+        // We need the path. Legacy Supabase path might be stored in awb_file_url if it's a public URL or path.
+        // For new R2 files, we might need to store the path specifically.
+        // Assuming the logic in getFileUrl can handle the path.
+        const path = awbFileUrl.includes('supabase') ? awbFileUrl.split('/public/')[1] || awbFileUrl : awbFileUrl;
+        urls.awb = await getFileUrl(path, storageProvider);
+      }
+      if (customsDeclarationFileUrl) {
+        const path = customsDeclarationFileUrl.includes('supabase') ? customsDeclarationFileUrl.split('/public/')[1] || customsDeclarationFileUrl : customsDeclarationFileUrl;
+        urls.customs = await getFileUrl(path, storageProvider);
+      }
+      setResolvedUrls(urls);
+    }
+    resolveUrls();
+  }, [awbFileUrl, customsDeclarationFileUrl, storageProvider]);
 
   const handleUpload = async (file: File, docType: DocType) => {
     const setUploading = docType === 'awb' ? setUploadingAwb : setUploadingCustoms;
     setUploading(true);
 
     try {
-      const folder = `shipping-docs/${quotationId}`;
-      const path = `${folder}/${docType}_${file.name}`;
+      // 1. Get Signed URL
+      const generateUrlResponse = await fetch('/api/generate-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+          quotationId: quotationId,
+          documentType: docType,
+        }),
+      });
 
-      const fileUrl = await uploadFile('documents', path, file);
+      if (!generateUrlResponse.ok) throw new Error('Failed to get upload URL');
+      const { signedUrl, path: filePath, provider } = await generateUrlResponse.json();
 
-      if (!fileUrl) {
-        throw new Error('Failed to upload file');
-      }
+      // 2. Upload to Storage
+      const storageResponse = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
 
-      const updateData: Record<string, string> = {};
+      if (!storageResponse.ok) throw new Error('Storage upload failed');
+
+      // 3. Update Quotation Record
+      const updateData: Record<string, string> = {
+        storage_provider: provider || 'r2'
+      };
       if (docType === 'awb') {
-        updateData.awb_file_url = fileUrl;
+        updateData.awb_file_url = filePath;
         updateData.awb_file_name = file.name;
         updateData.awb_uploaded_at = new Date().toISOString();
       } else {
-        updateData.customs_declaration_file_url = fileUrl;
+        updateData.customs_declaration_file_url = filePath;
         updateData.customs_declaration_file_name = file.name;
         updateData.customs_declaration_uploaded_at = new Date().toISOString();
       }
@@ -177,7 +219,7 @@ export function ShippingDocumentsUpload({
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {hasFile && (
             <>
-              <a href={fileUrl!} target="_blank" rel="noopener noreferrer">
+              <a href={docType === 'awb' ? resolvedUrls.awb : resolvedUrls.customs} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-gray-200">
                   <Download className="w-3.5 h-3.5 text-gray-500" />
                 </Button>

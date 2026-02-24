@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { uploadFile } from '@/lib/storage';
+
 import { ArrowUpCircle, FileText, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -49,6 +49,7 @@ interface Template {
   file_name: string;
   created_at: string;
   updated_at: string;
+  storage_provider?: 'supabase' | 'r2';
 }
 
 export default function TemplatesAdminPage() {
@@ -69,8 +70,19 @@ export default function TemplatesAdminPage() {
           return;
         }
 
+        const { getFileUrl } = await import('@/lib/storage');
+
+        // Resolve URLs
+        const resolvedTemplates = await Promise.all((data as Template[]).map(async (template) => {
+          // Templates are in the 'templates' bucket in Supabase (historically)
+          // For R2, we use a different structure: templates/docTypeId/safeFileName
+          const isPath = typeof template.file_url === 'string' && !template.file_url.startsWith('http');
+          const url = await getFileUrl(template.file_url || '', template.storage_provider || (isPath ? 'r2' : 'supabase'), 'templates');
+          return { ...template, file_url: url };
+        }));
+
         // Convert array to record object with document_type_id as key
-        const templatesRecord = (data as Template[]).reduce((acc, template) => {
+        const templatesRecord = resolvedTemplates.reduce((acc, template) => {
           acc[template.document_type_id] = template;
           return acc;
         }, {} as Record<string, Template>);
@@ -100,22 +112,45 @@ export default function TemplatesAdminPage() {
       setUploading({ ...uploading, [docType.id]: true });
       toast.promise(
         async () => {
-          // Upload file to Supabase Storage
-          const storagePath = `templates/${docType.id}/${file.name}`;
-          const fileUrl = await uploadFile('templates', storagePath, file);
+          // 1. Get Signed URL from R2
+          const generateUrlResponse = await fetch('/api/generate-upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              contentType: file.type,
+              documentType: 'template',
+              docTypeId: docType.id
+            }),
+          });
 
-          if (!fileUrl) {
-            throw new Error(`Failed to upload template for ${docType.name}`);
+          if (!generateUrlResponse.ok) {
+            const errorData = await generateUrlResponse.json();
+            throw new Error(errorData.error || 'Failed to get upload URL');
           }
 
-          // Insert or update in document_templates table
+          const { signedUrl, path, provider } = await generateUrlResponse.json();
+
+          // 2. Upload to Storage
+          const storageResponse = await fetch(signedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type },
+            body: file,
+          });
+
+          if (!storageResponse.ok) {
+            throw new Error('Storage upload failed');
+          }
+
+          // 3. Insert or update in document_templates table
           const { data, error } = await supabase
             .from('document_templates')
             .upsert({
               document_type_id: docType.id,
               document_name: docType.name,
-              file_url: fileUrl,
+              file_url: path, // We store the path for R2
               file_name: file.name,
+              storage_provider: provider || 'r2',
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'document_type_id'
@@ -127,10 +162,13 @@ export default function TemplatesAdminPage() {
           }
 
           if (data && data.length > 0) {
-            // Update local state
+            const { getFileUrl } = await import('@/lib/storage');
+            const resolvedUrl = await getFileUrl(data[0].file_url, data[0].storage_provider || 'r2', 'templates');
+
+            // Update local state with resolved URL
             setTemplates({
               ...templates,
-              [docType.id]: data[0] as Template
+              [docType.id]: { ...(data[0] as Template), file_url: resolvedUrl }
             });
           }
           // Return data for the toast success message

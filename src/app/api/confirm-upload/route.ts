@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       documentTypeName,
       originalFileName,
       notes,
-      companyName
+      companyName,
+      provider // Optional: 'supabase' or 'r2'
     } = await request.json()
 
     // Basic validation
@@ -33,27 +34,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const bucket = 'documents'; // Ensure this matches your bucket
-
-    // Get public URL for the uploaded file
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
-    
-    const fileUrl = urlData.publicUrl;
-
-    if (!fileUrl) {
-      console.error('Could not get public URL for confirmed file:', filePath);
-      // Don't delete file here, as upload succeeded, but log the issue.
-      return NextResponse.json(
-        { error: 'Upload confirmed but failed to get public URL.' },
-        { status: 500 }
-      );
-    }
-    
     // Record the submission in the database
     const { data: dbData, error: dbError } = await supabase
-      .from('document_submissions') 
+      .from('document_submissions')
       .insert({
         quotation_id: quotationId,
         document_type: documentType,
@@ -61,10 +44,11 @@ export async function POST(request: NextRequest) {
         file_name: originalFileName, // Always use original filename for display
         original_file_name: originalFileName,
         file_path: filePath,
-        file_url: fileUrl,
+        file_url: '', // We will generate URL on the fly using getFileUrl helper
         notes: notes || null, // Ensure notes is null if empty/undefined
         company_name: companyName,
-      }).select('id').single() // Select ID to return if needed
+        storage_provider: provider || 'r2' // Default to r2 for new uploads if not specified
+      }).select('id').single()
 
     if (dbError) {
       console.error('Supabase DB Insert Error (confirm-upload):', dbError)
@@ -95,8 +79,8 @@ export async function POST(request: NextRequest) {
     // ---> END: Update Quotation Status
 
     // Success
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Upload confirmed and record saved.',
       dbId: dbData?.id // Return the created database record ID
     })

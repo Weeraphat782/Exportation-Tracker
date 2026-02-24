@@ -33,6 +33,7 @@ export default function EditCompanyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [company, setCompany] = useState<CompanyType | null>(null);
+  const [resolvedDocs, setResolvedDocs] = useState<string[]>([]);
 
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
@@ -69,6 +70,17 @@ export default function EditCompanyPage() {
             contact_phone: company.contact_phone || '',
             tax_id: company.tax_id || '',
           });
+
+          // Resolve registration documents URLs
+          if (company.registration_docs && company.registration_docs.length > 0) {
+            const { getFileUrl } = await import('@/lib/storage');
+            const urls = await Promise.all(company.registration_docs.filter(Boolean).map(async (docPath) => {
+              // If it's already a full URL (legacy Supabase), use it. If it's a path (R2), resolve it.
+              const isPath = typeof docPath === 'string' && !docPath.startsWith('http');
+              return await getFileUrl(docPath, isPath ? 'r2' : 'supabase', 'company-documents');
+            }));
+            setResolvedDocs(urls);
+          }
         } else {
           setError(`Company with ID ${companyId} not found.`);
         }
@@ -304,8 +316,8 @@ export default function EditCompanyPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {company?.registration_docs && company.registration_docs.length > 0 ? (
-                  company.registration_docs.map((url, idx) => (
+                {resolvedDocs && resolvedDocs.length > 0 ? (
+                  resolvedDocs.map((url, idx) => (
                     <a
                       key={idx}
                       href={url}

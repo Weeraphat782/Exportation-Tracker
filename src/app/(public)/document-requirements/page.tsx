@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Download } from 'lucide-react';
 import Image from 'next/image';
 import { getDocumentTemplate } from '@/lib/db';
+import { getFileUrl } from '@/lib/storage';
 import { useState } from 'react';
 
 // Document categories and types (Matched with documents-upload/page.tsx)
@@ -72,7 +73,18 @@ function DocumentRequirementsContent() {
             setLoadingTemplate(prev => ({ ...prev, [docTypeId]: true }));
             const template = await getDocumentTemplate(docTypeId);
             if (template && template.file_url) {
-                window.open(template.file_url, '_blank');
+                // Resolve URL
+                const resolvedUrl = await getFileUrl(
+                    template.file_url,
+                    (template as { storage_provider?: 'supabase' | 'r2' }).storage_provider || 'supabase',
+                    'templates'
+                );
+
+                if (resolvedUrl) {
+                    window.open(resolvedUrl, '_blank');
+                } else {
+                    alert('Could not resolve template URL.');
+                }
             } else {
                 alert('No template available for this document type.');
             }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { getDocumentSubmissions, deleteDocumentSubmission, DocumentSubmission } from '@/lib/db';
+import { getFileUrl } from '@/lib/storage';
 import { FileText, ExternalLink, Loader2, File, CheckCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InternalUploadDialog } from './internal-upload-dialog';
@@ -65,7 +66,16 @@ export function QuotationDocuments({ quotationId, requiredDocTypes }: QuotationD
         setLoading(true);
         try {
             const docs = await getDocumentSubmissions(quotationId);
-            setDocuments(docs || []);
+            if (docs && docs.length > 0) {
+                // Resolve URLs for each document based on provider
+                const docsWithUrls = await Promise.all(docs.map(async (doc) => {
+                    const resolvedUrl = await getFileUrl(doc.file_path || '', doc.storage_provider || 'supabase');
+                    return { ...doc, file_url: resolvedUrl };
+                }));
+                setDocuments(docsWithUrls);
+            } else {
+                setDocuments([]);
+            }
         } catch (error) {
             console.error("Error fetching documents:", error);
         } finally {

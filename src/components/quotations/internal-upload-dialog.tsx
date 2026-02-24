@@ -72,7 +72,7 @@ export function InternalUploadDialog({ quotationId, companyName, onUploadSuccess
             });
 
             if (!generateUrlResponse.ok) throw new Error('Failed to get upload URL');
-            const { signedUrl, path: filePath } = await generateUrlResponse.json();
+            const { signedUrl, path: filePath, provider } = await generateUrlResponse.json();
 
             // 2. Upload to Storage
             const storageResponse = await fetch(signedUrl, {
@@ -95,6 +95,7 @@ export function InternalUploadDialog({ quotationId, companyName, onUploadSuccess
                     documentTypeName: docTypeObj?.name || documentType,
                     originalFileName: file.name,
                     companyName,
+                    provider, // Store the provider (r2)
                 }),
             });
 

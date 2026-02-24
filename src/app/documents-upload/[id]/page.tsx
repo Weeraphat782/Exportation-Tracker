@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// import { uploadFile } from '@/lib/storage'; // Removed as unused
 import { /* createDocumentSubmission, */ getDocumentTemplate, /* updateQuotation */ } from '@/lib/db'; // Removed updateQuotation as unused
+import { getFileUrl } from '@/lib/storage';
 import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText, Leaf } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -284,7 +284,7 @@ export default function DocumentUploadPage() {
           }
 
           const generateUrlResult = await generateUrlResponse.json();
-          const { signedUrl, path: filePath, originalFileName } = generateUrlResult;
+          const { signedUrl, path: filePath, originalFileName, provider } = generateUrlResult;
 
           if (!signedUrl || !filePath) {
             throw new Error('Invalid response from generate-upload-url API');
@@ -292,8 +292,8 @@ export default function DocumentUploadPage() {
 
           console.log('Step 1 completed: Signed URL obtained');
 
-          // 2. Upload file directly to Supabase Storage using the Signed URL
-          console.log('Step 2: Uploading to storage...');
+          // 2. Upload file directly to Storage using the Signed URL
+          console.log(`Step 2: Uploading to ${provider || 'storage'}...`);
           const storageResponse = await fetch(signedUrl, {
             method: 'PUT',
             headers: {
@@ -330,6 +330,7 @@ export default function DocumentUploadPage() {
               originalFileName: originalFileName || queuedFile.file.name,
               notes: queuedFile.notes || '',
               companyName: companyName,
+              provider: provider, // Pass the provider (e.g., 'r2')
             }),
           });
 
@@ -419,8 +420,18 @@ export default function DocumentUploadPage() {
       const template = await getDocumentTemplate(documentTypeId);
 
       if (template && template.file_url) {
-        // Open the URL directly in a new tab
-        window.open(template.file_url, '_blank');
+        // Resolve URL (handles R2 signed URLs or Supabase public URLs)
+        const resolvedUrl = await getFileUrl(
+          template.file_url,
+          (template as { storage_provider?: 'supabase' | 'r2' }).storage_provider || 'supabase',
+          'templates' // Document templates are stored in 'templates' bucket in Supabase/R2 prefix
+        );
+
+        if (resolvedUrl) {
+          window.open(resolvedUrl, '_blank');
+        } else {
+          setError(`Could not resolve URL for ${documentName}`);
+        }
       } else {
         setError(`No template available for ${documentName}`);
       }

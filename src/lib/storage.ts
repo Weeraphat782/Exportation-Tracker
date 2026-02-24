@@ -1,4 +1,19 @@
 import { supabase } from '@/lib/supabase';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+// Cloudflare R2 Client Configuration
+export const r2Client = new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT || '',
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+  },
+  forcePathStyle: true, // Crucial for R2 compatibility with standard SDK
+});
+
+export const R2_BUCKET = process.env.R2_BUCKET_NAME || 'documents';
 
 /**
  * อัปโหลดไฟล์ไปยัง Supabase Storage
@@ -18,16 +33,16 @@ export async function uploadFile(
     const fileExtension = file.name.split('.').pop() || '';
     const timestamp = Date.now();
     const sanitizedFileName = `file_${timestamp}.${fileExtension}`;
-    
+
     // แยก path เป็นส่วนของโฟลเดอร์และชื่อไฟล์
     const lastSlashIndex = path.lastIndexOf('/');
     const folderPath = lastSlashIndex !== -1 ? path.substring(0, lastSlashIndex) : '';
-    
+
     // สร้าง path ใหม่
-    const safePath = lastSlashIndex !== -1 
-      ? `${folderPath}/${sanitizedFileName}` 
+    const safePath = lastSlashIndex !== -1
+      ? `${folderPath}/${sanitizedFileName}`
       : sanitizedFileName;
-    
+
     // เก็บชื่อไฟล์ดั้งเดิมไว้ใน metadata
     const metadata = {
       originalFileName: file.name
@@ -175,14 +190,14 @@ export function generateDocumentUploadLink(
   destination: string
 ): string {
   // สร้าง URL ไปยังหน้าอัปโหลดเอกสาร
-  const baseUrl = typeof window !== 'undefined' 
-    ? window.location.origin 
+  const baseUrl = typeof window !== 'undefined'
+    ? window.location.origin
     : process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
-  
+
   const url = new URL(`${baseUrl}/documents-upload/${quotationId}`);
   url.searchParams.append('company', companyName);
   url.searchParams.append('destination', destination);
-  
+
   return url.toString();
 }
 
@@ -201,4 +216,46 @@ export function formatFileSize(bytes: number): string {
   } else {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
-} 
+}
+
+/**
+ * ดึง URL ของไฟล์โดยระบุ Provider (Supabase หรือ R2)
+ * @param path พาธของไฟล์
+ * @param provider 'supabase' หรือ 'r2'
+ * @param bucket ชื่อ bucket (สำหรับ Supabase)
+ * @returns URL สำหรับเข้าถึงไฟล์
+ */
+export async function getFileUrl(
+  path: string,
+  provider: 'supabase' | 'r2' = 'supabase',
+  bucket: string = 'documents'
+): Promise<string> {
+  if (provider === 'r2') {
+    try {
+      // Check if we are running in the browser
+      if (typeof window !== 'undefined') {
+        const response = await fetch(`/api/get-signed-url?path=${encodeURIComponent(path)}&bucket=${encodeURIComponent(bucket)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch signed URL from server');
+        }
+        const data = await response.json();
+        return data.url;
+      }
+
+      // Server-side: Generate signed URL directly
+      const command = new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: path,
+      });
+      // สร้าง signed URL ที่มีอายุ 1 ชั่วโมง (3600 วินาที)
+      return await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+    } catch (error) {
+      console.error('Error generating R2 signed URL:', error);
+      return '';
+    }
+  }
+
+  // Default to Supabase
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}

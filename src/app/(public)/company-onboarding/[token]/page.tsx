@@ -73,22 +73,40 @@ export default function CompanyOnboardingPage() {
 
         setSubmitting(true);
         try {
-            // 1. Upload files to storage
-            const uploadedUrls: string[] = [];
+            // 1. Upload files to Cloudflare R2 via signed URLs
+            const uploadedPaths: string[] = [];
             for (const file of files) {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${company.id}/${Math.random().toString(36).substring(2)}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('company-documents')
-                    .upload(fileName, file);
+                // Get signed URL
+                const response = await fetch('/api/generate-upload-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fileName: file.name,
+                        contentType: file.type,
+                        companyId: company.id,
+                        documentType: 'registration-docs',
+                    }),
+                });
 
-                if (uploadError) throw uploadError;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to get upload URL');
+                }
 
-                const { data: { publicUrl } } = supabase.storage
-                    .from('company-documents')
-                    .getPublicUrl(fileName);
+                const { signedUrl, path } = await response.json();
 
-                uploadedUrls.push(publicUrl);
+                // Upload to R2
+                const uploadResponse = await fetch(signedUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': file.type },
+                    body: file,
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload file to storage');
+                }
+
+                uploadedPaths.push(path);
             }
 
             // 2. Update company record
@@ -96,7 +114,8 @@ export default function CompanyOnboardingPage() {
                 .from('companies')
                 .update({
                     ...formData,
-                    registration_docs: uploadedUrls.length > 0 ? uploadedUrls : company.registration_docs,
+                    registration_docs: uploadedPaths.length > 0 ? uploadedPaths : company.registration_docs,
+                    storage_provider: 'r2',
                     is_approved: true,
                     updated_at: new Date().toISOString(),
                 })

@@ -360,6 +360,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                         customsDeclarationFileUrl={quote.customs_declaration_file_url}
                                                         customsDeclarationFileName={quote.customs_declaration_file_name}
                                                         customsDeclarationUploadedAt={quote.customs_declaration_uploaded_at}
+                                                        storageProvider={quote.storage_provider}
                                                         onUpdate={() => fetchOpportunity()}
                                                     />
 

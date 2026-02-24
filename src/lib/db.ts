@@ -44,6 +44,7 @@ export interface Company {
   is_approved?: boolean;
   onboarding_token?: string;
   registration_docs?: string[] | null;
+  storage_provider?: 'supabase' | 'r2';
 }
 
 export interface Destination {
@@ -133,6 +134,7 @@ export interface Quotation {
   customs_declaration_uploaded_at?: string | null;
 
   share_token?: string | null;
+  storage_provider?: 'supabase' | 'r2';
 
   opportunities?: {
     stage: string;
@@ -160,6 +162,7 @@ export interface DocumentSubmission {
   reviewed_at?: string;
   reviewed_by?: string;
   description?: string; // AI-generated document summary
+  storage_provider?: 'supabase' | 'r2';
 }
 
 export interface Setting {

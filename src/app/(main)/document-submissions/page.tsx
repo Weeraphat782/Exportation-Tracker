@@ -32,6 +32,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { useDocumentAnalysis } from '@/hooks/useDocumentAnalysis';
+import { toast } from 'sonner';
 
 // Use DbQuotation type from db.ts or extend it if needed locally
 // For now, we assume DbQuotation from lib/db is sufficient and includes shipment_photo_url as string[] | null
@@ -53,6 +54,8 @@ interface DocumentSubmission {
   reviewed_by?: string;
   original_file_name: string;
   description?: string; // AI-generated document summary
+  storage_provider?: 'supabase' | 'r2';
+  file_path?: string;
 }
 
 // Define a type for partial updates
@@ -111,9 +114,30 @@ export default function DocumentSubmissionsPage() {
         getQuotations(userId)
       ]);
 
+      const { getFileUrl } = await import('@/lib/storage');
+
+      // Resolve URLs for documents
+      const resolvedSubmissions = await Promise.all((submissionsData as DocumentSubmission[]).map(async (sub) => {
+        const url = await getFileUrl(sub.file_path || sub.file_url, sub.storage_provider || 'supabase');
+        return { ...sub, file_url: url };
+      }));
+
+      // Resolve URLs for shipment photos in quotations
+      const resolvedQuotations = await Promise.all((quotationsData || []).map(async (q) => {
+        if (q.shipment_photo_url && Array.isArray(q.shipment_photo_url)) {
+          const resolvedPhotos = await Promise.all(q.shipment_photo_url.filter(Boolean).map(async (pathOrUrl: string) => {
+            // If it's already a full URL (supabase), use it. If it's a path (R2), resolve it.
+            const isPath = typeof pathOrUrl === 'string' && !pathOrUrl.startsWith('http');
+            return await getFileUrl(pathOrUrl, isPath ? 'r2' : 'supabase');
+          }));
+          return { ...q, shipment_photo_url: resolvedPhotos };
+        }
+        return q;
+      }));
+
       // Type cast to ensure compatibility with our local interface
-      setSubmissions(submissionsData as unknown as DocumentSubmission[]);
-      setQuotations(quotationsData || []);
+      setSubmissions(resolvedSubmissions as unknown as DocumentSubmission[]);
+      setQuotations(resolvedQuotations as unknown as DbQuotation[]);
     } catch (error) {
       console.error('Error loading data:', error);
       setSubmissions([]);
@@ -220,17 +244,25 @@ export default function DocumentSubmissionsPage() {
       // Remove loading state indication here if added
 
     } catch (error) {
-      console.error('Download failed:', error);
-      // Display error message to the user here (e.g., using a state variable and toast/alert)
-      // Remove loading state indication here if added
+      console.error('Download failed (likely CORS):', error);
+      // Fallback: Just open the URL in a new tab if fetch fails
+      // This is often better than nothing if CORS is not configured on the bucket
+      window.open(url, '_blank', 'noopener,noreferrer');
+      toast.info('Downloading via backup method (new tab)');
     }
   };
 
   // Bulk download function
   const handleBulkDownload = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0) {
+      toast.error('Please select documents to download');
+      return;
+    }
 
     setIsZipping(true);
+    let successfullyZipped = 0;
+    let failedZipped = 0;
+
     try {
       const zip = new JSZip();
       const selectedDocs = submissions.filter(s => selectedIds.has(s.id));
@@ -246,12 +278,22 @@ export default function DocumentSubmissionsPage() {
           // But usually original_file_name should be used
           const fileName = doc.original_file_name || doc.file_name || `file_${doc.id.substring(0, 5)}`;
           zip.file(fileName, blob);
+          successfullyZipped++;
         } catch (err) {
           console.error(`Error adding ${doc.original_file_name} to zip:`, err);
+          failedZipped++;
         }
       });
 
       await Promise.all(downloadPromises);
+
+      if (successfullyZipped === 0) {
+        throw new Error('Could not download any of the selected files (likely CORS restrictions).');
+      }
+
+      if (failedZipped > 0) {
+        toast.warning(`Successfully zipped ${successfullyZipped} files, but ${failedZipped} failed (likely CORS).`);
+      }
 
       // Generate ZIP blob
       const content = await zip.generateAsync({ type: 'blob' });
@@ -266,9 +308,11 @@ export default function DocumentSubmissionsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(zipUrl);
 
+      toast.success('Bulk download started');
       console.log('Bulk download ZIP generated and triggered');
     } catch (error) {
       console.error('Bulk download failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Bulk download failed');
     } finally {
       setIsZipping(false);
     }
@@ -983,30 +1027,38 @@ export default function DocumentSubmissionsPage() {
                 </div>
               )}
 
-              {selectedSubmission.file_url.endsWith('.pdf') ? (
-                <div className="col-span-2 mt-2">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
-                  <div className="border rounded-md p-2">
-                    <iframe
-                      src={`${selectedSubmission.file_url}#view=FitH`}
-                      className="w-full h-64"
-                      title={selectedSubmission.file_name}
-                    />
-                  </div>
-                </div>
-              ) : selectedSubmission.file_url.endsWith('.jpg') || selectedSubmission.file_url.endsWith('.png') || selectedSubmission.file_url.endsWith('.jpeg') ? (
-                <div className="col-span-2 mt-2">
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
-                  <div className="border rounded-md p-2 relative w-full h-64">
-                    <Image
-                      src={selectedSubmission.file_url}
-                      alt={selectedSubmission.file_name}
-                      layout="fill"
-                      objectFit="contain"
-                    />
-                  </div>
-                </div>
-              ) : null}
+              {(() => {
+                const urlLower = selectedSubmission.file_url.toLowerCase().split('?')[0];
+                if (urlLower.endsWith('.pdf')) {
+                  return (
+                    <div className="col-span-2 mt-2">
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
+                      <div className="border rounded-md p-2">
+                        <iframe
+                          src={`${selectedSubmission.file_url}#view=FitH`}
+                          className="w-full h-64"
+                          title={selectedSubmission.file_name}
+                        />
+                      </div>
+                    </div>
+                  );
+                } else if (urlLower.endsWith('.jpg') || urlLower.endsWith('.png') || urlLower.endsWith('.jpeg')) {
+                  return (
+                    <div className="col-span-2 mt-2">
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Preview</h3>
+                      <div className="border rounded-md p-2 relative w-full h-64">
+                        <Image
+                          src={selectedSubmission.file_url}
+                          alt={selectedSubmission.file_name}
+                          layout="fill"
+                          objectFit="contain"
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <div className="col-span-2 flex justify-center gap-2 mt-4">
                 <Button

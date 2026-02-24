@@ -89,6 +89,8 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
     const [loading, setLoading] = useState(true);
     const [quotation, setQuotation] = useState<(Quotation & { documents?: DocumentSubmission[] }) | null>(null);
     const [notFound, setNotFound] = useState(false);
+    const [resolvedUrls, setResolvedUrls] = useState<{ awb?: string; customs?: string }>({});
+    const [resolvedSubmissions, setResolvedSubmissions] = useState<DocumentSubmission[]>([]);
 
     useEffect(() => {
         async function load() {
@@ -96,6 +98,29 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                 const data = await getQuotationByShareToken(token);
                 if (data) {
                     setQuotation(data);
+
+                    const { getFileUrl } = await import('@/lib/storage');
+
+                    // Resolve AWB and Customs
+                    const urls: { awb?: string; customs?: string } = {};
+                    if (data.awb_file_url) {
+                        const path = data.awb_file_url.includes('supabase') ? data.awb_file_url.split('/public/')[1] || data.awb_file_url : data.awb_file_url;
+                        urls.awb = await getFileUrl(path, data.storage_provider || 'supabase');
+                    }
+                    if (data.customs_declaration_file_url) {
+                        const path = data.customs_declaration_file_url.includes('supabase') ? data.customs_declaration_file_url.split('/public/')[1] || data.customs_declaration_file_url : data.customs_declaration_file_url;
+                        urls.customs = await getFileUrl(path, data.storage_provider || 'supabase');
+                    }
+                    setResolvedUrls(urls);
+
+                    // Resolve Document Submissions
+                    if (data.documents && data.documents.length > 0) {
+                        const resolvedDocs = await Promise.all(data.documents.map(async (doc) => {
+                            const url = await getFileUrl(doc.file_path || doc.file_url, doc.storage_provider || 'supabase');
+                            return { ...doc, file_url: url };
+                        }));
+                        setResolvedSubmissions(resolvedDocs);
+                    }
                 } else {
                     setNotFound(true);
                 }
@@ -306,15 +331,15 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                 </div>
 
                 {/* AWB + Customs Declaration Documents */}
-                {(q.awb_file_url || q.customs_declaration_file_url) && (
+                {(resolvedUrls.awb || resolvedUrls.customs) && (
                     <div className="bg-white rounded-xl border border-gray-100 p-5">
                         <div className="flex items-center gap-2 mb-4">
                             <div className="w-1 h-4 bg-blue-600 rounded-full" />
                             <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Shipping Documents</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {q.awb_file_url && (
-                                <a href={q.awb_file_url} target="_blank" rel="noopener noreferrer"
+                            {resolvedUrls.awb && (
+                                <a href={resolvedUrls.awb} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-3 p-3 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-200 transition-all group/doc">
                                     <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 group-hover/doc:bg-blue-200 transition-colors">
                                         <FileText className="w-5 h-5 text-blue-600" />
@@ -326,8 +351,8 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                                     <Download className="w-4 h-4 text-blue-400 shrink-0 group-hover/doc:text-blue-600 transition-colors" />
                                 </a>
                             )}
-                            {q.customs_declaration_file_url && (
-                                <a href={q.customs_declaration_file_url} target="_blank" rel="noopener noreferrer"
+                            {resolvedUrls.customs && (
+                                <a href={resolvedUrls.customs} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-3 p-3 rounded-xl border border-amber-100 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-200 transition-all group/doc">
                                     <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover/doc:bg-amber-200 transition-colors">
                                         <FileText className="w-5 h-5 text-amber-600" />
@@ -344,7 +369,7 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                 )}
 
                 {/* Submitted Documents */}
-                {q.documents && q.documents.length > 0 && (
+                {resolvedSubmissions && resolvedSubmissions.length > 0 && (
                     <div className="bg-white rounded-xl border border-gray-100 p-5">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
@@ -352,11 +377,11 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Submitted Documents</span>
                             </div>
                             <span className="px-2 py-0.5 text-[10px] bg-violet-50 text-violet-700 rounded-full font-bold border border-violet-100">
-                                {q.documents.length} files
+                                {resolvedSubmissions.length} files
                             </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {q.documents.map((doc: DocumentSubmission) => {
+                            {resolvedSubmissions.map((doc: DocumentSubmission) => {
                                 const statusConfig: Record<string, { label: string; className: string; icon: typeof CheckCircle2 }> = {
                                     approved: { label: 'Approved', className: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
                                     submitted: { label: 'Under Review', className: 'bg-blue-50 text-blue-700', icon: Clock },

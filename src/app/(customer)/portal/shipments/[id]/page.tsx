@@ -22,7 +22,7 @@ import {
 import { calculateVolumeWeight } from '@/lib/calculators';
 import type { Quotation, DocumentSubmission, AdditionalCharge, Pallet } from '@/lib/db';
 import type { FreightRate } from '@/lib/customer-db';
-import { uploadFile } from '@/lib/storage';
+import { getFileUrl } from '@/lib/storage';
 import { toast } from 'react-hot-toast';
 import { getDocumentTemplate } from '@/lib/db';
 import {
@@ -221,6 +221,7 @@ export default function ShipmentDetailPage() {
     const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
     const [isThaiGacp, setIsThaiGacp] = useState(false);
     const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
+    const [resolvedShippingUrls, setResolvedShippingUrls] = useState<{ awb?: string; customs?: string }>({});
 
     // Share link state
     const [sharing, setSharing] = useState(false);
@@ -249,12 +250,30 @@ export default function ShipmentDetailPage() {
             }
             setQuotation(qData);
             setPallets(qData.pallets || []);
-            setDocuments(docsData.filter(d => d.quotation_id === id));
-
             if (qData.destination_id) {
                 const rates = await getFreightRatesByDestination(qData.destination_id);
                 setFreightRates(rates);
             }
+
+            // Resolve Document URLs
+            const docsWithUrls = await Promise.all(docsData.filter(d => d.quotation_id === id).map(async (doc) => {
+                const url = await getFileUrl(doc.file_path || '', doc.storage_provider || 'supabase');
+                return { ...doc, file_url: url };
+            }));
+            setDocuments(docsWithUrls);
+
+            // Resolve Shipping Doc URLs
+            const shippingUrls: { awb?: string; customs?: string } = {};
+            if (qData.awb_file_url) {
+                const path = qData.awb_file_url.includes('supabase') ? qData.awb_file_url.split('/public/')[1] || qData.awb_file_url : qData.awb_file_url;
+                shippingUrls.awb = await getFileUrl(path, qData.storage_provider || 'supabase');
+            }
+            if (qData.customs_declaration_file_url) {
+                const path = qData.customs_declaration_file_url.includes('supabase') ? qData.customs_declaration_file_url.split('/public/')[1] || qData.customs_declaration_file_url : qData.customs_declaration_file_url;
+                shippingUrls.customs = await getFileUrl(path, qData.storage_provider || 'supabase');
+            }
+            setResolvedShippingUrls(shippingUrls);
+
         } catch (err) {
             console.error('Load error:', err);
             toast.error('Failed to load data');
@@ -373,7 +392,11 @@ export default function ShipmentDetailPage() {
         try {
             setPreviewLoading(prev => ({ ...prev, [documentTypeId]: true }));
             const template = await getDocumentTemplate(documentTypeId);
-            if (template?.file_url) window.open(template.file_url, '_blank');
+            if (template?.file_url) {
+                const url = await getFileUrl(template.file_url, (template as DocumentSubmission).storage_provider || 'supabase', 'templates');
+                if (url) window.open(url, '_blank');
+                else toast.error('Could not resolve template URL');
+            }
             else toast.error(`No template for ${documentName}`);
         } catch { toast.error('Failed to load template'); }
         finally { setPreviewLoading(prev => ({ ...prev, [documentTypeId]: false })); }
@@ -385,16 +408,46 @@ export default function ShipmentDetailPage() {
         try {
             let ok = 0;
             for (const item of uploadQueue) {
-                const path = `quotation-docs/${id}/${item.file.name}`;
-                const url = await uploadFile('documents', path, item.file);
-                if (!url) { toast.error(`Failed: ${item.file.name}`); continue; }
-                const success = await submitCustomerDocument({
-                    quotation_id: id, company_name: quotation.company_name || 'N/A',
-                    document_type: item.documentType, document_type_name: item.documentTypeName,
-                    file_name: item.file.name, original_file_name: item.file.name,
-                    file_path: path, file_url: url, file_size: item.file.size,
-                    mime_type: item.file.type, status: 'submitted'
+                // 1. Get Signed URL
+                const generateUrlResponse = await fetch('/api/generate-upload-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fileName: item.file.name,
+                        contentType: item.file.type,
+                        quotationId: id,
+                        documentType: item.documentType,
+                    }),
                 });
+
+                if (!generateUrlResponse.ok) throw new Error('Failed to get upload URL');
+                const { signedUrl, path: filePath, provider } = await generateUrlResponse.json();
+
+                // 2. Upload to Storage
+                const storageResponse = await fetch(signedUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': item.file.type },
+                    body: item.file,
+                });
+
+                if (!storageResponse.ok) throw new Error('Storage upload failed');
+
+                // 3. Confirm via lib
+                const success = await submitCustomerDocument({
+                    quotation_id: id,
+                    company_name: quotation.company_name || 'N/A',
+                    document_type: item.documentType,
+                    document_type_name: item.documentTypeName,
+                    file_name: item.file.name,
+                    original_file_name: item.file.name,
+                    file_path: filePath,
+                    file_url: filePath, // This will be resolved on load
+                    file_size: item.file.size,
+                    mime_type: item.file.type,
+                    status: 'submitted',
+                    storage_provider: (provider === 'r2' ? 'r2' : 'supabase')
+                } as Omit<DocumentSubmission, 'id' | 'submitted_at'>);
+
                 if (success) ok++;
             }
             if (ok > 0) { toast.success(`Uploaded ${ok} file(s)`); setUploadQueue([]); await loadData(); }
@@ -474,11 +527,10 @@ export default function ShipmentDetailPage() {
                             <button
                                 onClick={handleShare}
                                 disabled={sharing}
-                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${
-                                    shareCopied
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                                }`}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${shareCopied
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                    }`}
                             >
                                 {sharing ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -595,7 +647,7 @@ export default function ShipmentDetailPage() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {q.awb_file_url && (
-                            <a href={q.awb_file_url} target="_blank" rel="noopener noreferrer"
+                            <a href={resolvedShippingUrls.awb} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-200 transition-all group/doc">
                                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 group-hover/doc:bg-blue-200 transition-colors">
                                     <FileText className="w-5 h-5 text-blue-600" />
@@ -608,7 +660,7 @@ export default function ShipmentDetailPage() {
                             </a>
                         )}
                         {q.customs_declaration_file_url && (
-                            <a href={q.customs_declaration_file_url} target="_blank" rel="noopener noreferrer"
+                            <a href={resolvedShippingUrls.customs} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 rounded-xl border border-amber-100 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-200 transition-all group/doc">
                                 <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 group-hover/doc:bg-amber-200 transition-colors">
                                     <FileText className="w-5 h-5 text-amber-600" />
@@ -761,7 +813,7 @@ export default function ShipmentDetailPage() {
                                                     className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${type.isUploaded
                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                         : 'bg-red-50 text-red-600 border-red-100'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {type.isUploaded ? '✓' : '✗'} {type.name}
                                                 </span>
