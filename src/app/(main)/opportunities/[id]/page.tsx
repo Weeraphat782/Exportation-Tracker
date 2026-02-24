@@ -7,7 +7,7 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2 } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -34,106 +34,120 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
     const fetchOpportunity = async () => {
-            setLoading(true);
-            try {
-                // Fetch opportunity with linked quotations
-                const { data, error } = await supabase
-                    .from('opportunities')
-                    .select(`
+        setLoading(true);
+        try {
+            // Fetch opportunity with linked quotations
+            const { data, error } = await supabase
+                .from('opportunities')
+                .select(`
                         *, 
                         quotations(*), 
                         destination:destination_id(country, port), 
                         opportunity_products(product:products(name)),
                         company:company_id(name, contact_person, contact_email, contact_phone)
                     `)
-                    .eq('id', id)
-                    .single();
+                .eq('id', id)
+                .single();
 
-                if (error) {
-                    throw error;
-                }
-
-                if (data) {
-                    interface RawSupabaseOpportunity {
-                        id: string;
-                        topic: string;
-                        customer_name: string | null;
-                        company_id: string | null;
-                        amount: number;
-                        currency: string;
-                        stage: OpportunityStage;
-                        probability: number;
-                        created_at: string;
-                        updated_at: string;
-                        close_date: string;
-                        vehicle_type?: string;
-                        container_size?: string;
-                        product_details?: string | { description?: string };
-                        notes?: string;
-                        destination_id?: string;
-                        destination?: { country: string; port: string | null };
-                        quotations?: Quotation[];
-                        opportunity_products?: { product: { name: string } }[];
-                        closure_status?: 'won' | 'lost' | null;
-                        company?: {
-                            name: string;
-                            contact_person?: string;
-                            contact_email?: string;
-                            contact_phone?: string;
-                        };
-                    }
-
-                    const item = data as unknown as RawSupabaseOpportunity;
-
-                    const dest = item.destination;
-                    const destinationName = dest ? `${dest.country}${dest.port ? ` (${dest.port})` : ''}` : undefined;
-
-                    // Map products
-                    const productNames = item.opportunity_products?.map(op => op.product.name) || [];
-
-                    const mapped: OpportunityDetail = {
-                        id: item.id,
-                        topic: item.topic,
-                        customerName: item.customer_name || 'Unknown',
-                        companyName: item.company?.name || item.customer_name || 'Unknown',
-                        companyId: item.company_id || undefined,
-                        amount: item.amount,
-                        currency: item.currency,
-                        stage: item.stage,
-                        probability: item.probability,
-                        closeDate: item.close_date,
-                        ownerName: 'Me',
-                        createdAt: item.created_at,
-                        updatedAt: item.updated_at,
-                        vehicleType: item.vehicle_type,
-                        containerSize: item.container_size,
-                        productDetails: typeof item.product_details === 'object' ? item.product_details?.description || '' : item.product_details || '',
-                        notes: item.notes,
-                        destinationId: item.destination_id,
-                        destinationName,
-                        productName: productNames, // Map to string[]
-                        quotations: item.quotations || [], // Full quotation objects
-                        closureStatus: item.closure_status || null,
-                        contact_person: item.company?.contact_person,
-                        contact_email: item.company?.contact_email,
-                        contact_phone: item.company?.contact_phone
-                    };
-
-                    setOpportunity(mapped);
-                }
-            } catch (err) {
-                console.error('Error fetching opportunity details:', err);
-                toast.error('Failed to load opportunity details');
-            } finally {
-                setLoading(false);
+            if (error) {
+                throw error;
             }
-        };
+
+            if (data) {
+                interface RawSupabaseOpportunity {
+                    id: string;
+                    topic: string;
+                    customer_name: string | null;
+                    company_id: string | null;
+                    amount: number;
+                    currency: string;
+                    stage: OpportunityStage;
+                    probability: number;
+                    created_at: string;
+                    updated_at: string;
+                    close_date: string;
+                    vehicle_type?: string;
+                    container_size?: string;
+                    product_details?: string | { description?: string };
+                    notes?: string;
+                    destination_id?: string;
+                    destination?: { country: string; port: string | null };
+                    quotations?: Quotation[];
+                    opportunity_products?: { product: { name: string } }[];
+                    closure_status?: 'won' | 'lost' | null;
+                    company?: {
+                        name: string;
+                        contact_person?: string;
+                        contact_email?: string;
+                        contact_phone?: string;
+                    };
+                }
+
+                const item = data as unknown as RawSupabaseOpportunity;
+
+                const dest = item.destination;
+                const destinationName = dest ? `${dest.country}${dest.port ? ` (${dest.port})` : ''}` : undefined;
+
+                // Map products
+                const productNames = item.opportunity_products?.map(op => op.product.name) || [];
+
+                const mapped: OpportunityDetail = {
+                    id: item.id,
+                    topic: item.topic,
+                    customerName: item.customer_name || 'Unknown',
+                    companyName: item.company?.name || item.customer_name || 'Unknown',
+                    companyId: item.company_id || undefined,
+                    amount: item.amount,
+                    currency: item.currency,
+                    stage: item.stage,
+                    probability: item.probability,
+                    closeDate: item.close_date,
+                    ownerName: 'Me',
+                    createdAt: item.created_at,
+                    updatedAt: item.updated_at,
+                    vehicleType: item.vehicle_type,
+                    containerSize: item.container_size,
+                    productDetails: typeof item.product_details === 'object' ? item.product_details?.description || '' : item.product_details || '',
+                    notes: item.notes,
+                    destinationId: item.destination_id,
+                    destinationName,
+                    productName: productNames, // Map to string[]
+                    quotations: item.quotations || [], // Full quotation objects
+                    closureStatus: item.closure_status || null,
+                    contact_person: item.company?.contact_person,
+                    contact_email: item.company?.contact_email,
+                    contact_phone: item.company?.contact_phone
+                };
+
+                setOpportunity(mapped);
+            }
+        } catch (err) {
+            console.error('Error fetching opportunity details:', err);
+            toast.error('Failed to load opportunity details');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleShareLink = (quoteId: string) => {
+        if (typeof window === 'undefined') return;
+
+        const baseUrl = window.location.origin;
+        const uploadUrl = `${baseUrl}/documents-upload/${quoteId}?company=${encodeURIComponent(opportunity?.companyName || '')}&destination=${encodeURIComponent(opportunity?.destinationName || '')}`;
+
+        navigator.clipboard.writeText(uploadUrl).then(() => {
+            toast.success('Upload link copied to clipboard');
+        }).catch(err => {
+            console.error('Failed to copy link:', err);
+            toast.error('Failed to copy link');
+        });
+    };
 
     useEffect(() => {
         if (id) {
             fetchOpportunity();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     if (loading) {
@@ -350,6 +364,21 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                     />
 
                                                     <div className="flex justify-end gap-2 mt-4 hidden lg:flex">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                                            onClick={() => handleShareLink(quote.id)}
+                                                        >
+                                                            <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                                                            Share Link
+                                                        </Button>
+                                                        <Link href={`/debit-note/${quote.id}`}>
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
+                                                                <Receipt className="h-3.5 w-3.5 mr-1.5" />
+                                                                Debit Note
+                                                            </Button>
+                                                        </Link>
                                                         <Link href={`/document-comparison?quotation_id=${quote.id}&opportunity_id=${opportunity.id}`}>
                                                             <Button className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 shadow-sm">
                                                                 <Eye className="h-3.5 w-3.5 mr-1.5" />

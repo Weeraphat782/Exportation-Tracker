@@ -1571,7 +1571,19 @@ function ShippingCalculatorPageContent() {
                                 name="destinationId"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Destination *</FormLabel>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <FormLabel>Destination *</FormLabel>
+                                            {existingQuotation?.requested_destination && !watch('destinationId') && (
+                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 uppercase tracking-tight">
+                                                    Customer Req
+                                                </span>
+                                            )}
+                                        </div>
+                                        {existingQuotation?.requested_destination && !watch('destinationId') && (
+                                            <div className="mb-2 p-2 bg-emerald-50 border border-emerald-100 rounded text-xs text-emerald-800 italic">
+                                                <strong>Customer Requested:</strong> {existingQuotation.requested_destination}
+                                            </div>
+                                        )}
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>

@@ -360,6 +360,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
  */
 export async function createCustomerQuoteRequest(
   pallets: { length: number; width: number; height: number; weight: number; quantity: number }[],
+  requestedDestination: string,
   notes?: string
 ): Promise<{ success: boolean; quotationId?: string; error?: string }> {
   try {
@@ -387,6 +388,7 @@ export async function createCustomerQuoteRequest(
         contact_person: customerName,
         status: 'pending_approval',
         pallets: pallets,
+        requested_destination: requestedDestination,
         notes: notes || null,
         // Fields that staff will fill in later
         user_id: null,

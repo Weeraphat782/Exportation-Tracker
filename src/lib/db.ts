@@ -104,6 +104,7 @@ export interface Quotation {
   status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped' | 'pending_approval';
   company_name?: string | null;
   destination?: string | null;
+  requested_destination?: string | null;
   updated_at?: string;
   completed_at?: string | null;
   shipment_photo_url?: string[] | null;

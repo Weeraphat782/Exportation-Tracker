@@ -238,6 +238,12 @@ function QuotationPreviewContent() {
                       <td className="py-1 font-medium">Destination:</td>
                       <td className="py-1">{quotationData?.destination || 'N/A'}</td>
                     </tr>
+                    {quotationData?.requested_destination && (!quotationData.destination || quotationData.destination === 'N/A') && (
+                      <tr>
+                        <td className="py-1 font-medium text-emerald-700">Requested:</td>
+                        <td className="py-1 text-emerald-700 font-medium italic">{quotationData.requested_destination}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -31,6 +31,7 @@ function createEmptyPallet(): PalletInput {
 
 export default function NewQuoteRequestPage() {
     const [pallets, setPallets] = useState<PalletInput[]>([createEmptyPallet()]);
+    const [requestedDestination, setRequestedDestination] = useState('');
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -55,8 +56,23 @@ export default function NewQuoteRequestPage() {
         });
     };
 
+    const handleRequestedDestinationChange = (value: string) => {
+        setRequestedDestination(value);
+        if (value.trim()) {
+            setErrors(prev => {
+                const next = { ...prev };
+                delete next['requestedDestination'];
+                return next;
+            });
+        }
+    };
+
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
+
+        if (!requestedDestination.trim()) {
+            newErrors['requestedDestination'] = 'Shipping Destination is required';
+        }
 
         pallets.forEach((p, idx) => {
             const num = idx + 1;
@@ -87,7 +103,7 @@ export default function NewQuoteRequestPage() {
                 quantity: parseInt(p.quantity),
             }));
 
-            const result = await createCustomerQuoteRequest(palletData, notes || undefined);
+            const result = await createCustomerQuoteRequest(palletData, requestedDestination, notes || undefined);
 
             if (result.success) {
                 setSubmitted(true);
@@ -153,7 +169,6 @@ export default function NewQuoteRequestPage() {
                 </div>
             </div>
 
-            {/* Info Banner */}
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-700">
@@ -163,6 +178,23 @@ export default function NewQuoteRequestPage() {
                         and send you an approved quotation. You&apos;ll see it in &quot;My Shipments&quot; once approved.
                     </p>
                 </div>
+            </div>
+
+            {/* Requested Destination */}
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Shipping Destination (Where to?) <span className="text-red-500">*</span>
+                </label>
+                <input
+                    type="text"
+                    placeholder="e.g. Bangkok to Tokyo / Warehouse Address"
+                    value={requestedDestination}
+                    onChange={(e) => handleRequestedDestinationChange(e.target.value)}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${errors['requestedDestination'] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                />
+                {errors['requestedDestination'] && (
+                    <p className="text-xs text-red-500 mt-1">{errors['requestedDestination']}</p>
+                )}
             </div>
 
             {/* Pallets */}
@@ -296,23 +328,25 @@ export default function NewQuoteRequestPage() {
             </div>
 
             {/* Total Summary */}
-            {pallets.some(p => p.length && p.width && p.height && p.weight) && (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">Summary</div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-emerald-800">
-                        <span>
-                            Total Pallets: <strong>
-                                {pallets.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)}
-                            </strong>
-                        </span>
-                        <span>
-                            Total Weight: <strong>
-                                {pallets.reduce((sum, p) => sum + ((parseFloat(p.weight) || 0) * (parseInt(p.quantity) || 0)), 0).toFixed(1)} kg
-                            </strong>
-                        </span>
+            {
+                pallets.some(p => p.length && p.width && p.height && p.weight) && (
+                    <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                        <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2">Summary</div>
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-emerald-800">
+                            <span>
+                                Total Pallets: <strong>
+                                    {pallets.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)}
+                                </strong>
+                            </span>
+                            <span>
+                                Total Weight: <strong>
+                                    {pallets.reduce((sum, p) => sum + ((parseFloat(p.weight) || 0) * (parseInt(p.quantity) || 0)), 0).toFixed(1)} kg
+                                </strong>
+                            </span>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Notes */}
             <div className="bg-white rounded-xl border border-gray-100 p-5">
@@ -329,16 +363,18 @@ export default function NewQuoteRequestPage() {
             </div>
 
             {/* Validation Errors */}
-            {Object.keys(errors).length > 0 && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-                    <div className="text-xs font-bold text-red-700 mb-1">Please fix the following:</div>
-                    <ul className="text-xs text-red-600 space-y-0.5">
-                        {Object.values(errors).map((err, i) => (
-                            <li key={i}>• {err}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+            {
+                Object.keys(errors).length > 0 && (
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                        <div className="text-xs font-bold text-red-700 mb-1">Please fix the following:</div>
+                        <ul className="text-xs text-red-600 space-y-0.5">
+                            {Object.values(errors).map((err, i) => (
+                                <li key={i}>• {err}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )
+            }
 
             {/* Submit */}
             <div className="flex items-center justify-between pt-2">

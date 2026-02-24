@@ -771,7 +771,20 @@ export default function ShippingCalculatorPage() {
                 {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.id}</TableCell>}
                 {isColumnVisible('company') && <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>}
                 {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
-                {isColumnVisible('destination') && <TableCell className="text-xs sm:text-sm">{quotation.destination}</TableCell>}
+                {isColumnVisible('destination') && (
+                  <TableCell className="text-xs sm:text-sm">
+                    {quotation.destination ? (
+                      quotation.destination
+                    ) : quotation.requested_destination ? (
+                      <div className="flex flex-col">
+                        <span className="font-medium text-emerald-700">{quotation.requested_destination}</span>
+                        <span className="text-[10px] text-emerald-500 uppercase font-bold tracking-tight">(Customer Req)</span>
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                )}
                 {isColumnVisible('internal_remark') && (
                   <TableCell className="text-xs sm:text-sm italic text-blue-600 max-w-[150px] truncate" title={quotation.internal_remark || ''}>
                     {quotation.internal_remark || '-'}
@@ -1293,9 +1306,8 @@ export default function ShippingCalculatorPage() {
               {/* Unassign option */}
               <button
                 onClick={() => setSelectedCustomerId('')}
-                className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                  selectedCustomerId === '' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-500'
-                }`}
+                className={`w-full text-left px-4 py-3 text-sm transition-colors ${selectedCustomerId === '' ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-500'
+                  }`}
               >
                 <div className="font-medium">— No customer (Unassign)</div>
               </button>
@@ -1314,9 +1326,8 @@ export default function ShippingCalculatorPage() {
                   <button
                     key={customer.id}
                     onClick={() => setSelectedCustomerId(customer.id)}
-                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                      selectedCustomerId === customer.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
-                    }`}
+                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${selectedCustomerId === customer.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                      }`}
                   >
                     <div className="font-medium text-gray-900">{customer.full_name || customer.email}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
