@@ -29,18 +29,18 @@ export default function EmailBookingPage() {
       try {
         setLoading(true);
         const quotationData = await getQuotationById(quotationId);
-        
+
         if (quotationData) {
           setQuotation(quotationData);
-          
+
           // Generate initial email data from quotation
           const initialEmailData = generateBookingEmailFromQuotation(quotationData);
           setEmailData(initialEmailData);
-          
+
           // Generate email content and subject
           const content = formatBookingEmail(initialEmailData);
           const subject = generateEmailSubject(initialEmailData);
-          
+
           setEmailContent(content);
           setEmailSubject(subject);
         } else {
@@ -65,13 +65,13 @@ export default function EmailBookingPage() {
       ...emailData,
       [field]: value
     };
-    
+
     setEmailData(updatedData);
-    
+
     // Regenerate email content
     const content = formatBookingEmail(updatedData);
     const subject = generateEmailSubject(updatedData);
-    
+
     setEmailContent(content);
     setEmailSubject(subject);
   };
@@ -90,13 +90,13 @@ export default function EmailBookingPage() {
     const encodedSubject = encodeURIComponent(emailSubject);
     const encodedBody = encodeURIComponent(emailContent);
     const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
-    
+
     window.open(mailtoUrl, '_blank');
   };
 
   const handleExportPDF = async () => {
     if (!quotation) return;
-    
+
     // Create a simple HTML version for printing
     const htmlContent = `
       <html>
@@ -117,7 +117,7 @@ export default function EmailBookingPage() {
         </body>
       </html>
     `;
-    
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(htmlContent);
@@ -132,7 +132,7 @@ export default function EmailBookingPage() {
 
   const handlePrintEmail = () => {
     if (!quotation) return;
-    
+
     // Use the same HTML generation as handleExportPDF
     const htmlContent = `
       <html>
@@ -153,7 +153,7 @@ export default function EmailBookingPage() {
         </body>
       </html>
     `;
-    
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(htmlContent);
@@ -204,7 +204,7 @@ export default function EmailBookingPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Email Booking</h1>
-            <p className="text-muted-foreground">Quotation: {quotation.id}</p>
+            <p className="text-muted-foreground">Quotation: {quotation.quotation_no || quotation.id.slice(0, 8)}</p>
           </div>
         </div>
       </div>
@@ -386,7 +386,7 @@ export default function EmailBookingPage() {
                   Copy All
                 </Button>
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
@@ -422,7 +422,7 @@ export default function EmailBookingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>Quotation ID</Label>
-              <p className="font-medium">{quotation.id}</p>
+              <p className="font-medium">{quotation.quotation_no || quotation.id.slice(0, 8)}</p>
             </div>
             <div>
               <Label>Company</Label>

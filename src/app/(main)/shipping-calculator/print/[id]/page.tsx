@@ -80,7 +80,7 @@ export default function PrintQuotationPage() {
       const width = typeof pallet.width === 'number' ? pallet.width : parseFloat(pallet.width) || 0;
       const height = typeof pallet.height === 'number' ? pallet.height : parseFloat(pallet.height) || 0;
       const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
-      
+
       return total + calculateVolumeWeight(width, length, height, quantity);
     }, 0);
   };
@@ -108,7 +108,7 @@ export default function PrintQuotationPage() {
     const cc: number = calculateClearanceCost();
     const dc: number = calculateDeliveryCost();
     const ac: number = calculateAdditionalCharges();
-    
+
     return fc + cc + dc + ac;
   };
 
@@ -116,13 +116,13 @@ export default function PrintQuotationPage() {
   const calculateFreightCost = (): number => {
     if (typeof data?.total_freight_cost === 'number') return data.total_freight_cost;
     const total = typeof data?.total_cost === 'number' ? data.total_cost : 0;
-    
+
     if (total > 0) {
       // If we have a total cost but no freight cost, estimate freight as 75% of total
       // This is a reasonable distribution for most shipping quotations
       return Math.round(total * 0.75);
     }
-    
+
     // Otherwise estimate based on weight
     const chargeableWt = data?.chargeable_weight || getChargeableWeight();
     return Math.round(chargeableWt * 150); // Default rate of 150 THB per kg if nothing else works
@@ -132,12 +132,12 @@ export default function PrintQuotationPage() {
   const calculateClearanceCost = (): number => {
     if (typeof data?.clearance_cost === 'number') return data.clearance_cost;
     const total = typeof data?.total_cost === 'number' ? data.total_cost : 0;
-    
+
     if (total > 0) {
       // Estimate clearance as roughly 10% of total if we have total but no breakdown
       return Math.round(total * 0.10);
     }
-    
+
     // Otherwise return 0 (no clearance cost by default)
     return 0;
   };
@@ -145,15 +145,15 @@ export default function PrintQuotationPage() {
   // Calculate the delivery cost
   const calculateDeliveryCost = (): number => {
     if (!data?.delivery_service_required) return 0;
-    
+
     if (typeof data?.delivery_cost === 'number') return data.delivery_cost;
     const total = typeof data?.total_cost === 'number' ? data.total_cost : 0;
-    
+
     if (total > 0) {
       // Estimate delivery as roughly 15% of total if we have total but no breakdown
       return Math.round(total * 0.15);
     }
-    
+
     // Otherwise calculate based on vehicle type
     const vehicleType = data?.delivery_vehicle_type || '4wheel';
     return vehicleType === '4wheel' ? 3500 : 9500;
@@ -162,12 +162,12 @@ export default function PrintQuotationPage() {
   // Calculate total additional charges
   const calculateAdditionalCharges = (): number => {
     const charges = data?.additional_charges || [];
-    return charges.reduce((total: number, charge: AdditionalCharge) => { 
+    return charges.reduce((total: number, charge: AdditionalCharge) => {
       const amount = typeof charge.amount === 'number' ? charge.amount : parseFloat(charge.amount) || 0;
       return total + amount;
     }, 0);
   };
-  
+
   // Get current date for quotation if not provided
   const getQuotationDate = () => {
     // Use created_at only
@@ -183,7 +183,7 @@ export default function PrintQuotationPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-pulse text-lg">Loading quotation data...</div>
-        </div>
+      </div>
     );
   }
 
@@ -194,7 +194,7 @@ export default function PrintQuotationPage() {
       </div>
     );
   }
-  
+
   // Get all the calculated values
   const actualWeight = getTotalActualWeight();
   const volumeWeight = getTotalVolumeWeight();
@@ -210,7 +210,7 @@ export default function PrintQuotationPage() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">QUOTATION</h1>
-          <p className="text-sm text-slate-500">Ref: {data?.id || 'N/A'}</p>
+          <p className="text-sm text-slate-500">Ref: {data?.quotation_no || data?.id || 'N/A'}</p>
         </div>
         <div className="text-right">
           <div className="text-xl font-bold text-slate-900">OMG Experience</div>
@@ -285,9 +285,9 @@ export default function PrintQuotationPage() {
                 const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
 
                 const volumeWeight = calculateVolumeWeight(
-                  width, 
-                  length, 
-                  height, 
+                  width,
+                  length,
+                  height,
                   quantity
                 );
                 return (
@@ -344,7 +344,7 @@ export default function PrintQuotationPage() {
                 <td className="py-2 px-4 text-right border">{formatNumber(deliveryCost)} THB</td>
               </tr>
             )}
-            
+
             {data?.additional_charges && data.additional_charges.length > 0 ? (
               data.additional_charges.map((charge: AdditionalCharge, index: number) => (
                 <tr key={index} className="border-b">
@@ -357,7 +357,7 @@ export default function PrintQuotationPage() {
                 <td colSpan={2} className="py-2 px-4 text-center italic text-gray-500 border">No additional charges</td>
               </tr>
             )}
-            
+
             <tr className="bg-gray-100 font-bold">
               <td className="py-2 px-4 border">Total Cost</td>
               <td className="py-2 px-4 text-right border">{formatNumber(totalCost)} THB</td>

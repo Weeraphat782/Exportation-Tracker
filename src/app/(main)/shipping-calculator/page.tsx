@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 // Column definitions
 const ALL_COLUMNS = [
   { id: 'date', label: 'Date', default: true },
-  { id: 'id', label: 'ID', default: true },
+  { id: 'id', label: 'Run No.', default: true },
   { id: 'company', label: 'Company', default: true },
   { id: 'customer', label: 'Customer', default: true },
   { id: 'destination', label: 'Destination', default: true },
@@ -723,6 +723,7 @@ export default function ShippingCalculatorPage() {
     const searchTermLower = searchTerm.toLowerCase();
     return quotationsList.filter(quotation => (
       (quotation.id?.toLowerCase().includes(searchTermLower)) ||
+      (quotation.quotation_no?.toLowerCase().includes(searchTermLower)) ||
       (quotation.company_name?.toLowerCase().includes(searchTermLower)) ||
       (quotation.customer_name?.toLowerCase().includes(searchTermLower))
     ));
@@ -768,7 +769,7 @@ export default function ShippingCalculatorPage() {
             {quotationsList.map((quotation) => (
               <TableRow key={quotation.id}>
                 {isColumnVisible('date') && <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>}
-                {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.id}</TableCell>}
+                {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.quotation_no || quotation.id.slice(0, 8)}</TableCell>}
                 {isColumnVisible('company') && <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>}
                 {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
                 {isColumnVisible('destination') && (

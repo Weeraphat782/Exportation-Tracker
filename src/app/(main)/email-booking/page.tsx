@@ -20,20 +20,20 @@ export default function EmailBookingListPage() {
     const loadQuotations = async () => {
       try {
         setLoading(true);
-        
+
         // Get user ID from localStorage
         const userString = localStorage.getItem('user');
         if (!userString) {
           toast.error('User not authenticated');
           return;
         }
-        
+
         const userData = JSON.parse(userString);
         const quotationData = await getQuotations(userData.id);
-        
+
         if (quotationData) {
           // Filter quotations that are suitable for booking (accepted status)
-          const bookableQuotations = quotationData.filter(q => 
+          const bookableQuotations = quotationData.filter(q =>
             ['accepted', 'docs_uploaded', 'completed'].includes(q.status)
           );
           setQuotations(bookableQuotations);
@@ -71,7 +71,7 @@ export default function EmailBookingListPage() {
   };
 
   const getStatusBadgeVariant = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'accepted':
         return 'success';
       case 'docs_uploaded':
@@ -84,7 +84,7 @@ export default function EmailBookingListPage() {
   };
 
   const getStatusText = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'accepted':
         return 'Accepted';
       case 'docs_uploaded':
@@ -130,11 +130,11 @@ export default function EmailBookingListPage() {
           <CardDescription>
             Quotations that are ready for booking (Accepted, Documents Uploaded, or Completed status)
           </CardDescription>
-          
+
           {/* Search Input */}
           <div className="relative mt-4">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
+            <Input
               type="search"
               placeholder="Search by ID, Company, or Destination..."
               value={searchTerm}
@@ -153,7 +153,7 @@ export default function EmailBookingListPage() {
               <Mail className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium">No bookable quotations</h3>
               <p className="text-sm text-gray-500 mt-1 mb-4">
-                {quotations.length === 0 
+                {quotations.length === 0
                   ? "No quotations with accepted status found."
                   : "No quotations match your search criteria."
                 }
@@ -184,11 +184,11 @@ export default function EmailBookingListPage() {
                   {filteredQuotations.map((quotation) => (
                     <TableRow key={quotation.id}>
                       <TableCell>{formatDate(quotation.created_at)}</TableCell>
-                      <TableCell className="font-mono text-sm">{quotation.id}</TableCell>
+                      <TableCell className="font-mono text-sm">{quotation.quotation_no || quotation.id.slice(0, 8)}</TableCell>
                       <TableCell>{quotation.company_name}</TableCell>
                       <TableCell>{quotation.destination}</TableCell>
                       <TableCell>
-                        {quotation.chargeable_weight 
+                        {quotation.chargeable_weight
                           ? `${quotation.chargeable_weight} KG`
                           : 'N/A'
                         }
@@ -211,7 +211,7 @@ export default function EmailBookingListPage() {
                               Create Email
                             </Link>
                           </Button>
-                          
+
                           <Button
                             variant="ghost"
                             size="sm"

@@ -415,7 +415,7 @@ export default function DocumentSubmissionsPage() {
 
     return quotations.map((quotation) => ({
       value: quotation.id,
-      label: `${quotation.company_name} - ${quotation.id.slice(0, 8)}`
+      label: `${quotation.company_name} - ${quotation.quotation_no || quotation.id.slice(0, 8)}`
     }));
   }, [quotations]);
 

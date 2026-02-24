@@ -198,7 +198,7 @@ function QuotationPreviewContent() {
             <div className="flex justify-between items-start mb-8">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">QUOTATION</h2>
-                <div className="text-sm text-slate-500 mt-1">Ref: {quotationData?.id || 'N/A'}</div>
+                <div className="text-sm text-slate-500 mt-1">Ref: {quotationData?.quotation_no || quotationData?.id || 'N/A'}</div>
               </div>
               <div className="text-right">
                 {/* <div className="text-sm text-slate-500">Prepared by</div> */}

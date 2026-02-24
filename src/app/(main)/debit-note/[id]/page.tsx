@@ -26,7 +26,7 @@ export default function DebitNotePage() {
   const params = useParams();
   const router = useRouter();
   const quotationId = params.id as string;
-  
+
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [debitNote, setDebitNote] = useState<DebitNote | null>(null);
   const [remarks, setRemarks] = useState('');
@@ -132,7 +132,7 @@ export default function DebitNotePage() {
 
   const generatePDF = () => {
     if (!quotation || !debitNote) return;
-    
+
     // Open print view in new tab with debit note number
     const printUrl = `/debit-note/print/${quotationId}?remarks=${encodeURIComponent(remarks)}&debitNoteNo=${encodeURIComponent(debitNote.debit_note_no)}`;
     window.open(printUrl, '_blank');
@@ -157,7 +157,7 @@ export default function DebitNotePage() {
   const calculateTotalActualWeight = () => {
     if (!quotation?.pallets?.length) return 0;
     if (quotation.total_actual_weight) return quotation.total_actual_weight;
-    
+
     return quotation.pallets.reduce((total, pallet) => {
       const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
       const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
@@ -194,9 +194,9 @@ export default function DebitNotePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => router.back()}
             className="flex items-center gap-2"
           >
@@ -205,20 +205,20 @@ export default function DebitNotePage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Debit Note</h1>
-            <p className="text-sm text-gray-600">Quotation ID: {quotation.id}</p>
+            <p className="text-sm text-gray-600">Quotation No: {quotation.quotation_no || quotation.id.slice(0, 8)}</p>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
-          <Button 
-            onClick={saveDebitNote} 
+          <Button
+            onClick={saveDebitNote}
             disabled={saving}
             className="flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save'}
           </Button>
-          <Button 
+          <Button
             onClick={generatePDF}
             variant="outline"
             className="flex items-center gap-2"
@@ -236,20 +236,20 @@ export default function DebitNotePage() {
           <div className="flex items-center mb-8 border-b pb-6">
             {/* Logo */}
             <div className="flex-shrink-0 mr-6">
-              <Image 
-                src="/icons/handle-logo.png" 
-                alt="Handle Inter Freight Logistics" 
+              <Image
+                src="/icons/handle-logo.png"
+                alt="Handle Inter Freight Logistics"
                 width={160}
                 height={160}
                 className="h-40 w-auto"
               />
             </div>
-            
+
             {/* Company Info */}
             <div className="flex-1">
               <h2 className="text-xl font-bold text-blue-800">Handle Inter Freight Logistics Co., Ltd.</h2>
               <p className="text-sm text-gray-600 mt-2">
-                132/15,16 Soi Ramkhamhaeng 24 (Seri Village), Huamark, Bangkapi, Bangkok 10250<br/>
+                132/15,16 Soi Ramkhamhaeng 24 (Seri Village), Huamark, Bangkapi, Bangkok 10250<br />
                 Tel. +66 (0) 2253-5995 (5 auto lines) Fax : +66 (0) 2653-6885
               </p>
             </div>
@@ -262,7 +262,7 @@ export default function DebitNotePage() {
               <div>
                 <h3 className="font-semibold text-lg mb-2">DEBIT NOTE</h3>
               </div>
-              
+
               <div>
                 <p className="font-semibold">To:</p>
                 <p className="text-sm">{quotation.company_name}</p>
@@ -270,12 +270,12 @@ export default function DebitNotePage() {
                   <p className="text-sm">Customer: {quotation.customer_name}</p>
                 )}
               </div>
-              
+
               <div>
                 <p className="font-semibold">From:</p>
                 <p className="text-sm">
-                  HANDLE INTER FREIGHT LOGISTICS Co.,Ltd. (HEAD OFFICE)<br/>
-                  132/15,16 SOI RAMKHAMHAENG 24 (SERI VILLAGE), HUAMARK,<br/>
+                  HANDLE INTER FREIGHT LOGISTICS Co.,Ltd. (HEAD OFFICE)<br />
+                  132/15,16 SOI RAMKHAMHAENG 24 (SERI VILLAGE), HUAMARK,<br />
                   BANGKAPI, BANGKOK 10250
                 </p>
               </div>
@@ -287,12 +287,12 @@ export default function DebitNotePage() {
                 <p className="font-semibold">DEBIT NOTE NO.:</p>
                 <p className="text-sm font-mono">{debitNote.debit_note_no}</p>
               </div>
-              
+
               <div>
                 <p className="font-semibold">Date of Issue:</p>
                 <p className="text-sm">{formatDate(debitNote.date_of_issue)}</p>
               </div>
-              
+
               <div>
                 <p className="font-semibold">Destination:</p>
                 <p className="text-sm">{quotation.destination}</p>
@@ -320,7 +320,7 @@ export default function DebitNotePage() {
                       const quantity = typeof pallet.quantity === 'number' ? pallet.quantity : parseInt(pallet.quantity) || 1;
                       const weight = typeof pallet.weight === 'number' ? pallet.weight : parseFloat(pallet.weight) || 0;
                       const totalWeight = weight * quantity;
-                      
+
                       return (
                         <tr key={index}>
                           <td className="border border-gray-300 px-3 py-2">{index + 1}</td>
@@ -364,7 +364,7 @@ export default function DebitNotePage() {
                       {formatCurrency(quotation.total_freight_cost || 0)}
                     </td>
                   </tr>
-                  
+
                   {/* Delivery Cost */}
                   {quotation.delivery_service_required && quotation.delivery_cost && quotation.delivery_cost > 0 && (
                     <tr>
@@ -376,7 +376,7 @@ export default function DebitNotePage() {
                       </td>
                     </tr>
                   )}
-                  
+
                   {/* Clearance Cost */}
                   {quotation.clearance_cost && quotation.clearance_cost > 0 && (
                     <tr>
@@ -386,9 +386,9 @@ export default function DebitNotePage() {
                       </td>
                     </tr>
                   )}
-                  
+
                   {/* Additional Charges */}
-                  {quotation.additional_charges && quotation.additional_charges.length > 0 && 
+                  {quotation.additional_charges && quotation.additional_charges.length > 0 &&
                     quotation.additional_charges.map((charge, index) => (
                       <tr key={index}>
                         <td className="border border-gray-300 px-3 py-2">{charge.description}</td>
@@ -398,7 +398,7 @@ export default function DebitNotePage() {
                       </tr>
                     ))
                   }
-                  
+
                   {/* Total */}
                   <tr className="bg-gray-100 font-bold">
                     <td className="border border-gray-300 px-3 py-2">TOTAL</td>
@@ -418,7 +418,7 @@ export default function DebitNotePage() {
                 <p className="font-semibold">PREPARING BY:</p>
                 <p>MONTREE C.</p>
               </div>
-              
+
               <div className="space-y-2">
                 <p><span className="font-semibold">Company Name:</span> Handle Inter Freight Logistics Co.,Ltd.</p>
                 <p><span className="font-semibold">Bank Name:</span> Kasikorn Bank Public Co.,Ltd.</p>
