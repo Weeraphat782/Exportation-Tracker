@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getFileUrl } from '@/lib/storage';
 
 // Increase timeout for AI processing (max 300s for Pro plan, 60s for Hobby)
 export const maxDuration = 60; // 60 seconds
@@ -34,6 +35,8 @@ interface DocumentData {
   file_name: string;
   file_url: string;
   document_type: string;
+  file_path?: string;
+  storage_provider?: 'supabase' | 'r2';
   base64Data?: string;
   mimeType?: string;
 }
@@ -391,10 +394,21 @@ export async function POST(request: Request) {
           mimeType = doc.mimeType || getMimeType(doc.file_name);
           console.log(`Using existing base64 data for ${doc.file_name}`);
         } else {
+          // Resolve URL for R2 if needed
+          let effectiveUrl = doc.file_url;
+          if ((!effectiveUrl || effectiveUrl === '') && doc.file_path) {
+            console.log(`Resolving R2 URL for path: ${doc.file_path}`);
+            effectiveUrl = await getFileUrl(doc.file_path, doc.storage_provider || 'r2', 'documents');
+          }
+
+          if (!effectiveUrl) {
+            throw new Error(`No URL available for document: ${doc.file_name}`);
+          }
+
           // Download for quotation mode or fallback
-          base64Data = await downloadAndConvertToBase64(doc.file_url);
+          base64Data = await downloadAndConvertToBase64(effectiveUrl);
           mimeType = getMimeType(doc.file_name);
-          console.log(`Downloaded file: ${doc.file_name}`);
+          console.log(`Downloaded file: ${doc.file_name} from ${effectiveUrl.substring(0, 50)}...`);
         }
 
         const docData = {
