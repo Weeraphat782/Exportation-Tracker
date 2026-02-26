@@ -41,6 +41,7 @@ export interface Opportunity {
     // Closure status - separate from stage (card can be won/lost at any stage)
     closureStatus?: 'won' | 'lost' | null;
     focusColor?: string | null;
+    sortOrder?: number | null;
 }
 
 export const STAGE_LABELS: Record<OpportunityStage, string> = {

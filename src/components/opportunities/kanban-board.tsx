@@ -92,9 +92,10 @@ interface KanbanBoardProps {
     onWinCase?: (id: string) => void;
     onLoseCase?: (id: string) => void;
     onRefresh?: () => void;
+    onReorder?: (updatedOpportunities: Opportunity[]) => void;
 }
 
-export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportunity, onDeleteOpportunity, onWinCase, onLoseCase, onRefresh }: KanbanBoardProps) {
+export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportunity, onDeleteOpportunity, onWinCase, onLoseCase, onRefresh, onReorder }: KanbanBoardProps) {
     // Sync state with props
     const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities);
 
@@ -120,18 +121,18 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
         })
     );
 
-    function findContainer(id: string) {
+    const findContainer = (id: string, items: Opportunity[]) => {
         if (STAGES.includes(id as OpportunityStage)) {
             return id as OpportunityStage;
         }
-        const item = opportunities.find((o) => o.id === id);
+        const item = items.find((o) => o.id === id);
         return item?.stage;
-    }
+    };
 
     function handleDragStart(event: DragStartEvent) {
         const id = event.active.id as string;
         setActiveId(id);
-        const stage = findContainer(id);
+        const stage = findContainer(id, opportunities);
         if (stage && STAGES.includes(stage)) {
             setStartStage(stage);
         }
@@ -143,57 +144,100 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
 
         if (!overId || active.id === overId) return;
 
-        const activeContainer = findContainer(active.id as string);
-        const overContainer = findContainer(overId as string);
-
-        if (!activeContainer || !overContainer || activeContainer === overContainer) {
-            return;
-        }
-
         setOpportunities((prev) => {
-            const activeIndex = prev.findIndex((o) => o.id === active.id);
-            // Create new logical state where item is in new container
+            const activeId = active.id as string;
+            const overIdStr = overId as string;
+
+            const activeContainer = findContainer(activeId, prev);
+            const overContainer = findContainer(overIdStr, prev);
+
+            if (!activeContainer || !overContainer || activeContainer === overContainer) {
+                return prev;
+            }
+
+            const activeIndex = prev.findIndex((o) => o.id === activeId);
+            const overIndex = prev.findIndex((o) => o.id === overIdStr);
+
+            let newIndex;
+            if (overIndex !== -1) {
+                newIndex = overIndex;
+            } else {
+                // If dropped on empty container, find first/last index for that container
+                const containerItems = prev.filter(o => o.stage === overContainer);
+                if (containerItems.length > 0) {
+                    newIndex = prev.findIndex(o => o.id === containerItems[containerItems.length - 1].id) + 1;
+                } else {
+                    newIndex = prev.length;
+                }
+            }
+
             const newItems = [...prev];
             const newStage = overContainer as OpportunityStage;
             newItems[activeIndex] = {
                 ...newItems[activeIndex],
                 stage: newStage,
-                // Auto update probability based on stage (simple mock logic)
                 probability: getProbabilityForStage(newStage)
             };
 
-            return newItems;
+            return arrayMove(newItems, activeIndex, newIndex);
         });
     }
 
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
-        // The activeContainer here will reflect the *final* stage after DragOver updates
-        const finalActiveContainer = findContainer(active.id as string);
-        const overContainer = findContainer(over?.id as string); // This is the container where the item was dropped
+        const overId = over?.id;
 
-        // Handle reordering within the same column
-        if (
-            finalActiveContainer &&
-            overContainer &&
-            finalActiveContainer === overContainer
-        ) {
-            const activeIndex = opportunities.findIndex((o) => o.id === active.id);
-            const overIndex = opportunities.findIndex((o) => o.id === over?.id);
-
-            if (activeIndex !== overIndex) {
-                setOpportunities((items) => arrayMove(items, activeIndex, overIndex));
-            }
+        if (!overId) {
+            setActiveId(null);
+            setStartStage(null);
+            return;
         }
 
-        // Check for stage change using startStage
-        // If startStage is defined and the final stage is different from the start stage,
-        // then a stage change occurred.
-        if (startStage && finalActiveContainer && startStage !== finalActiveContainer) {
-            if (onStageChange) {
-                onStageChange(active.id as string, finalActiveContainer as OpportunityStage);
+        const activeId = active.id as string;
+        const overIdStr = overId as string;
+
+        setOpportunities((prev) => {
+            const activeIndex = prev.findIndex((o) => o.id === activeId);
+            let overIndex = prev.findIndex((o) => o.id === overIdStr);
+
+            const activeContainer = findContainer(activeId, prev);
+            const overContainer = findContainer(overIdStr, prev);
+
+            if (!activeContainer || !overContainer) return prev;
+
+            // Reordering within the same column or final drop after DragOver
+            if (activeContainer === overContainer) {
+                if (overIndex === -1) {
+                    // Try to move to the very top of the column if dropped on the container/header
+                    overIndex = prev.findIndex(o => o.stage === overContainer);
+                }
+
+                if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+                    const newItems = arrayMove(prev, activeIndex, overIndex);
+                    // Defer callbacks to avoid state updates during render
+                    queueMicrotask(() => {
+                        onReorder?.(newItems);
+                    });
+                    return newItems;
+                }
             }
-        }
+
+            // If we've reached here, either no reorder was needed or it was a cross-column move
+            // Check if stage change needs reporting
+            if (startStage && activeContainer && startStage !== activeContainer) {
+                onStageChange?.(activeId, activeContainer as OpportunityStage);
+                queueMicrotask(() => {
+                    onReorder?.(prev);
+                });
+            } else if (activeIndex !== -1) {
+                // Occasion when same column move but DragEnd didn't change indices (already handled by DragOver)
+                queueMicrotask(() => {
+                    onReorder?.(prev);
+                });
+            }
+
+            return prev;
+        });
 
         setActiveId(null);
         setStartStage(null);

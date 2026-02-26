@@ -45,7 +45,7 @@ export default function OpportunitiesPage() {
       query = query.eq('owner_id', userId);
     }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('sort_order', { ascending: true });
 
     if (error) {
       console.error('Error fetching opportunities:', error);
@@ -80,6 +80,7 @@ export default function OpportunitiesPage() {
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
         focus_color?: string | null;
+        sort_order?: number | null;
       }
 
       // Map DB fields to Frontend types
@@ -119,7 +120,8 @@ export default function OpportunitiesPage() {
 
           quotationIds: quotationIds,
           closureStatus: item.closure_status || null,
-          focusColor: item.focus_color || null
+          focusColor: item.focus_color || null,
+          sortOrder: item.sort_order || null
         }
       });
       setOpportunities(mapped);
@@ -199,6 +201,60 @@ export default function OpportunitiesPage() {
       }
     } catch (err) {
       console.error('Error in handleDelete:', err);
+    }
+  };
+
+  const handleReorder = async (updatedSubset: Opportunity[]) => {
+    // Build order map from the reordered subset
+    const orderMap = new Map(updatedSubset.map((opp, index) => [opp.id, index]));
+
+    // Update parent state: replace items AND reorder the array
+    setOpportunities(prevOpportunities => {
+      const updatedMap = new Map(updatedSubset.map(opp => [opp.id, opp]));
+
+      // Update fields for items that were reordered
+      const merged = prevOpportunities.map(opp => {
+        const updated = updatedMap.get(opp.id);
+        return updated ? updated : opp;
+      });
+
+      // Sort so items from the subset appear in their new order
+      return merged.sort((a, b) => {
+        const aOrder = orderMap.has(a.id) ? orderMap.get(a.id)! : Infinity;
+        const bOrder = orderMap.has(b.id) ? orderMap.get(b.id)! : Infinity;
+        if (aOrder !== Infinity && bOrder !== Infinity) return aOrder - bOrder;
+        return 0;
+      });
+    });
+
+    try {
+      // Calculate sort_order based on the reordered subset
+      const updates = updatedSubset.map((opp, index) => ({
+        id: opp.id,
+        sort_order: (index + 1) * 10
+      }));
+
+      // Supabase .upsert doesn't easily handle partial updates of specific columns across many rows
+      // because it requires all NOT NULL fields to be present for the 'INSERT' part of the operation.
+      // We'll use Promise.all for individual updates for now.
+      const updatePromises = updates.map(u =>
+        supabase
+          .from('opportunities')
+          .update({ sort_order: u.sort_order })
+          .eq('id', u.id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const firstError = results.find(r => r.error)?.error;
+
+      if (firstError) throw firstError;
+
+      console.log('Reorder saved successfully');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Failed to save reorder:', message);
+      toast.error('Failed to save arrangement: ' + message);
+      // Optional: rollback fetchOpportunities();
     }
   };
 
@@ -341,7 +397,13 @@ export default function OpportunitiesPage() {
   };
 
   const handleStageChange = async (opportunityId: string, newStage: OpportunityStage) => {
-    // Optimistic update confirmation
+    // Optimistically update the local state in the parent
+    setOpportunities(prev => prev.map(opp =>
+      opp.id === opportunityId
+        ? { ...opp, stage: newStage, probability: getProbabilityForStage(newStage) }
+        : opp
+    ));
+
     const { error } = await supabase
       .from('opportunities')
       .update({
@@ -357,6 +419,11 @@ export default function OpportunitiesPage() {
   };
 
   const handleWinCase = async (opportunityId: string) => {
+    // Optimistic update
+    setOpportunities(prev => prev.map(opp =>
+      opp.id === opportunityId ? { ...opp, closureStatus: 'won' } : opp
+    ));
+
     const { error } = await supabase
       .from('opportunities')
       .update({
@@ -366,13 +433,18 @@ export default function OpportunitiesPage() {
 
     if (error) {
       toast.error('Failed to mark as won');
+      fetchOpportunities(); // Revert
     } else {
       toast.success('Opportunity marked as WON! 🏆');
-      fetchOpportunities(); // Refresh the board
     }
   };
 
   const handleLoseCase = async (opportunityId: string) => {
+    // Optimistic update
+    setOpportunities(prev => prev.map(opp =>
+      opp.id === opportunityId ? { ...opp, closureStatus: 'lost' } : opp
+    ));
+
     const { error } = await supabase
       .from('opportunities')
       .update({
@@ -382,9 +454,9 @@ export default function OpportunitiesPage() {
 
     if (error) {
       toast.error('Failed to mark as lost');
+      fetchOpportunities(); // Revert
     } else {
       toast.success('Opportunity marked as LOST');
-      fetchOpportunities(); // Refresh the board
     }
   };
 
@@ -539,6 +611,8 @@ export default function OpportunitiesPage() {
                   onDeleteOpportunity={handleDeleteOpportunity}
                   onWinCase={handleWinCase}
                   onLoseCase={handleLoseCase}
+                  onRefresh={fetchOpportunities}
+                  onReorder={handleReorder}
                   initialOpportunities={filteredOpportunities}
                 />
               </div>
