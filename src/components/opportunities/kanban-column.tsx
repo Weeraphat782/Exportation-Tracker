@@ -14,9 +14,10 @@ interface KanbanColumnProps {
     onDelete?: (id: string) => void;
     onWinCase?: (id: string) => void;
     onLoseCase?: (id: string) => void;
+    onRefresh?: () => void;
 }
 
-export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase, onLoseCase }: KanbanColumnProps) {
+export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase, onLoseCase, onRefresh }: KanbanColumnProps) {
     console.log(`KanbanColumn ${stage}: onEdit is`, !!onEdit);
     const { setNodeRef } = useDroppable({
         id: stage,
@@ -53,6 +54,7 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
                                 onDelete={onDelete}
                                 onWinCase={onWinCase}
                                 onLoseCase={onLoseCase}
+                                onRefresh={onRefresh}
                             />
                         ))}
                     </SortableContext>

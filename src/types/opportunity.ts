@@ -37,9 +37,10 @@ export interface Opportunity {
 
     // Links - Support multiple quotations
     quotationIds?: string[]; // Array of linked quotation IDs
-    
+
     // Closure status - separate from stage (card can be won/lost at any stage)
     closureStatus?: 'won' | 'lost' | null;
+    focusColor?: string | null;
 }
 
 export const STAGE_LABELS: Record<OpportunityStage, string> = {

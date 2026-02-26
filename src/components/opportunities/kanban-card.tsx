@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -13,7 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 interface KanbanCardProps {
@@ -22,12 +24,30 @@ interface KanbanCardProps {
   onDelete?: (id: string) => void;
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
+  onRefresh?: () => void;
 }
 
-export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase }: KanbanCardProps) {
+const FOCUS_COLORS = [
+  { label: 'None', value: null, class: 'bg-transparent' },
+  { label: 'Blue', value: '#3b82f6', class: 'bg-blue-500' },
+  { label: 'Red', value: '#ef4444', class: 'bg-red-500' },
+  { label: 'Green', value: '#10b981', class: 'bg-emerald-500' },
+  { label: 'Yellow', value: '#f59e0b', class: 'bg-amber-500' },
+  { label: 'Purple', value: '#8b5cf6', class: 'bg-violet-500' },
+  { label: 'Orange', value: '#f97316', class: 'bg-orange-500' },
+];
+
+export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase, onRefresh }: KanbanCardProps) {
   // console.log(`Card ${opportunity.id}: onEdit is`, !!onEdit);
   const router = useRouter();
   const [creating] = useState(false);
+  const [isUpdatingColor, setIsUpdatingColor] = useState(false);
+  const [displayColor, setDisplayColor] = useState(opportunity.focusColor);
+
+  // Sync if prop changes (e.g. from elsewhere or after refresh)
+  useEffect(() => {
+    setDisplayColor(opportunity.focusColor);
+  }, [opportunity.focusColor]);
 
   const {
     attributes,
@@ -71,6 +91,33 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
   const quotationCount = opportunity.quotationIds?.length || 0;
 
+  const handleUpdateColor = async (color: string | null) => {
+    // Optimistic update
+    setDisplayColor(color);
+
+    setIsUpdatingColor(true);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ focus_color: color })
+        .eq('id', opportunity.id);
+
+      if (error) throw error;
+
+      toast.success('Highlight color updated');
+      // We still call onRefresh to keep parent in sync, 
+      // but displayColor keeps it looking instant.
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Error updating color:', err);
+      // Rollback on error
+      setDisplayColor(opportunity.focusColor);
+      toast.error('Failed to update color');
+    } finally {
+      setIsUpdatingColor(false);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -87,7 +134,14 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           : opportunity.closureStatus === 'lost'
             ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
             : 'border-none ring-1 ring-slate-100/50'
-          }`}>
+          } relative overflow-hidden pt-1.5`}>
+        {/* Color Highlight Bar - Now at the Top and thicker */}
+        {displayColor && (
+          <div
+            className="absolute left-0 top-0 right-0 h-1.5 z-10 opacity-90 shadow-sm"
+            style={{ backgroundColor: displayColor }}
+          />
+        )}
         <CardHeader className="p-3 pb-1 flex flex-row items-start justify-between space-y-0">
           <div className="flex items-center gap-1.5">
             <Badge variant="outline" className={`font-semibold px-2 py-0.5 text-xs rounded-full ${STAGE_COLORS[opportunity.stage]}`}>
@@ -169,6 +223,31 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                   <Trash className="mr-2 h-4 w-4" />
                   Delete
                 </DropdownMenuItem>
+
+                {/* Focus Color Submenu */}
+                <div className="border-t my-1"></div>
+                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 flex items-center gap-1">
+                  <Palette className="h-3 w-3" />
+                  Focus Color
+                </div>
+                <div className="flex flex-wrap gap-1 px-2 pb-2 mr-2">
+                  {FOCUS_COLORS.map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUpdateColor(c.value);
+                      }}
+                      className={`h-5 w-5 rounded-full border border-gray-200 transition-transform hover:scale-110 flex items-center justify-center ${c.class}`}
+                      title={c.label}
+                      disabled={isUpdatingColor}
+                    >
+                      {displayColor === c.value && (
+                        <div className="h-1.5 w-1.5 bg-white rounded-full"></div>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

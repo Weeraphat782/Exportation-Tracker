@@ -79,6 +79,7 @@ export default function OpportunitiesPage() {
         quotations?: { id: string }[];
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
+        focus_color?: string | null;
       }
 
       // Map DB fields to Frontend types
@@ -117,7 +118,8 @@ export default function OpportunitiesPage() {
           productName: item.opportunity_products?.map(op => op.product.name) || [],
 
           quotationIds: quotationIds,
-          closureStatus: item.closure_status || null
+          closureStatus: item.closure_status || null,
+          focusColor: item.focus_color || null
         }
       });
       setOpportunities(mapped);
