@@ -290,7 +290,7 @@ export async function createPackingList(data: NewPackingListData): Promise<Packi
 
 // อัพเดต Packing List
 export async function updatePackingList(
-  id: string, 
+  id: string,
   updates: Partial<Omit<PackingList, 'id' | 'created_at' | 'created_by' | 'packing_list_no'>>
 ): Promise<PackingList | null> {
   try {

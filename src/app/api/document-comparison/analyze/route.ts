@@ -395,10 +395,13 @@ export async function POST(request: Request) {
           console.log(`Using existing base64 data for ${doc.file_name}`);
         } else {
           // Resolve URL for R2 if needed
+          // file_url may contain a raw R2 path (not a URL) — must resolve it
           let effectiveUrl = doc.file_url;
-          if ((!effectiveUrl || effectiveUrl === '') && doc.file_path) {
-            console.log(`Resolving R2 URL for path: ${doc.file_path}`);
-            effectiveUrl = await getFileUrl(doc.file_path, doc.storage_provider || 'r2', 'documents');
+          const needsResolve = !effectiveUrl || effectiveUrl === '' || !effectiveUrl.startsWith('http');
+          if (needsResolve && (doc.file_path || doc.file_url)) {
+            const pathToResolve = doc.file_path || doc.file_url;
+            console.log(`Resolving storage URL for path: ${pathToResolve} (provider: ${doc.storage_provider || 'r2'})`);
+            effectiveUrl = await getFileUrl(pathToResolve, doc.storage_provider || 'r2', 'documents');
           }
 
           if (!effectiveUrl) {
