@@ -165,7 +165,7 @@ export default function WorldMap() {
                         y={-22}
                         style={{ fontFamily: 'Inter, sans-serif', fill: '#fff', fontSize: '13px', fontWeight: 'bold', letterSpacing: '0.12em' }}
                     >
-                        OMGEXP HUB
+                        Thailand
                     </text>
                 </Marker>
             </ComposableMap>

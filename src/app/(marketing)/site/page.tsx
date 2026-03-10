@@ -2,6 +2,8 @@ import Link from "next/link";
 import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
 import WorldMap from "@/components/marketing/WorldMap";
+import EdgeCarousel from "@/components/marketing/EdgeCarousel";
+import PartnerSection from "@/components/marketing/PartnerSection";
 
 const serviceIcons: Record<string, React.ReactNode> = {
   "specialized-air-freight": (
@@ -118,7 +120,7 @@ export default function MarketingHomePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-bold uppercase tracking-tighter ${item.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                          {item.status === 'active' ? 'Available' : 'Paused'}
+                          {item.status === 'active' ? 'Available' : 'Suspended'}
                         </span>
                         <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
                       </div>
@@ -187,19 +189,13 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
+
       {/* Our Edge - AI Document Management & Cantrak */}
       <section className="bg-white py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-            {/* Photo placeholder */}
-            <div className="relative aspect-video overflow-hidden rounded-xl shadow-xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/ai-edge.jpg"
-                alt="AI-Powered Document Intelligence"
-                className="h-full w-full object-cover"
-              />
-            </div>
+            {/* Carousel */}
+            <EdgeCarousel />
             <div>
               <h2 className="text-3xl font-bold text-neutral-900">
                 Our Edge: AI-Powered Document Intelligence
@@ -261,6 +257,9 @@ export default function MarketingHomePage() {
           </div>
         </div>
       </section>
+
+      {/* NIA Partner Section */}
+      <PartnerSection />
     </>
   );
 }

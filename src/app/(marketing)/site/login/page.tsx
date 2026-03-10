@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Globe, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -69,9 +69,6 @@ function LoginForm() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl shadow-lg mb-4">
-            <Globe className="w-7 h-7 text-white" />
-          </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
           <p className="text-sm text-gray-500 mt-1">Sign in to your customer portal</p>
         </div>
@@ -144,13 +141,23 @@ function LoginForm() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-4">
             <p className="text-sm text-gray-500">
               Don&apos;t have an account?{' '}
               <Link href="/site/register" className="text-emerald-600 font-semibold hover:text-emerald-700">
                 Register here
               </Link>
             </p>
+
+            <div className="pt-4 border-t border-gray-100">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+              >
+                <Lock className="w-4 h-4" />
+                Login for Admin / Staff
+              </Link>
+            </div>
           </div>
         </div>
 

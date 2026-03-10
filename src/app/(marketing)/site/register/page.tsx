@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Globe, Mail, Lock, Eye, EyeOff, User, Building2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, Building2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function CustomerRegisterPage() {
@@ -75,7 +75,7 @@ export default function CustomerRegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful!</h1>
           <p className="text-gray-500 mb-6">
-            We&apos;ve sent a verification email to <span className="font-semibold text-gray-700">{email}</span>. 
+            We&apos;ve sent a verification email to <span className="font-semibold text-gray-700">{email}</span>.
             Please check your inbox and click the link to verify your account.
           </p>
           <Link
@@ -94,9 +94,6 @@ export default function CustomerRegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl shadow-lg mb-4">
-            <Globe className="w-7 h-7 text-white" />
-          </div>
           <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
           <p className="text-sm text-gray-500 mt-1">Register to access your export portal</p>
         </div>
