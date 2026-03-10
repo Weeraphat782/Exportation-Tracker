@@ -4,10 +4,7 @@ import React, { useEffect, useCallback } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 
 const IMAGES = [
-    {
-        url: "https://pub-8bcc4f3b024b4819ba737865d58e9664.r2.dev/Carousel/Screenshot%202026-03-10%20161140.png",
-        alt: "Warehouse Automation"
-    },
+
     {
         url: "https://pub-8bcc4f3b024b4819ba737865d58e9664.r2.dev/Carousel/Screenshot%202026-03-10%20161213.png",
         alt: "AI Technology Integration"
