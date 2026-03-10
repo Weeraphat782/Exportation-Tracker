@@ -36,11 +36,11 @@ export async function POST(request: NextRequest) {
         const url = await uploadToR2(key, buffer, file.type);
 
         return NextResponse.json({ url, key });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Upload error details:', error);
         return NextResponse.json({
             error: 'Upload failed',
-            details: error.message || String(error)
+            details: error instanceof Error ? error.message : String(error)
         }, { status: 500 });
     }
 }
