@@ -16,7 +16,7 @@ const r2Client = new S3Client({
   forcePathStyle: true,
 });
 
-const R2_BUCKET = process.env.R2_BUCKET_NAME || 'documents';
+const R2_BUCKET = process.env.R2_DOCS_BUCKET_NAME || 'documents';
 
 // Function to create a completely safe filename using UUID
 function createSafeFileName(originalFileName: string): string {

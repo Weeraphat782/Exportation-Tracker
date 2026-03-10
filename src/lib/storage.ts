@@ -13,7 +13,7 @@ export const r2Client = new S3Client({
   forcePathStyle: true, // Crucial for R2 compatibility with standard SDK
 });
 
-export const R2_BUCKET = process.env.R2_BUCKET_NAME || 'documents';
+export const R2_BUCKET = process.env.R2_DOCS_BUCKET_NAME || 'documents';
 
 /**
  * อัปโหลดไฟล์ไปยัง Supabase Storage

@@ -14,7 +14,7 @@ const r2Client = new S3Client({
     forcePathStyle: true, // Use path-style for R2 compatibility
 });
 
-const R2_BUCKET = process.env.R2_BUCKET_NAME || 'documents';
+const R2_BUCKET = process.env.R2_DOCS_BUCKET_NAME || 'documents';
 
 /**
  * API route to securely delete an object from R2.

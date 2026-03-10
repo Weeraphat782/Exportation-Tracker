@@ -16,6 +16,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anonymous-key-here
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
+# Optional: Cloudflare R2 Configuration
+# สำหรับระบบ CMS (Public)
+R2_PUBLIC_BUCKET_NAME=omgexp-public-assets
+R2_PUBLIC_URL=https://your-public-bucket-url.r2.dev
+
+# สำหรับระบบ Customer Documents (Private)
+R2_DOCS_BUCKET_NAME=documents
+
+# R2 Credentials (ใช้ร่วมกัน)
+R2_ACCOUNT_ID=your-account-id
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-key
+R2_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+
 # Optional: OpenTyphoon AI API (สำหรับ AI document analysis)
 TYPHOON_API_KEY=your-typhoon-api-key-here
 ```
