@@ -19,7 +19,9 @@ import {
   Sparkles,
   ListChecks,
   Package,
-  X
+  X,
+  Newspaper,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -41,6 +43,13 @@ const MENU_GROUPS = [
       { href: '/document-submissions', icon: FileText, label: 'Document Submissions' },
       { href: '/document-comparison', icon: FileCheck, label: 'Document Comparison' },
       { href: '/calendar', icon: Calendar, label: 'Calendar' },
+    ]
+  },
+  {
+    title: 'CONTENT',
+    items: [
+      { href: '/cms/news', icon: Newspaper, label: 'Newsroom' },
+      { href: '/cms/resources', icon: BookOpen, label: 'Resources' },
     ]
   }
 ];

@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { newsroomData } from "@/data/marketing-news";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 interface PageProps {
     params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-    return newsroomData.map((item) => ({ slug: item.slug }));
 }
 
 export async function generateMetadata({
     params,
 }: PageProps): Promise<Metadata> {
     const { slug } = await params;
-    const item = newsroomData.find((i) => i.slug === slug);
+    const supabase = getSupabaseServerClient();
+    if (!supabase) return {};
+    const { data: item } = await supabase
+        .from('news_articles')
+        .select('title, excerpt')
+        .eq('slug', slug)
+        .eq('is_published', true)
+        .single();
     if (!item) return {};
     return {
         title: `${item.title} | OMG Experience`,
@@ -25,14 +28,25 @@ export async function generateMetadata({
 
 export default async function NewsroomArticlePage({ params }: PageProps) {
     const { slug } = await params;
-    const item = newsroomData.find((i) => i.slug === slug);
+    const supabase = getSupabaseServerClient();
+    if (!supabase) notFound();
+
+    const { data: item } = await supabase
+        .from('news_articles')
+        .select('*')
+        .eq('slug', slug)
+        .eq('is_published', true)
+        .single();
+
     if (!item) notFound();
 
-    const formattedDate = new Date(item.date).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-    });
+    const formattedDate = item.published_at
+        ? new Date(item.published_at).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        })
+        : '';
 
     return (
         <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
@@ -57,20 +71,30 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
                     </svg>
                     Back to Newsroom
                 </Link>
-                <time
-                    dateTime={item.date}
-                    className="block text-sm font-medium"
-                    style={{ color: "var(--color-primary-ref)" }}
-                >
-                    {formattedDate}
-                </time>
+                {formattedDate && (
+                    <time
+                        dateTime={item.published_at}
+                        className="block text-sm font-medium"
+                        style={{ color: "var(--color-primary-ref)" }}
+                    >
+                        {formattedDate}
+                    </time>
+                )}
             </div>
+            {item.image_url && (
+                <div className="mb-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.image_url} alt={item.title} className="h-full w-full object-cover" />
+                </div>
+            )}
             <h1 className="text-3xl font-bold leading-tight text-neutral-900">{item.title}</h1>
             <div className="prose prose-neutral mt-8 max-w-none">
                 <p className="text-lg leading-relaxed text-neutral-600">{item.excerpt}</p>
-                <p className="mt-4 leading-relaxed text-neutral-600">
-                    Full article content will be managed via CMS integration.
-                </p>
+                {item.content && (
+                    <div className="mt-6 whitespace-pre-wrap text-neutral-600 leading-relaxed">
+                        {item.content}
+                    </div>
+                )}
             </div>
         </article>
     );

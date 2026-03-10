@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ResourcesList from "@/components/marketing/ResourcesList";
-import { resourcesData, allTags } from "@/data/marketing-resources";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
     title: "Resources | OMG Experience",
@@ -8,7 +8,31 @@ export const metadata: Metadata = {
         "Export and customs reading instructions. Guides for EU compliance, destination requirements, and documentation.",
 };
 
-export default function ResourcesPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function ResourcesPage() {
+    const supabase = getSupabaseServerClient();
+    let resources: { slug: string; title: string; excerpt: string; tags: string[] }[] = [];
+    let allTags: string[] = [];
+
+    if (supabase) {
+        const { data } = await supabase
+            .from('resources')
+            .select('slug, title, excerpt, tags, image_url')
+            .eq('is_published', true)
+            .order('published_at', { ascending: false });
+
+        resources = (data || []).map(item => ({
+            slug: item.slug,
+            title: item.title,
+            excerpt: item.excerpt,
+            tags: item.tags || [],
+            imageUrl: item.image_url || undefined,
+        }));
+
+        allTags = Array.from(new Set(resources.flatMap(r => r.tags))).sort();
+    }
+
     return (
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
             {/* Photo banner */}
@@ -27,7 +51,7 @@ export default function ResourcesPage() {
                     category to find relevant guides for your destination.
                 </p>
             </div>
-            <ResourcesList resources={resourcesData} allTags={allTags} />
+            <ResourcesList resources={resources} allTags={allTags} />
         </div>
     );
 }

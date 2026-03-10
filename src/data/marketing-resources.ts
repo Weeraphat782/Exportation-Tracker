@@ -3,6 +3,7 @@ export interface ResourceItem {
     title: string;
     excerpt: string;
     tags: string[];
+    imageUrl?: string;
 }
 
 export const resourcesData: ResourceItem[] = [
