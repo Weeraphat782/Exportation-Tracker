@@ -50,7 +50,7 @@ export default function MarketingHomePage() {
           <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
             Specialized Air Freight
             <br />
-            <span style={{ color: "var(--color-accent-ref)" }}>
+            <span style={{ color: "#86ef6c" }}>
               & Global Logistics
             </span>
           </h1>
