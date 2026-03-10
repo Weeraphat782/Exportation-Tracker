@@ -88,9 +88,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
         isCollapsed ? "justify-center px-3 h-16" : "justify-between px-5 h-16"
       )}>
         {!isCollapsed ? (
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Cantrak" width={110} height={35} className="h-9 w-auto" />
-            <span className="text-sm font-medium text-gray-400 italic">For Export</span>
+          <div className="flex w-full items-center justify-center p-2">
+            <Image src="/logo.png" alt="OMGEXP" width={140} height={44} className="h-10 w-auto" />
           </div>
         ) : (
           <Button variant="ghost" size="icon" onClick={toggleSidebar}
@@ -98,14 +97,14 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        
+
         {!isMobile && !isCollapsed && (
           <Button variant="ghost" size="icon" onClick={toggleSidebar}
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-9 w-9">
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        
+
         {isMobile && !isCollapsed && (
           <Button variant="ghost" size="icon" onClick={toggleSidebar}
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-9 w-9">
@@ -129,8 +128,8 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                   className={cn(
                     "flex items-center rounded-lg transition-all duration-150",
                     isCollapsed ? "justify-center p-3 mx-1" : "px-4 py-3",
-                    isActive(item.href) 
-                      ? "bg-[#7CB342] text-white shadow-sm" 
+                    isActive(item.href)
+                      ? "bg-[#215497] text-white shadow-sm"
                       : "text-gray-600 hover:bg-gray-100"
                   )}>
                   <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive(item.href) ? "text-white" : "text-gray-500")} />
@@ -154,9 +153,9 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                 "flex items-center w-full rounded-lg transition-all duration-150",
                 isCollapsed ? "justify-center p-3 mx-1" : "px-4 py-3",
                 pathname?.startsWith("/settings") || pathname?.startsWith("/document-comparison/rules")
-                  ? "bg-[#7CB342] text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-[#215497] text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
               )}>
-              <Settings className={cn("h-5 w-5 flex-shrink-0", 
+              <Settings className={cn("h-5 w-5 flex-shrink-0",
                 pathname?.startsWith("/settings") ? "text-white" : "text-gray-500")} />
               {!isCollapsed && (
                 <>
@@ -172,7 +171,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
                   <Link key={item.href} href={item.href}
                     className={cn(
                       "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150",
-                      isActive(item.href) ? "text-[#7CB342] bg-green-50 font-medium" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      isActive(item.href) ? "text-[#215497] bg-blue-50 font-medium" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     )}>
                     <item.icon className="h-[18px] w-[18px] mr-3" />
                     <span className="text-sm">{item.label}</span>

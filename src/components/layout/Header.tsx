@@ -30,12 +30,11 @@ const Header = () => {
           <div className="flex items-center gap-2">
             <Image
               src="/logo.png"
-              alt="Cantrak"
-              width={100}
-              height={32}
-              className="h-7 w-auto"
+              alt="OMGEXP"
+              width={140}
+              height={44}
+              className="h-8 w-auto"
             />
-            <span className="text-sm font-semibold text-gray-500 italic">For Export</span>
           </div>
         )}
       </div>
@@ -50,7 +49,7 @@ const Header = () => {
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="text-gray-500 hover:text-gray-700 relative">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-green-500 rounded-full"></span>
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full" style={{ backgroundColor: '#5BBF21' }}></span>
         </Button>
 
         {/* User Profile */}

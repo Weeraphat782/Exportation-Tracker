@@ -9,7 +9,7 @@ export const services = [
     {
         id: serviceIds.specializedAirFreight,
         title: "Specialized Air Freight",
-        imageUrl: "https://images.unsplash.com/photo-1580674684081-7617fbf3d745?q=80&w=1200&auto=format&fit=crop",
+        imageUrl: "/images/air-freight.jpg",
         shortDescription:
             "Time-critical air cargo solutions with routing intelligence and documented handoffs.",
         fullDescription: `OMG Experience delivers specialized air freight solutions for time-sensitive and high-value cargo. Our airline heritage provides direct access to routing intelligence, capacity availability, and optimal transit times across major global hubs.
@@ -29,7 +29,7 @@ Our specialists stay current with regulatory changes across key markets, reducin
     {
         id: serviceIds.gdpWarehousing,
         title: "GDP Warehousing",
-        imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=1200&auto=format&fit=crop",
+        imageUrl: "/images/gdp-warehousing.jpg",
         shortDescription:
             "Pharmaceutical-grade storage in temperature-controlled conditions with full compliance documentation.",
         fullDescription: `Our Good Distribution Practice (GDP) compliant warehousing facilities are designed for pharmaceutical and temperature-sensitive products. We offer secure storage, packing, palletizing, and cold-chain verification with full audit trails and documented handling.
