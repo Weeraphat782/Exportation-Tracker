@@ -46,36 +46,93 @@ export default function MarketingHomePage() {
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }}
         />
-        <div className="relative mx-auto flex max-w-7xl flex-col items-center justify-center px-4 py-24 text-center sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Specialized Air Freight
-            <br />
-            <span style={{ color: "#86ef6c" }}>
-              & Global Logistics
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-neutral-300">
-            End-to-end logistics solutions for time-sensitive and
-            temperature-controlled cargo. From air freight and customs clearance
-            to GDP warehousing—we deliver reliability, compliance, and documented
-            handling across your supply chain.
-          </p>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/site/contact"
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-6 py-3 text-base font-semibold text-white transition hover:brightness-110 active:scale-95"
-              style={{
-                backgroundColor: "var(--color-accent-ref)",
-              }}
-            >
-              Request a Quote
-            </Link>
-            <Link
-              href="/site/services"
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10 active:scale-95"
-            >
-              View Services
-            </Link>
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            {/* Hero Text */}
+            <div className="text-center lg:text-left">
+              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+                Specialized Air Freight
+                <br />
+                <span style={{ color: "#86ef6c" }}>
+                  & Global Logistics
+                </span>
+              </h1>
+              <p className="mt-6 text-lg text-neutral-300">
+                End-to-end logistics solutions for time-sensitive and
+                temperature-controlled cargo. From air freight and customs clearance
+                to GDP warehousing—we deliver reliability, compliance, and documented
+                handling across your supply chain.
+              </p>
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
+                <Link
+                  href="/site/contact"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-6 py-3 text-base font-semibold text-white transition hover:brightness-110 active:scale-95"
+                  style={{
+                    backgroundColor: "var(--color-accent-ref)",
+                  }}
+                >
+                  Request a Quote
+                </Link>
+                <Link
+                  href="/site/services"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-white/30 px-6 py-3 text-base font-semibold text-white transition hover:bg-white/10 active:scale-95"
+                >
+                  View Services
+                </Link>
+              </div>
+            </div>
+
+            {/* Shipping Status Checklist */}
+            <div className="mx-auto w-full max-w-md lg:ml-auto">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-2xl">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Live Shipping Status
+                  </h3>
+                  <span className="text-[10px] uppercase tracking-widest text-neutral-400 font-semibold bg-white/5 px-2 py-1 rounded">Real-time</span>
+                </div>
+
+                <div className="space-y-4">
+                  {[
+                    { country: "Switzerland", city: "Zurich", status: "active" },
+                    { country: "Macedonia", city: "", status: "active" },
+                    { country: "Germany", city: "Munich, Frankfurt", status: "active" },
+                    { country: "Australia", city: "Melbourne, Sydney", status: "active" },
+                    { country: "Czech", city: "Prague", status: "restricted" },
+                    { country: "Portugal", city: "Lisbon", status: "restricted" },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between group">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-white group-hover:text-[#86ef6c] transition-colors">
+                          {item.country}
+                        </span>
+                        {item.city && (
+                          <span className="text-xs text-neutral-400 italic">
+                            {item.city}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase tracking-tighter ${item.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
+                          {item.status === 'active' ? 'Available' : 'Paused'}
+                        </span>
+                        <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-white/5">
+                  <p className="text-[11px] text-neutral-400 text-center italic">
+                    * Route availability subject to active flight schedules.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
