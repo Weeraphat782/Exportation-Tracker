@@ -15,7 +15,7 @@ export default function SimpleLoginPage() {
 
     try {
       console.log("Login attempt with:", email);
-      
+
       // Try login with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -32,22 +32,22 @@ export default function SimpleLoginPage() {
 
       // Even if Supabase login worked, we'll create our own session
       setMessage('Login successful! Setting up session and redirecting...');
-      
+
       // Create a manual session in localStorage
       const manualSession = {
         email: email,
         isAuthenticated: true,
         timestamp: new Date().toISOString()
       };
-      
+
       localStorage.setItem('manual_session', JSON.stringify(manualSession));
       console.log("Manual session created:", manualSession);
-      
+
       // Wait a moment for dramatic effect
       setTimeout(() => {
         window.location.href = '/shipping-calculator';
       }, 1000);
-      
+
     } catch (err: unknown) {
       console.error("Login error:", err);
       setMessage(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -56,11 +56,11 @@ export default function SimpleLoginPage() {
 
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', padding: '20px' }}>
-      <h1 style={{ marginBottom: '20px' }}>Exportation Tracker Login</h1>
-      
+      <h1 style={{ marginBottom: '20px' }}>OMGEXP Login</h1>
+
       {message && (
-        <div style={{ 
-          padding: '10px', 
+        <div style={{
+          padding: '10px',
           marginBottom: '20px',
           background: message.includes('Error') ? '#ffdddd' : '#ddffdd',
           border: '1px solid',
@@ -69,7 +69,7 @@ export default function SimpleLoginPage() {
           {message}
         </div>
       )}
-      
+
       <form onSubmit={handleLogin}>
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>Email:</label>
@@ -81,7 +81,7 @@ export default function SimpleLoginPage() {
             required
           />
         </div>
-        
+
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '5px' }}>Password:</label>
           <input
@@ -92,13 +92,13 @@ export default function SimpleLoginPage() {
             required
           />
         </div>
-        
-        <button 
-          type="submit" 
-          style={{ 
-            width: '100%', 
-            padding: '10px', 
-            background: '#4285f4', 
+
+        <button
+          type="submit"
+          style={{
+            width: '100%',
+            padding: '10px',
+            background: '#4285f4',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -108,9 +108,9 @@ export default function SimpleLoginPage() {
         >
           Login
         </button>
-        
+
         <div>
-          <button 
+          <button
             type="button"
             onClick={() => setShowHelp(!showHelp)}
             style={{
@@ -126,7 +126,7 @@ export default function SimpleLoginPage() {
             {showHelp ? 'Hide help' : 'Need help?'}
           </button>
         </div>
-        
+
         {showHelp && (
           <div style={{
             marginTop: '15px',

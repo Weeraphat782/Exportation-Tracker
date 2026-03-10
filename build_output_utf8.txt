@@ -1,0 +1,117 @@
+﻿
+> exportation-tracker@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.2.6
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : 
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], Remote 
+   Exception
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Failed to compile.
+
+./src/app/(marketing)/layout.tsx
+12:3  Error: 'Phone' is defined but never used.  
+@typescript-eslint/no-unused-vars
+17:3  Error: 'Zap' is defined but never used.  
+@typescript-eslint/no-unused-vars
+42:15  Warning: Using `<img>` could result in slower LCP and 
+higher bandwidth. Consider using `<Image />` from `next/image` 
+or a custom image loader to automatically optimize images. This 
+may incur additional usage or cost from your provider. See: 
+https://nextjs.org/docs/messages/no-img-element  
+@next/next/no-img-element
+168:17  Warning: Using `<img>` could result in slower LCP and 
+higher bandwidth. Consider using `<Image />` from `next/image` 
+or a custom image loader to automatically optimize images. This 
+may incur additional usage or cost from your provider. See: 
+https://nextjs.org/docs/messages/no-img-element  
+@next/next/no-img-element
+
+./src/app/(marketing)/site/about/page.tsx
+8:5  Error: 'Users' is defined but never used.  
+@typescript-eslint/no-unused-vars
+9:5  Error: 'History' is defined but never used.  
+@typescript-eslint/no-unused-vars
+10:5  Error: 'Award' is defined but never used.  
+@typescript-eslint/no-unused-vars
+11:5  Error: 'MapPin' is defined but never used.  
+@typescript-eslint/no-unused-vars
+12:5  Error: 'ArrowRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+15:5  Error: 'ChevronRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/(marketing)/site/contact/page.tsx
+6:5  Error: 'Mail' is defined but never used.  
+@typescript-eslint/no-unused-vars
+12:5  Error: 'ArrowRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+15:5  Error: 'ChevronRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/(marketing)/site/page.tsx
+9:3  Error: 'Globe' is defined but never used.  
+@typescript-eslint/no-unused-vars
+10:3  Error: 'Zap' is defined but never used.  
+@typescript-eslint/no-unused-vars
+13:3  Error: 'BarChart3' is defined but never used.  
+@typescript-eslint/no-unused-vars
+15:3  Error: 'Plane' is defined but never used.  
+@typescript-eslint/no-unused-vars
+16:3  Error: 'FileText' is defined but never used.  
+@typescript-eslint/no-unused-vars
+17:3  Error: 'Users' is defined but never used.  
+@typescript-eslint/no-unused-vars
+18:3  Error: 'Building2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+23:3  Error: 'Search' is defined but never used.  
+@typescript-eslint/no-unused-vars
+24:3  Error: 'BookOpen' is defined but never used.  
+@typescript-eslint/no-unused-vars
+25:3  Error: 'ShieldCheck' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/(marketing)/site/services/air-freight/page.tsx
+8:3  Error: 'CheckCircle2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+9:3  Error: 'Package' is defined but never used.  
+@typescript-eslint/no-unused-vars
+11:3  Error: 'Ruler' is defined but never used.  
+@typescript-eslint/no-unused-vars
+12:3  Error: 'MapPin' is defined but never used.  
+@typescript-eslint/no-unused-vars
+16:3  Error: 'BarChart3' is defined but never used.  
+@typescript-eslint/no-unused-vars
+18:3  Error: 'ShieldCheck' is defined but never used.  
+@typescript-eslint/no-unused-vars
+19:3  Error: 'ChevronRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/(marketing)/site/services/customs-documents/page.tsx
+11:3  Error: 'CheckCircle2' is defined but never used.  
+@typescript-eslint/no-unused-vars
+13:3  Error: 'Eye' is defined but never used.  
+@typescript-eslint/no-unused-vars
+14:3  Error: 'Upload' is defined but never used.  
+@typescript-eslint/no-unused-vars
+17:3  Error: 'FolderOpen' is defined but never used.  
+@typescript-eslint/no-unused-vars
+21:3  Error: 'ChevronRight' is defined but never used.  
+@typescript-eslint/no-unused-vars
+22:3  Error: 'Zap' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https
+://nextjs.org/docs/app/api-reference/config/eslint#disabling-rule
+s

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         // 1. Handle /start
         if (text === '/start') {
             await sendTelegramMessage(chatId,
-                'ยินดีต้อนรับสู่ Exportation Tracker Bot! 📦\n\n' +
+                'ยินดีต้อนรับสู่ OMGEXP Bot! 📦\n\n' +
                 'กรุณาแจ้งให้ผู้ดูแลระบบ (Admin) ตั้งค่าเลขใบเสนอราคา (Quotation ID) ให้คุณ ' +
                 'เมื่อตั้งค่าเสร็จแล้ว คุณสามารถเช็คสถานะเอกสารได้ด้วยคำสั่ง /status ครับ'
             );

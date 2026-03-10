@@ -1,0 +1,47 @@
+﻿
+> exportation-tracker@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.2.6
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : 
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], Remote 
+   Exception
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Failed to compile.
+
+./src/app/(marketing)/layout.tsx
+40:15  Warning: Using `<img>` could result in slower LCP and 
+higher bandwidth. Consider using `<Image />` from `next/image` 
+or a custom image loader to automatically optimize images. This 
+may incur additional usage or cost from your provider. See: 
+https://nextjs.org/docs/messages/no-img-element  
+@next/next/no-img-element
+166:17  Warning: Using `<img>` could result in slower LCP and 
+higher bandwidth. Consider using `<Image />` from `next/image` 
+or a custom image loader to automatically optimize images. This 
+may incur additional usage or cost from your provider. See: 
+https://nextjs.org/docs/messages/no-img-element  
+@next/next/no-img-element
+
+./src/app/(marketing)/site/page.tsx
+12:3  Error: 'Plane' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+./src/app/(marketing)/site/services/air-freight/page.tsx
+9:3  Error: 'MapPin' is defined but never used.  
+@typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https
+://nextjs.org/docs/app/api-reference/config/eslint#disabling-rule
+s

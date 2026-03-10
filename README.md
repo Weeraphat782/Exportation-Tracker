@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OMGEXP
+
+This is a [Next.js](https://nextjs.org) project for the **OMGEXP** logistics and export management platform.
 
 ## Getting Started
 

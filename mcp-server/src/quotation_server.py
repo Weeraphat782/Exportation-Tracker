@@ -19,7 +19,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env.loca
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Initialize FastMCP server
-mcp = FastMCP("exportation-quotation-manager")
+mcp = FastMCP("omgexp-quotation-manager")
 
 # Supabase client
 supabase: Optional[Client] = None
