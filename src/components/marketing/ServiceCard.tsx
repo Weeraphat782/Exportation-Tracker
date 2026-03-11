@@ -16,7 +16,7 @@ export default function ServiceCard({
     href = "/site/contact",
 }: ServiceCardProps) {
     return (
-        <div className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md">
+        <div className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white premium-shadow-hover">
             {imageUrl && (
                 <div className="relative h-48 overflow-hidden">
                     {/* Using img for reference 1:1 match */}

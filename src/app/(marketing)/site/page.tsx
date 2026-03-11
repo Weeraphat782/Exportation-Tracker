@@ -1,9 +1,12 @@
+'use client';
+
 import Link from "next/link";
 import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
 import WorldMap from "@/components/marketing/WorldMap";
 import EdgeCarousel from "@/components/marketing/EdgeCarousel";
 import PartnerSection from "@/components/marketing/PartnerSection";
+import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 
 const serviceIcons: Record<string, React.ReactNode> = {
   "specialized-air-freight": (
@@ -29,6 +32,8 @@ const serviceIcons: Record<string, React.ReactNode> = {
 };
 
 export default function MarketingHomePage() {
+  useScrollReveal();
+
   return (
     <>
       {/* Hero Section */}
@@ -37,7 +42,7 @@ export default function MarketingHomePage() {
         <img
           src="https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?q=80&w=2000&auto=format&fit=crop"
           alt="Cargo aircraft on airport tarmac"
-          className="absolute inset-0 h-full w-full object-cover opacity-60"
+          className="absolute inset-0 h-full w-full object-cover opacity-60 animate-fade-in"
         />
         <div
           className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-900/60 to-transparent"
@@ -51,7 +56,7 @@ export default function MarketingHomePage() {
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             {/* Hero Text */}
-            <div className="text-center lg:text-left">
+            <div className="text-center lg:text-left animate-fade-in-up">
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Specialized Air Freight
                 <br />
@@ -59,13 +64,13 @@ export default function MarketingHomePage() {
                   & Global Logistics
                 </span>
               </h1>
-              <p className="mt-6 text-lg text-neutral-300">
+              <p className="mt-6 text-lg text-neutral-300 stagger-1">
                 End-to-end logistics solutions for time-sensitive and
                 temperature-controlled cargo. From air freight and customs clearance
                 to GDP warehousing—we deliver reliability, compliance, and documented
                 handling across your supply chain.
               </p>
-              <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start stagger-2">
                 <Link
                   href="/site/contact"
                   className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded px-6 py-3 text-base font-semibold text-white transition hover:brightness-110 active:scale-95"
@@ -85,7 +90,7 @@ export default function MarketingHomePage() {
             </div>
 
             {/* Shipping Status Checklist */}
-            <div className="mx-auto w-full max-w-md lg:ml-auto">
+            <div className="mx-auto w-full max-w-md lg:ml-auto animate-fade-in-up stagger-1">
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-2xl">
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -153,15 +158,19 @@ export default function MarketingHomePage() {
             </p>
           </div>
           <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {services.map((service) => (
-              <ServiceCard
+            {services.map((service, index) => (
+              <div
                 key={service.id}
-                title={service.title}
-                description={service.shortDescription}
-                icon={serviceIcons[service.id]}
-                imageUrl={service.imageUrl}
-                href={`/site/services#${service.id}`}
-              />
+                className={`reveal-on-scroll stagger-${(index % 4) + 1}`}
+              >
+                <ServiceCard
+                  title={service.title}
+                  description={service.shortDescription}
+                  icon={serviceIcons[service.id]}
+                  imageUrl={service.imageUrl}
+                  href={`/site/services#${service.id}`}
+                />
+              </div>
             ))}
           </div>
           <div className="mt-12 text-center">
@@ -189,9 +198,8 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-
       {/* Our Edge - AI Document Management & Cantrak */}
-      <section className="bg-white py-20">
+      <section className="bg-white py-20 reveal-on-scroll">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             {/* Carousel */}
@@ -243,7 +251,7 @@ export default function MarketingHomePage() {
       </section>
 
       {/* Destinations */}
-      <section className="bg-white py-20">
+      <section className="bg-white py-20 reveal-on-scroll">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <h2 className="text-center text-2xl font-bold uppercase tracking-wider text-neutral-500">
             Destinations We Serve
