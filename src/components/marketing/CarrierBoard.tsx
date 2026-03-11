@@ -89,9 +89,6 @@ export default function CarrierBoard() {
                                         : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse'
                                         }`} />
                                 </div>
-                                <span className="text-[10px] text-neutral-500 mt-1 font-mono uppercase tracking-widest">
-                                    On Schedule
-                                </span>
                             </div>
                         </div>
                     ))}
