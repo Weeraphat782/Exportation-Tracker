@@ -7,6 +7,7 @@ import WorldMap from "@/components/marketing/WorldMap";
 import EdgeCarousel from "@/components/marketing/EdgeCarousel";
 import PartnerSection from "@/components/marketing/PartnerSection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
+import CarrierBoard from "@/components/marketing/CarrierBoard";
 
 const serviceIcons: Record<string, React.ReactNode> = {
   "specialized-air-freight": (
@@ -89,57 +90,8 @@ export default function MarketingHomePage() {
               </div>
             </div>
 
-            {/* Shipping Status Checklist */}
-            <div className="mx-auto w-full max-w-md lg:ml-auto animate-fade-in-up stagger-1">
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-xl shadow-2xl">
-                <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Live Shipping Status
-                  </h3>
-                  <span className="text-[10px] uppercase tracking-widest text-neutral-400 font-semibold bg-white/5 px-2 py-1 rounded">Real-time</span>
-                </div>
-
-                <div className="space-y-4">
-                  {[
-                    { country: "Switzerland", city: "Zurich", status: "active" },
-                    { country: "Macedonia", city: "", status: "active" },
-                    { country: "Germany", city: "Munich, Frankfurt", status: "active" },
-                    { country: "Australia", city: "Melbourne, Sydney", status: "active" },
-                    { country: "Czech", city: "Prague", status: "restricted" },
-                    { country: "Portugal", city: "Lisbon", status: "restricted" },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between group">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-white group-hover:text-[#86ef6c] transition-colors">
-                          {item.country}
-                        </span>
-                        {item.city && (
-                          <span className="text-xs text-neutral-400 italic">
-                            {item.city}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-tighter ${item.status === 'active' ? 'text-green-400' : 'text-red-400'}`}>
-                          {item.status === 'active' ? 'Available' : 'Suspended'}
-                        </span>
-                        <div className={`h-1.5 w-1.5 rounded-full ${item.status === 'active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 pt-6 border-t border-white/5">
-                  <p className="text-[11px] text-neutral-400 text-center italic">
-                    * Route availability subject to active flight schedules.
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Shipping Status Board */}
+            <CarrierBoard />
           </div>
         </div>
       </section>

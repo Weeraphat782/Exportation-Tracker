@@ -28,6 +28,7 @@ export default function PartnerSection() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="/images/partners/nia-logo.png"
+                            alt="NIA Logo"
                             className="h-32 md:h-40 w-auto transition-all duration-500"
                             onError={(e) => {
                                 // If image doesn't exist yet, show a clean placeholder box
