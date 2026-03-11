@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 
 export function useScrollReveal() {
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
         const observerOptions = {
             root: null,
             rootMargin: '0px 0px -250px 0px',
