@@ -23,7 +23,10 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const path = searchParams.get('path');
-        const bucket = searchParams.get('bucket') || R2_BUCKET;
+        const bucketParam = searchParams.get('bucket');
+
+        // Prioritize the environment variable R2_BUCKET if the param is default or missing
+        const bucket = (bucketParam && bucketParam !== 'documents') ? bucketParam : R2_BUCKET;
 
         if (!path) {
             return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 });

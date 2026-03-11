@@ -48,10 +48,10 @@ export default function Header() {
                 <div className="flex items-center gap-3 sm:gap-4">
                     <Link
                         href="/site/register"
-                        className="nav-link hidden rounded-lg px-4 py-2.5 text-sm font-semibold transition hover:opacity-80 sm:inline-block"
+                        className="hidden rounded-lg px-4 py-2.5 text-sm font-semibold transition hover:opacity-90 sm:inline-block"
                         style={{
-                            color: "var(--color-primary-ref)",
-                            border: "1px solid var(--color-primary-ref)",
+                            backgroundColor: "var(--color-primary-ref)",
+                            color: "white",
                         }}
                     >
                         Register
