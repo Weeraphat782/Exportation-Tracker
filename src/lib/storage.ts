@@ -275,6 +275,11 @@ export async function getFileUrl(
   provider: 'supabase' | 'r2' = 'supabase',
   bucket: string = 'documents'
 ): Promise<string> {
+  // If path is already a full URL, return it directly
+  if (path?.startsWith('http')) {
+    return path;
+  }
+
   if (provider === 'r2') {
     try {
       // Check if we are running in the browser
