@@ -278,6 +278,11 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 📦 {opportunity.productDetails}
               </div>
             )}
+            {opportunity.notes && (
+              <div className="text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 line-clamp-2 mt-1">
+                📝 {opportunity.notes}
+              </div>
+            )}
           </div>
 
           {/* Product Tags - Compact */}

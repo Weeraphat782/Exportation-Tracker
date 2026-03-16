@@ -303,11 +303,13 @@ export default function ShipmentDetailPage() {
             const volWt = calculateVolumeWeight(length, width, height);
             const chargeableWeight = Math.max(volWt, weight);
 
+            const overriddenRate = Number(pallet.overridden_rate) || 0;
             const applicableRates = freightRates.filter(rate =>
                 (rate.min_weight === null || chargeableWeight >= rate.min_weight) &&
                 (rate.max_weight === null || chargeableWeight <= rate.max_weight)
             );
-            const rate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+            const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+            const rate = overriddenRate > 0 ? overriddenRate : baseRate;
             const cost = Math.round(chargeableWeight * rate) * quantity;
             totalFreightCost += cost;
             totalActualWeight += weight * quantity;
@@ -350,10 +352,12 @@ export default function ShipmentDetailPage() {
                 const quantity = Number(pallet.quantity) || 1;
                 const volWt = calculateVolumeWeight(length, width, height);
                 const chargeableWeight = Math.max(volWt, weight);
+                const overriddenRate = Number(pallet.overridden_rate) || 0;
                 const applicableRates = freightRates.filter(rate =>
                     (rate.min_weight === null || chargeableWeight >= rate.min_weight) &&
                     (rate.max_weight === null || chargeableWeight <= rate.max_weight));
-                const rate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+                const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+                const rate = overriddenRate > 0 ? overriddenRate : baseRate;
                 const cost = Math.round(chargeableWeight * rate) * quantity;
                 totalFreightCost += cost; totalActualWeight += weight * quantity; totalVolumeWeight += volWt * quantity;
                 return { ...pallet, length, width, height, weight, quantity, volumeWeight: volWt, chargeableWeight, customerFreightCost: cost / quantity };

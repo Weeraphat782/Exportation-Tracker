@@ -225,7 +225,9 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             // If we've reached here, either no reorder was needed or it was a cross-column move
             // Check if stage change needs reporting
             if (startStage && activeContainer && startStage !== activeContainer) {
-                onStageChange?.(activeId, activeContainer as OpportunityStage);
+                queueMicrotask(() => {
+                    onStageChange?.(activeId, activeContainer as OpportunityStage);
+                });
                 queueMicrotask(() => {
                     onReorder?.(prev);
                 });

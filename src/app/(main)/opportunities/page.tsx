@@ -285,7 +285,7 @@ export default function OpportunitiesPage() {
         close_date: opportunityData.closeDate ? new Date(opportunityData.closeDate).toISOString().split('T')[0] : null,
         vehicle_type: opportunityData.vehicleType || null,
         container_size: opportunityData.containerSize || null,
-        product_details: opportunityData.productDetails ? JSON.stringify(opportunityData.productDetails) : null,
+        product_details: opportunityData.productDetails || null,
         notes: opportunityData.notes || null,
         destination_id: opportunityData.destinationId || null,
         owner_id: user?.id || null, // Set owner if available

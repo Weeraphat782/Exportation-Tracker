@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Bot, Loader2 } from 'lucide-react';
+import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react';
 import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
 import { formatFileSize } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel"
-import { useDocumentAnalysis } from '@/hooks/useDocumentAnalysis';
 import { toast } from 'sonner';
 
 // Use DbQuotation type from db.ts or extend it if needed locally
@@ -53,7 +52,6 @@ interface DocumentSubmission {
   reviewed_at?: string;
   reviewed_by?: string;
   original_file_name: string;
-  description?: string; // AI-generated document summary
   storage_provider?: 'supabase' | 'r2';
   file_path?: string;
 }
@@ -87,12 +85,6 @@ export default function DocumentSubmissionsPage() {
   const [expandedQuotations, setExpandedQuotations] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
-
-  // Add AI analysis hook
-  const { isAnalyzing, analyzeDocument, processAllDocuments } = useDocumentAnalysis();
-
-  // Add state for tracking which document is being analyzed
-  const [analyzingDocuments, setAnalyzingDocuments] = useState<Set<string>>(new Set());
 
   // Load data function (moved up for reuse)
   const loadData = async () => {
@@ -461,70 +453,6 @@ export default function DocumentSubmissionsPage() {
     setIsModalOpen(true);
   };
 
-  // AI Analysis functions
-  const handleAnalyzeDocument = async (submission: DocumentSubmission) => {
-    if (!submission.file_url || !submission.original_file_name) {
-      console.error('Missing file URL or filename for analysis');
-      return;
-    }
-
-    // Add to analyzing documents set
-    setAnalyzingDocuments(prev => new Set(prev).add(submission.id));
-
-    try {
-      console.log(`Starting AI analysis for: ${submission.original_file_name}`);
-
-      const result = await analyzeDocument(
-        submission.id,
-        submission.file_url,
-        submission.original_file_name,
-        submission.document_type
-      );
-
-      if (result.success) {
-        console.log(`AI analysis completed for: ${submission.original_file_name}`);
-        console.log(`Generated description: ${result.description}`);
-
-        // Immediately update the local state for better UX
-        setSubmissions(prevSubmissions =>
-          prevSubmissions.map(sub =>
-            sub.id === submission.id
-              ? { ...sub, description: result.description }
-              : sub
-          )
-        );
-
-        // Also refresh from database to ensure data consistency
-        await loadData();
-      } else {
-        console.error('AI analysis failed:', result.error);
-      }
-    } catch (error) {
-      console.error('Error analyzing document:', error);
-    } finally {
-      // Remove from analyzing documents set
-      setAnalyzingDocuments(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(submission.id);
-        return newSet;
-      });
-    }
-  };
-
-  const handleProcessAllDocuments = async () => {
-    try {
-      const success = await processAllDocuments();
-      if (success) {
-        // Refresh data after a short delay to allow processing
-        setTimeout(async () => {
-          await loadData();
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error processing all documents:', error);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -549,23 +477,6 @@ export default function DocumentSubmissionsPage() {
               )}
             </Button>
           )}
-          <Button
-            onClick={handleProcessAllDocuments}
-            disabled={isAnalyzing}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Bot className="h-4 w-4 mr-2" />
-                Generate AI Descriptions
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
@@ -685,20 +596,19 @@ export default function DocumentSubmissionsPage() {
 
                       <TabsContent value="all" className="p-0">
                         <div className="overflow-x-auto">
-                          <Table>
+                          <Table className="table-fixed w-full">
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[50px]">
+                                <TableHead className="w-[3%]">
                                   <Checkbox
                                     checked={quotationSubmissions.length > 0 && quotationSubmissions.every(s => selectedIds.has(s.id))}
                                     onCheckedChange={(checked) => toggleSelectAll(quotationId, !!checked)}
                                   />
                                 </TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Document Type</TableHead>
-                                <TableHead>File Name</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="w-[10%]">Date</TableHead>
+                                <TableHead className="w-[20%]">Document Type</TableHead>
+                                <TableHead className="w-[47%]">File Name</TableHead>
+                                <TableHead className="text-right w-[20%]">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -710,26 +620,10 @@ export default function DocumentSubmissionsPage() {
                                       onCheckedChange={(checked) => toggleSelectOne(submission.id, !!checked)}
                                     />
                                   </TableCell>
-                                  <TableCell>{formatDate(submission.submitted_at)}</TableCell>
+                                  <TableCell className="whitespace-nowrap">{formatDate(submission.submitted_at)}</TableCell>
                                   <TableCell>{submission.document_type}</TableCell>
-                                  <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
+                                  <TableCell className="truncate" title={submission.original_file_name}>
                                     {submission.original_file_name}
-                                  </TableCell>
-                                  <TableCell className="max-w-xs" title={submission.description || ''}>
-                                    {analyzingDocuments.has(submission.id) ? (
-                                      <div className="flex items-center text-blue-600">
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        <span className="text-sm">Analyzing...</span>
-                                      </div>
-                                    ) : submission.description ? (
-                                      <div className="text-sm">
-                                        <p className="truncate">{submission.description}</p>
-                                      </div>
-                                    ) : (
-                                      <div className="text-sm text-gray-500 italic">
-                                        Click 🤖 to generate AI description
-                                      </div>
-                                    )}
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
@@ -761,20 +655,6 @@ export default function DocumentSubmissionsPage() {
                                       <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => handleAnalyzeDocument(submission)}
-                                        title="Generate AI Description"
-                                        disabled={analyzingDocuments.has(submission.id)}
-                                        className="text-blue-600 hover:bg-blue-50"
-                                      >
-                                        {analyzingDocuments.has(submission.id) ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Bot className="h-4 w-4" />
-                                        )}
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
                                         className="text-red-500 hover:bg-red-50"
                                         onClick={() => handleDeleteClick(submission)}
                                         title="Delete"
@@ -793,10 +673,10 @@ export default function DocumentSubmissionsPage() {
                       {DOCUMENT_CATEGORIES.map(category => (
                         <TabsContent key={category.id} value={category.id} className="p-0">
                           <div className="overflow-x-auto">
-                            <Table>
+                            <Table className="table-fixed w-full">
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="w-[50px]">
+                                  <TableHead className="w-[3%]">
                                     <Checkbox
                                       checked={quotationSubmissions.filter(s => s.document_type === category.id).length > 0 &&
                                         quotationSubmissions.filter(s => s.document_type === category.id).every(s => selectedIds.has(s.id))}
@@ -811,11 +691,10 @@ export default function DocumentSubmissionsPage() {
                                       }}
                                     />
                                   </TableHead>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Document Type</TableHead>
-                                  <TableHead>File Name</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead className="text-right">Actions</TableHead>
+                                  <TableHead className="w-[10%]">Date</TableHead>
+                                  <TableHead className="w-[20%]">Document Type</TableHead>
+                                  <TableHead className="w-[47%]">File Name</TableHead>
+                                  <TableHead className="text-right w-[20%]">Actions</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -829,26 +708,10 @@ export default function DocumentSubmissionsPage() {
                                           onCheckedChange={(checked) => toggleSelectOne(submission.id, !!checked)}
                                         />
                                       </TableCell>
-                                      <TableCell>{formatDate(submission.submitted_at)}</TableCell>
+                                      <TableCell className="whitespace-nowrap">{formatDate(submission.submitted_at)}</TableCell>
                                       <TableCell>{submission.document_type}</TableCell>
-                                      <TableCell className="max-w-xs truncate" title={submission.original_file_name}>
+                                      <TableCell className="truncate" title={submission.original_file_name}>
                                         {submission.original_file_name}
-                                      </TableCell>
-                                      <TableCell className="max-w-xs" title={submission.description || ''}>
-                                        {analyzingDocuments.has(submission.id) ? (
-                                          <div className="flex items-center text-blue-600">
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            <span className="text-sm">Analyzing...</span>
-                                          </div>
-                                        ) : submission.description ? (
-                                          <div className="text-sm">
-                                            <p className="truncate">{submission.description}</p>
-                                          </div>
-                                        ) : (
-                                          <div className="text-sm text-gray-500 italic">
-                                            Click 🤖 to generate AI description
-                                          </div>
-                                        )}
                                       </TableCell>
                                       <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
@@ -876,20 +739,6 @@ export default function DocumentSubmissionsPage() {
                                             title="Download Document"
                                           >
                                             <Download className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => handleAnalyzeDocument(submission)}
-                                            title="Generate AI Description"
-                                            disabled={analyzingDocuments.has(submission.id)}
-                                            className="text-blue-600 hover:bg-blue-50"
-                                          >
-                                            {analyzingDocuments.has(submission.id) ? (
-                                              <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <Bot className="h-4 w-4" />
-                                            )}
                                           </Button>
                                           <Button
                                             variant="outline"
