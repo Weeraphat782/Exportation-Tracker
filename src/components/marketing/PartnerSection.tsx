@@ -4,7 +4,7 @@ import React from 'react';
 
 export default function PartnerSection() {
     return (
-        <section className="bg-neutral-50 py-16 border-t border-neutral-100">
+        <section className="bg-neutral-50 py-10 border-t border-neutral-100 sm:py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col items-center text-center">
                     <div className="mb-8 flex flex-col items-center">
@@ -22,7 +22,7 @@ export default function PartnerSection() {
                     </div>
 
                     {/* NIA LOGO SLOT */}
-                    <div className="group relative flex items-center justify-center p-12 bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl transition-all duration-300">
+                    <div className="group relative flex items-center justify-center p-6 bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl transition-all duration-300 sm:p-12">
                         {/* 🛑 PLACE YOUR NIA LOGO HERE 🛑 */}
                         {/* You can replace this <img> tag with your actual NIA logo file path */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}

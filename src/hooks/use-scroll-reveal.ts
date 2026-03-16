@@ -21,7 +21,9 @@ export function useScrollReveal() {
         };
 
         const observer = new IntersectionObserver(handleIntersect, observerOptions);
-        const targets = document.querySelectorAll('.reveal-on-scroll');
+        const targets = document.querySelectorAll(
+            '.reveal-on-scroll, .reveal-slide-left, .reveal-slide-right'
+        );
 
         targets.forEach((target) => observer.observe(target));
 

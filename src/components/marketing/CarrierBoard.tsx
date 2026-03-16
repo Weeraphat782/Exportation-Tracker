@@ -2,6 +2,8 @@
 
 import React from 'react';
 
+const ACCENT = '#5BBF21';
+
 const carriers = [
     { country: "Switzerland", city: "Zurich", carrier: "TG", status: "Available" },
     { country: "Macedonia", city: "Skopje", carrier: "LH", status: "Available" },
@@ -14,16 +16,21 @@ const carriers = [
 
 export default function CarrierBoard() {
     return (
-        <div className="mx-auto w-full max-w-2xl lg:ml-auto animate-fade-in-up stagger-1">
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur-xl shadow-2xl">
+        <div className="mx-auto w-full lg:ml-auto animate-fade-in-up stagger-1">
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/50 backdrop-blur-xl shadow-2xl">
+                {/* Green accent bar (like Footer) */}
+                <div
+                    className="h-0.5 w-full"
+                    style={{ background: `linear-gradient(90deg, ${ACCENT}, #86ef6c, ${ACCENT})` }}
+                />
                 {/* Header Style FIDS */}
-                <div className="bg-neutral-900 px-6 py-4 flex items-center justify-between border-b border-white/5">
+                <div className="bg-white/5 px-4 py-2.5 flex items-center justify-between border-b border-white/5">
                     <div className="flex items-center gap-3">
                         <div className="flex h-2 w-2 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: ACCENT }} />
+                            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: ACCENT }} />
                         </div>
-                        <h3 className="text-sm font-bold tracking-[0.2em] text-blue-400 uppercase font-mono">
+                        <h3 className="text-sm font-bold tracking-[0.2em] text-white/90 uppercase font-mono">
                             Live Shipping Status
                         </h3>
                     </div>
@@ -33,7 +40,7 @@ export default function CarrierBoard() {
                 </div>
 
                 {/* Column Headers */}
-                <div className="grid grid-cols-12 gap-2 px-6 py-3 border-b border-white/5 bg-white/5 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-white/5 bg-white/5 text-[9px] font-bold uppercase tracking-wider text-neutral-400 sm:px-4">
                     <div className="col-span-5">Destination</div>
                     <div className="col-span-4 text-center">Carrier</div>
                     <div className="col-span-3 text-right">Status</div>
@@ -44,21 +51,21 @@ export default function CarrierBoard() {
                     {carriers.map((item, idx) => (
                         <div
                             key={idx}
-                            className="grid grid-cols-12 gap-2 px-6 py-4 items-center hover:bg-white/5 transition-colors group"
+                            className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-white/5 transition-colors group"
                         >
                             {/* Destination Column */}
                             <div className="col-span-5 flex flex-col min-w-0">
-                                <span className="text-base font-bold text-white group-hover:text-blue-400 transition-colors truncate">
+                                <span className="text-sm font-bold text-white transition-colors truncate group-hover:text-[var(--color-accent-ref)]">
                                     {item.country}
                                 </span>
-                                <span className="text-xs text-neutral-400 font-mono truncate italic">
+                                <span className="text-[10px] text-neutral-400 font-mono truncate italic">
                                     {item.city}
                                 </span>
                             </div>
 
-                            {/* Carrier Slot Column - White background and even Larger */}
+                            {/* Carrier Slot Column - logo size unchanged */}
                             <div className="col-span-4 flex justify-center">
-                                <div className="w-24 h-14 bg-white rounded-lg flex items-center justify-center border border-white/20 shadow-sm px-3 py-2 relative">
+                                <div className="w-16 h-10 bg-white/90 rounded-md flex items-center justify-center border border-white/20 shadow-sm px-2 py-1.5 relative sm:w-24 sm:h-14 sm:px-3 sm:py-2">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={`/images/carriers/logo-${item.carrier.toLowerCase()}.png`}
@@ -80,14 +87,20 @@ export default function CarrierBoard() {
                             {/* Status Column */}
                             <div className="col-span-3 text-right flex flex-col items-end">
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-[11px] font-mono font-bold uppercase tracking-tighter ${item.status === 'Available' ? 'text-green-400' : 'text-red-500'
-                                        }`}>
+                                    <span
+                                        className={`text-[11px] font-mono font-bold uppercase tracking-tighter ${item.status === 'Available' ? '' : 'text-red-500'}`}
+                                        style={item.status === 'Available' ? { color: ACCENT } : undefined}
+                                    >
                                         {item.status}
                                     </span>
-                                    <div className={`h-2 w-2 rounded-full ${item.status === 'Available'
-                                        ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'
-                                        : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse'
-                                        }`} />
+                                    <div
+                                        className={`h-2 w-2 rounded-full ${item.status === 'Suspended' ? 'animate-pulse' : ''}`}
+                                        style={
+                                            item.status === 'Available'
+                                                ? { backgroundColor: ACCENT, boxShadow: `0 0 8px ${ACCENT}99` }
+                                                : { backgroundColor: '#ef4444', boxShadow: '0 0 8px rgba(239,68,68,0.6)' }
+                                        }
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -95,17 +108,11 @@ export default function CarrierBoard() {
                 </div>
 
                 {/* Footer info */}
-                <div className="bg-neutral-900/50 px-6 py-3 border-t border-white/5">
+                <div className="bg-black/20 px-3 py-2 border-t border-white/5 sm:px-4">
                     <p className="text-[9px] text-neutral-500 text-center font-mono uppercase tracking-[0.1em]">
                         * Subject to active flight schedules and regional restrictions
                     </p>
                 </div>
-            </div>
-
-            {/* Aesthetic FIDS Details: Shadow accents */}
-            <div className="mt-4 flex justify-between px-2">
-                <div className="h-1 w-12 bg-neutral-800 rounded-full" />
-                <div className="h-1 w-12 bg-neutral-800 rounded-full" />
             </div>
         </div>
     );

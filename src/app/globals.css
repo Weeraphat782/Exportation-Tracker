@@ -180,49 +180,151 @@
 
   .premium-shadow-hover {
     @apply transition-all duration-300;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.05);
   }
 
   .premium-shadow-hover:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    @apply transform -translate-y-1;
+    box-shadow: 0 20px 40px -8px rgba(33, 84, 151, 0.15), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+    @apply transform -translate-y-1.5;
   }
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
-    /* Chrome, Safari and Opera */
   }
 
-  /* Premium Animations */
+  /* =========================================
+     KEYFRAME DEFINITIONS
+     ========================================= */
+
   @keyframes fadeInUp {
     from {
       opacity: 0;
       transform: translateY(60px);
     }
-
     to {
       opacity: 1;
       transform: translate3d(0, 0, 0);
     }
   }
 
-  /* Hero Section immediate animation */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-8px); }
+  }
+
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(91, 191, 33, 0.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(91, 191, 33, 0); }
+  }
+
+  /* =========================================
+     ANIMATION UTILITY CLASSES
+     ========================================= */
+
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease forwards;
+  }
+
   .animate-fade-in-up {
     animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* Base state: Hidden */
+  .animate-slide-in-left {
+    animation: slideInLeft 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.6) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.5s linear infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  .animate-count-up {
+    animation: countUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* =========================================
+     SCROLL REVEAL
+     ========================================= */
+
   .reveal-on-scroll {
     opacity: 0;
     will-change: transform, opacity;
   }
 
-  /* Non-staggered simple reveal */
   .reveal-on-scroll.is-visible:not([class*="stagger-"]) {
     animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* Staggered Reveal - Trigged by is-visible */
   .reveal-on-scroll.is-visible.stagger-1 {
     animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
   }
@@ -239,7 +341,45 @@
     animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
   }
 
-  /* Navigation Underline Reveal */
+  /* Left/Right staggered reveals */
+  .reveal-slide-left {
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .reveal-slide-left.is-visible {
+    animation: slideInLeft 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .reveal-slide-right {
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .reveal-slide-right.is-visible {
+    animation: slideInRight 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* =========================================
+     GRADIENT TEXT
+     ========================================= */
+
+  .gradient-text-accent {
+    background: linear-gradient(135deg, var(--color-accent-ref) 0%, #86ef6c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-primary {
+    background: linear-gradient(135deg, var(--color-primary-ref) 0%, #4a8fd4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* =========================================
+     NAVIGATION
+     ========================================= */
+
   .nav-link {
     position: relative;
     padding-bottom: 2px;
@@ -252,12 +392,53 @@
     height: 2px;
     bottom: 0;
     left: 50%;
-    background-color: var(--color-accent-ref);
+    background: linear-gradient(90deg, var(--color-accent-ref), #86ef6c);
+    border-radius: 9999px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateX(-50%);
   }
 
   .nav-link:hover::after {
     width: 100%;
+  }
+
+  /* =========================================
+     STATS STRIP
+     ========================================= */
+
+  .stat-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+    transition: left 0.5s ease;
+  }
+
+  .stat-card:hover::before {
+    left: 100%;
+  }
+
+  /* =========================================
+     SECTION DIVIDERS
+     ========================================= */
+
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-neutral-200), transparent);
+  }
+
+  .accent-bar {
+    height: 4px;
+    width: 48px;
+    background: linear-gradient(90deg, var(--color-accent-ref), #86ef6c);
+    border-radius: 9999px;
   }
 }

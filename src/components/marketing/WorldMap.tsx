@@ -22,9 +22,17 @@ const destinations = [
     { name: "Uganda", coords: [32.2903, 1.3733] as [number, number], offset: [0, 22] as [number, number], align: "middle" as const },
 ];
 
+const PRIMARY = '#215497';
+const PRIMARY_DARK = '#1a4279';
+const ACCENT = '#5BBF21';
+const ACCENT_LIGHT = '#86ef6c';
+
 export default function WorldMap() {
     return (
-        <div className="relative w-full overflow-hidden rounded-2xl bg-[#0a0f1d] shadow-2xl transition-all duration-500" style={{ height: '550px' }}>
+        <div
+            className="relative h-[300px] w-full overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 sm:h-[450px] lg:h-[550px]"
+            style={{ background: `linear-gradient(135deg, ${PRIMARY_DARK} 0%, ${PRIMARY} 50%, #0f2847 100%)` }}
+        >
             <style jsx global>{`
                 @keyframes lineFlow {
                     from { stroke-dashoffset: 20; }
@@ -47,30 +55,30 @@ export default function WorldMap() {
             `}</style>
 
             {/* Premium Header Overlay */}
-            <div className="absolute left-8 top-8 z-20">
+            <div className="absolute left-4 top-4 z-20 sm:left-8 sm:top-8">
                 <div className="flex items-center gap-3">
                     <div className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: ACCENT }} />
+                        <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: ACCENT }} />
                     </div>
                     <h4 className="text-sm font-bold uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
                         Global Logistics Network
                     </h4>
                 </div>
-                <p className="mt-1 text-[10px] uppercase tracking-widest text-blue-400/60 font-semibold">
+                <p className="mt-1 text-[10px] uppercase tracking-widest font-semibold" style={{ color: `${ACCENT}99` }}>
                     Live Connections & Active Routes
                 </p>
             </div>
 
             {/* Map Legend */}
-            <div className="absolute right-8 bottom-8 z-20 rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-xl transition hover:bg-black/60">
+            <div className="absolute right-4 bottom-4 z-20 rounded-xl border border-white/10 bg-black/40 p-4 backdrop-blur-xl transition hover:bg-black/60 sm:right-8 sm:bottom-8">
                 <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                        <div className="h-2 w-6 rounded-full bg-gradient-to-r from-blue-500/0 to-blue-500"></div>
+                        <div className="h-2 w-6 rounded-full" style={{ background: `linear-gradient(to right, transparent, ${ACCENT})` }} />
                         <span className="text-[10px] font-bold text-white/70 uppercase">Route Active</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="h-3 w-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></div>
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: ACCENT, boxShadow: `0 0 10px ${ACCENT}` }} />
                         <span className="text-[10px] font-bold text-white/70 uppercase">Hub: Thailand</span>
                     </div>
                 </div>
@@ -89,18 +97,27 @@ export default function WorldMap() {
                             <Geography
                                 key={geo.rsmKey}
                                 geography={geo}
-                                fill="#161b2e"
-                                stroke="#1e293b"
+                                fill={PRIMARY_DARK}
+                                stroke="#2a5a9e"
                                 strokeWidth={0.5}
                                 style={{
                                     default: { outline: 'none' },
-                                    hover: { fill: "#1e293b", transition: 'all 250ms', outline: 'none' },
+                                    hover: { fill: '#2a5a9e', transition: 'all 250ms', outline: 'none' },
                                     pressed: { outline: 'none' },
                                 }}
                             />
                         ))
                     }
                 </Geographies>
+
+                {/* Definitions for Gradients */}
+                <defs>
+                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={ACCENT} stopOpacity="0.2" />
+                        <stop offset="50%" stopColor={ACCENT_LIGHT} stopOpacity="1" />
+                        <stop offset="100%" stopColor={ACCENT} stopOpacity="0.2" />
+                    </linearGradient>
+                </defs>
 
                 {/* Connection Arcs with Glow and Flow */}
                 {destinations.map((dest, i) => (
@@ -109,7 +126,7 @@ export default function WorldMap() {
                         <Line
                             from={thailand}
                             to={dest.coords}
-                            stroke="#3b82f6"
+                            stroke={ACCENT}
                             strokeWidth={3}
                             strokeLinecap="round"
                             opacity={0.05}
@@ -126,40 +143,29 @@ export default function WorldMap() {
                     </g>
                 ))}
 
-                {/* Definitions for Gradients */}
-                <defs>
-                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-                        <stop offset="50%" stopColor="#60a5fa" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.2" />
-                    </linearGradient>
-                </defs>
-
                 {/* Destination Radar Markers */}
                 {destinations.map((dest) => (
                     <Marker key={dest.name} coordinates={dest.coords}>
-                        {/* Radar Rings - Scaled up */}
-                        <circle r={12} fill="transparent" stroke="#3b82f6" strokeWidth={1} className="radar-ring" />
-                        <circle r={12} fill="transparent" stroke="#3b82f6" strokeWidth={1} className="radar-ring-delayed" />
-
-                        <circle r={5} fill="#3b82f6" stroke="#fff" strokeWidth={1.5} />
+                        <circle r={12} fill="transparent" stroke={ACCENT} strokeWidth={1} className="radar-ring" />
+                        <circle r={12} fill="transparent" stroke={ACCENT} strokeWidth={1} className="radar-ring-delayed" />
+                        <circle r={5} fill="#fff" stroke={ACCENT} strokeWidth={1.5} />
                         <text
                             textAnchor={dest.align}
                             x={dest.offset[0]}
                             y={dest.offset[1]}
                             className="pointer-events-none select-none drop-shadow-xl"
-                            style={{ fontFamily: 'Inter, sans-serif', fill: '#cbd5e1', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                            style={{ fontFamily: 'Inter, sans-serif', fill: '#e2e8f0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
                         >
                             {dest.name}
                         </text>
                     </Marker>
                 ))}
 
-                {/* Thailand Hub - THE MASTER HUB - Scaled up */}
+                {/* Thailand Hub */}
                 <Marker coordinates={thailand}>
-                    <circle r={18} fill="rgba(34, 197, 94, 0.2)" className="radar-ring" />
-                    <circle r={18} fill="rgba(34, 197, 94, 0.1)" className="radar-ring-delayed" />
-                    <circle r={8} fill="#22c55e" stroke="#fff" strokeWidth={2.5} className="shadow-2xl" />
+                    <circle r={18} fill={`${ACCENT}33`} className="radar-ring" />
+                    <circle r={18} fill={`${ACCENT}1a`} className="radar-ring-delayed" />
+                    <circle r={8} fill={ACCENT} stroke="#fff" strokeWidth={2.5} className="shadow-2xl" />
                     <text
                         textAnchor="middle"
                         y={-22}
@@ -175,8 +181,8 @@ export default function WorldMap() {
                 style={{ backgroundImage: 'radial-gradient(#ffffff 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
 
             {/* Edge Glows */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0a0f1d] via-transparent to-[#0a0f1d] opacity-40" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0a0f1d] via-transparent to-[#0a0f1d] opacity-40" />
+            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: `linear-gradient(to bottom, ${PRIMARY_DARK}, transparent 20%, transparent 80%, ${PRIMARY_DARK})` }} />
+            <div className="pointer-events-none absolute inset-0 opacity-40" style={{ background: `linear-gradient(to right, ${PRIMARY_DARK}, transparent 20%, transparent 80%, ${PRIMARY_DARK})` }} />
         </div>
     );
 }
