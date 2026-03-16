@@ -8,7 +8,7 @@ import {
     CheckCircle2, Loader2, FileText, Download,
     Save, Trash2, Plus, Info, XCircle, Clock,
     Image as ImageIcon, FileSpreadsheet, Upload,
-    ChevronUp, ChevronDown, Eye, Calculator, Share2, Check
+    ChevronUp, ChevronDown, Eye, Share2, Check
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import {
@@ -102,9 +102,6 @@ function formatDate(dateStr: string) {
     } catch { return dateStr; }
 }
 
-function formatAmount(amount: number) {
-    return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 function getStageDisplay(stage?: string, status?: string) {
     if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5 };
@@ -545,10 +542,6 @@ export default function ShipmentDetailPage() {
                                 )}
                                 {shareCopied ? 'Copied!' : 'Share'}
                             </button>
-                            <div className="bg-slate-50 px-5 py-3 rounded-xl border border-slate-100">
-                                <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest text-right mb-0.5">Total</div>
-                                <div className="text-2xl font-black text-gray-900">{formatAmount(totals.totalCost)}</div>
-                            </div>
                         </div>
                     </div>
                     <TrackingProgress sc={sc} />
@@ -605,42 +598,6 @@ export default function ShipmentDetailPage() {
                 </div>
             </div>
 
-            {/* ===== COST BREAKDOWN ===== */}
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
-                    <Calculator className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cost Breakdown</span>
-                    <span className="ml-auto text-[10px] text-gray-400 italic">Updates in real-time</span>
-                </div>
-                <div className="divide-y divide-gray-50">
-                    <div className="px-5 py-3 flex justify-between items-center">
-                        <div><span className="text-sm text-gray-600">Freight Cost</span><br /><span className="text-[10px] text-gray-400">Based on chargeable weight</span></div>
-                        <span className="text-sm font-bold text-gray-900">{formatAmount(totals.totalFreightCost)}</span>
-                    </div>
-                    {totals.deliveryCost > 0 && (
-                        <div className="px-5 py-3 flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Delivery Fee</span>
-                            <span className="text-sm font-bold text-gray-900">{formatAmount(totals.deliveryCost)}</span>
-                        </div>
-                    )}
-                    {(q.clearance_cost ?? 0) > 0 && (
-                        <div className="px-5 py-3 flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Clearance Fee</span>
-                            <span className="text-sm font-bold text-gray-900">{formatAmount(q.clearance_cost || 0)}</span>
-                        </div>
-                    )}
-                    {q.additional_charges?.map((charge: AdditionalCharge, i: number) => (
-                        <div key={i} className="px-5 py-3 flex justify-between items-center">
-                            <span className="text-sm text-gray-600">{charge.name}</span>
-                            <span className="text-sm font-bold text-gray-900">{formatAmount(Number(charge.amount))}</span>
-                        </div>
-                    ))}
-                    <div className="px-5 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center">
-                        <span className="text-xs font-black text-emerald-100 uppercase tracking-widest">Total</span>
-                        <span className="text-xl font-black text-white">{formatAmount(totals.totalCost)}</span>
-                    </div>
-                </div>
-            </div>
 
             {/* ===== AWB + CUSTOMS (from staff) ===== */}
             {(q.awb_file_url || q.customs_declaration_file_url) && (

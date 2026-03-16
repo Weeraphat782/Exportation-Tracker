@@ -19,9 +19,6 @@ function formatDate(dateStr: string) {
     } catch { return dateStr; }
 }
 
-function formatAmount(amount: number) {
-    return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
 
 function getStageDisplay(stage?: string, status?: string) {
     if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5, barColor: 'bg-emerald-500' };
@@ -98,12 +95,8 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                         </div>
                     </div>
 
-                    {/* Right: Amount + Arrow */}
+                    {/* Right: Arrow */}
                     <div className="flex items-center gap-4 sm:gap-6 shrink-0 self-end sm:self-center">
-                        <div className="text-right">
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total</div>
-                            <div className="text-lg font-black text-gray-900">{formatAmount(q.total_cost)}</div>
-                        </div>
                         <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                         </div>
