@@ -7,7 +7,7 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt, ShieldCheck, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -126,6 +126,21 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
             toast.error('Failed to load opportunity details');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleConfirmPrice = async (quoteId: string) => {
+        try {
+            const { error } = await supabase
+                .from('quotations')
+                .update({ price_confirmed: true })
+                .eq('id', quoteId);
+            if (error) throw error;
+            toast.success('Price confirmed successfully');
+            fetchOpportunity();
+        } catch (err) {
+            console.error('Error confirming price:', err);
+            toast.error('Failed to confirm price');
         }
     };
 
@@ -281,6 +296,29 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                             <div className="text-[10px] text-gray-400 uppercase font-black tracking-tight">Net Total</div>
                                                         </div>
                                                     </div>
+
+                                                    {/* Price Confirmation Status */}
+                                                    {quote.price_confirmed ? (
+                                                        <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg mb-4">
+                                                            <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                                                            <span className="text-sm font-bold text-emerald-700">Price Confirmed</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-between px-4 py-2.5 bg-amber-50 border-2 border-amber-300 rounded-lg mb-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <ShieldCheck className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                                                                <span className="text-sm font-semibold text-amber-700">Price not confirmed yet</span>
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                                onClick={() => handleConfirmPrice(quote.id)}
+                                                            >
+                                                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                                                                Confirm Price
+                                                            </Button>
+                                                        </div>
+                                                    )}
 
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50/50 p-3 rounded-xl mb-4 border border-slate-100">
                                                         <div className="space-y-2">

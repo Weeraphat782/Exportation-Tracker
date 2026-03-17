@@ -234,6 +234,7 @@ export default function ShipmentDetailPage() {
         'company-info': true, 'permits-forms': true,
         'shipping-docs': true, 'additional': true, 'gacp-certification': true
     });
+    const [dragOverType, setDragOverType] = useState<string | null>(null);
 
     // ---- Data loading ----
     const loadData = async () => {
@@ -328,21 +329,29 @@ export default function ShipmentDetailPage() {
     }, [pallets, quotation, freightRates]);
 
     // ---- Pallet handlers ----
+    const isPalletLocked = quotation?.price_confirmed === true;
+
     const handlePalletChange = (index: number, field: string, value: string | number) => {
+        if (isPalletLocked) return;
         const np = [...pallets];
         np[index] = { ...np[index], [field]: value };
         setPallets(np);
     };
 
-    const addPallet = () => setPallets([...pallets, { length: 0, width: 0, height: 0, weight: 0, quantity: 1 }]);
+    const addPallet = () => {
+        if (isPalletLocked) return;
+        setPallets([...pallets, { length: 0, width: 0, height: 0, weight: 0, quantity: 1 }]);
+    };
 
     const removePallet = (index: number) => {
+        if (isPalletLocked) return;
         if (pallets.length <= 1) { toast.error('At least one pallet is required'); return; }
         const np = [...pallets]; np.splice(index, 1); setPallets(np);
     };
 
     const handleSave = async () => {
         if (!quotation) return;
+        if (isPalletLocked) return;
         setSaving(true);
         try {
             let totalFreightCost = 0, totalActualWeight = 0, totalVolumeWeight = 0;
@@ -545,20 +554,19 @@ export default function ShipmentDetailPage() {
                                 )}
                                 {shareCopied ? 'Copied!' : 'Share'}
                             </button>
-                            <div className="bg-slate-50 px-5 py-3 rounded-xl border border-slate-100">
-                                <div className="text-[10px] text-gray-400 font-black uppercase tracking-widest text-right mb-0.5">Total</div>
-                                <div className="text-2xl font-black text-gray-900">{formatAmount(totals.totalCost)}</div>
+                            <div className={`px-5 py-3 rounded-xl border-2 ${q.price_confirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-400 animate-pulse'}`}>
+                                <div className={`text-[10px] font-black uppercase tracking-widest text-right mb-0.5 ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                    {q.price_confirmed ? 'Confirmed Total' : '⚠ Price not confirmed'}
+                                </div>
+                                <div className={`text-2xl font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatAmount(totals.totalCost)}</div>
+                                {!q.price_confirmed && (
+                                    <div className="text-[10px] text-amber-600 font-semibold text-right mt-0.5">might be changed</div>
+                                )}
                             </div>
                         </div>
                     </div>
                     <TrackingProgress sc={sc} />
                 </div>
-                {q.price_confirmed !== true && (
-                    <div className="mx-6 mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium flex items-center gap-2">
-                        <span className="text-amber-500">⚠</span>
-                        Waiting for price confirmation – final price might be changed
-                    </div>
-                )}
             </div>
 
             {/* ===== SHIPPING INFO + WEIGHT ===== */}
@@ -688,16 +696,25 @@ export default function ShipmentDetailPage() {
 
             {/* ===== PALLET MANAGEMENT ===== */}
             <div className="bg-white rounded-xl border border-gray-100 p-5">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-3 mb-5">
-                    <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-700">Verify pallet dimensions. Changes will recalculate the quote in real-time.</p>
-                </div>
+                {q.price_confirmed ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 mb-5">
+                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800 font-medium">Price has been confirmed. Pallet dimensions are locked.</p>
+                    </div>
+                ) : (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-3 mb-5">
+                        <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-700">Verify pallet dimensions. Changes will recalculate the quote in real-time.</p>
+                    </div>
+                )}
                 <div className="flex items-center justify-between mb-4">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallets ({pallets.length})</span>
-                    <button onClick={addPallet}
-                        className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 transition-colors border border-emerald-100">
-                        <Plus className="w-3.5 h-3.5" /> Add Pallet
-                    </button>
+                    {!q.price_confirmed && (
+                        <button onClick={addPallet}
+                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 transition-colors border border-emerald-100">
+                            <Plus className="w-3.5 h-3.5" /> Add Pallet
+                        </button>
+                    )}
                 </div>
                 <div className="space-y-3">
                     {pallets.map((pallet, idx) => (
@@ -714,17 +731,19 @@ export default function ShipmentDetailPage() {
                                         </label>
                                         <input type="number" value={pallet[field]}
                                             onChange={(e) => handlePalletChange(idx, field, e.target.value)}
-                                            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" />
+                                            disabled={q.price_confirmed}
+                                            className={`w-full border rounded-lg px-3 py-2 text-sm outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
                                     </div>
                                 ))}
                                 <div className="space-y-1">
                                     <label className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Qty</label>
                                     <input type="number" value={pallet.quantity}
                                         onChange={(e) => handlePalletChange(idx, 'quantity', e.target.value)}
-                                        className="w-full bg-white border border-emerald-100 rounded-lg px-3 py-2 text-sm font-bold text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none" />
+                                        disabled={q.price_confirmed}
+                                        className={`w-full border rounded-lg px-3 py-2 text-sm font-bold outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed text-emerald-600' : 'bg-white border-emerald-100 text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
                                 </div>
                             </div>
-                            {pallets.length > 1 && (
+                            {pallets.length > 1 && !q.price_confirmed && (
                                 <button onClick={() => removePallet(idx)}
                                     className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-red-100 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-sm transition-all">
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -733,12 +752,14 @@ export default function ShipmentDetailPage() {
                         </div>
                     ))}
                 </div>
-                <div className="flex justify-end mt-4">
-                    <button onClick={handleSave} disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50">
-                        {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
-                    </button>
-                </div>
+                {!q.price_confirmed && (
+                    <div className="flex justify-end mt-4">
+                        <button onClick={handleSave} disabled={saving}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50">
+                            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* ===== DOCUMENT CHECKLIST ===== */}
@@ -748,15 +769,15 @@ export default function ShipmentDetailPage() {
                 const allCategories = [
                     ...DOCUMENT_CATEGORIES,
                     ...(isThaiGacp ? [{
-                        id: 'gacp-standard', name: 'GACP Certification',
-                        types: [{ id: 'thai-gacp-certificate-standard', name: 'Thai GACP Certificate' }]
-                    }] : [{
                         id: 'gacp-farm', name: 'GACP Certification (Farm)',
                         types: [
                             { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
                             { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
                             { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
                         ]
+                    }] : [{
+                        id: 'gacp-standard', name: 'GACP Certification',
+                        types: [{ id: 'thai-gacp-certificate-standard', name: 'Thai GACP Certificate' }]
                     }])
                 ];
                 const processed = allCategories.map(cat => {
@@ -856,6 +877,10 @@ export default function ShipmentDetailPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <div className="mt-3 bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+                            <Upload className="w-5 h-5 text-blue-600 shrink-0" />
+                            <p className="text-xs font-semibold text-blue-800">You can upload multiple files at once and drag-and-drop files into each document slot.</p>
+                        </div>
                         {[
                             ...DOCUMENT_CATEGORIES,
                             { id: 'gacp-certification', name: 'Thai GACP or GACP Certificate', types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD }
@@ -893,8 +918,26 @@ export default function ShipmentDetailPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {category.types.map((docType) => {
                                                 const isUploaded = documents.some(d => d.document_type === docType.id);
+                                                const queuedForType = uploadQueue.filter(uq => uq.documentType === docType.id);
+                                                const isDragOver = dragOverType === docType.id;
+                                                const labelText = queuedForType.length === 0
+                                                    ? 'Drop files or click to select...'
+                                                    : queuedForType.length === 1
+                                                        ? queuedForType[0].file.name
+                                                        : `${queuedForType.length} files selected`;
                                                 return (
-                                                    <div key={docType.id} className="flex flex-col space-y-1.5 p-3 bg-gray-50/30 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors">
+                                                    <div
+                                                        key={docType.id}
+                                                        className={`flex flex-col space-y-1.5 p-3 rounded-xl border transition-colors ${isDragOver ? 'bg-emerald-50/50 border-emerald-400' : 'bg-gray-50/30 border-gray-100 hover:border-emerald-200'}`}
+                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOverType(docType.id); }}
+                                                        onDragEnter={(e) => { e.preventDefault(); setDragOverType(docType.id); }}
+                                                        onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverType(null); }}
+                                                        onDrop={(e) => {
+                                                            e.preventDefault();
+                                                            setDragOverType(null);
+                                                            handleFileUpload(e.dataTransfer.files, docType.id, docType.name);
+                                                        }}
+                                                    >
                                                         <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                                                             {isUploaded && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                                                             {docType.name}
@@ -902,13 +945,13 @@ export default function ShipmentDetailPage() {
                                                         </Label>
                                                         <div className="flex items-center gap-1.5">
                                                             <div className="relative flex-1">
-                                                                <input type="file" id={`${docType.id}-${id}`} className="sr-only"
+                                                                <input type="file" id={`${docType.id}-${id}`} className="sr-only" multiple
                                                                     onChange={(e) => handleFileUpload(e.target.files, docType.id, docType.name)}
                                                                     accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" />
                                                                 <label htmlFor={`${docType.id}-${id}`}
                                                                     className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500 hover:border-emerald-500 cursor-pointer transition-all shadow-sm">
                                                                     <span className="truncate flex-1">
-                                                                        {uploadQueue.find(uq => uq.documentType === docType.id)?.file.name || 'Select file...'}
+                                                                        {labelText}
                                                                     </span>
                                                                     <Upload className="w-3 h-3 opacity-50" />
                                                                 </label>
@@ -920,6 +963,20 @@ export default function ShipmentDetailPage() {
                                                                 {previewLoading[docType.id] ? <Loader2 className="w-3 h-3 animate-spin text-emerald-500" /> : <Eye className="w-3 h-3" />}
                                                             </button>
                                                         </div>
+                                                        {queuedForType.length > 0 && (
+                                                            <div className="mt-2 space-y-1">
+                                                                {queuedForType.map((item) => (
+                                                                    <div key={item.id} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-emerald-50/50 rounded-lg border border-emerald-100/50 text-[11px]">
+                                                                        <span className="truncate flex-1 font-medium text-gray-700" title={item.file.name}>{item.file.name}</span>
+                                                                        <span className="text-gray-400 shrink-0">{(item.file.size / 1024).toFixed(1)} KB</span>
+                                                                        <button type="button" onClick={() => setUploadQueue(prev => prev.filter(x => x.id !== item.id))}
+                                                                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0" title="Remove">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}

@@ -100,12 +100,11 @@ function ShipmentListCard({ q }: { q: Quotation }) {
 
                     {/* Right: Amount + Arrow */}
                     <div className="flex items-center gap-4 sm:gap-6 shrink-0 self-end sm:self-center">
-                        <div className="text-right">
-                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total</div>
-                            <div className="text-lg font-black text-gray-900">{formatAmount(q.total_cost)}</div>
-                            {q.price_confirmed !== true && (
-                                <span className="inline-block mt-1 text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pending confirmation</span>
-                            )}
+                        <div className={`text-right px-3 py-2 rounded-lg border-2 ${q.price_confirmed ? 'border-emerald-300 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'}`}>
+                            <div className={`text-[10px] font-bold uppercase tracking-widest ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                {q.price_confirmed ? 'Confirmed' : '⚠ Pending'}
+                            </div>
+                            <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatAmount(q.total_cost)}</div>
                         </div>
                         <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
