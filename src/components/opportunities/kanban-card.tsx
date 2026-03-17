@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -43,11 +44,20 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   const [creating] = useState(false);
   const [isUpdatingColor, setIsUpdatingColor] = useState(false);
   const [displayColor, setDisplayColor] = useState(opportunity.focusColor);
+  const [noteHover, setNoteHover] = useState(false);
+  const noteRef = useRef<HTMLDivElement>(null);
+  const [notePos, setNotePos] = useState({ top: 0, left: 0, showBelow: false });
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync if prop changes (e.g. from elsewhere or after refresh)
   useEffect(() => {
     setDisplayColor(opportunity.focusColor);
   }, [opportunity.focusColor]);
+
+  // Cleanup leave timeout on unmount
+  useEffect(() => () => {
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+  }, []);
 
   const {
     attributes,
@@ -134,7 +144,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           : opportunity.closureStatus === 'lost'
             ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
             : 'border-none ring-1 ring-slate-100/50'
-          } relative overflow-hidden pt-1.5`}>
+          } relative overflow-visible pt-1.5`}>
         {/* Color Highlight Bar - Now at the Top and thicker */}
         {displayColor && (
           <div
@@ -279,8 +289,59 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               </div>
             )}
             {opportunity.notes && (
-              <div className="text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 line-clamp-2 mt-1">
-                📝 {opportunity.notes}
+              <div
+                ref={noteRef}
+                className="relative"
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  if (leaveTimeoutRef.current) {
+                    clearTimeout(leaveTimeoutRef.current);
+                    leaveTimeoutRef.current = null;
+                  }
+                  const rect = noteRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    const showBelow = rect.top < 200;
+                    setNotePos({
+                      top: showBelow ? rect.bottom + 4 : rect.top - 4,
+                      left: rect.left,
+                      showBelow,
+                    });
+                  }
+                  setNoteHover(true);
+                }}
+                onMouseLeave={() => {
+                  leaveTimeoutRef.current = setTimeout(() => setNoteHover(false), 150);
+                }}
+              >
+                <div className="text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 line-clamp-2 mt-1">
+                  📝 {opportunity.notes}
+                </div>
+                {noteHover &&
+                  typeof document !== 'undefined' &&
+                  createPortal(
+                    <div
+                      className="fixed z-[9999] w-72 max-h-60 overflow-y-auto p-3 rounded-lg shadow-lg border border-amber-200 bg-white text-sm text-amber-900 whitespace-pre-wrap"
+                      style={{
+                        left: notePos.left,
+                        top: notePos.top,
+                        transform: notePos.showBelow ? undefined : 'translateY(-100%)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.stopPropagation();
+                        if (leaveTimeoutRef.current) {
+                          clearTimeout(leaveTimeoutRef.current);
+                          leaveTimeoutRef.current = null;
+                        }
+                        setNoteHover(true);
+                      }}
+                      onMouseLeave={() => {
+                        leaveTimeoutRef.current = setTimeout(() => setNoteHover(false), 150);
+                      }}
+                    >
+                      📝 {opportunity.notes}
+                    </div>,
+                    document.body
+                  )}
               </div>
             )}
           </div>

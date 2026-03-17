@@ -151,18 +151,24 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             const activeContainer = findContainer(activeId, prev);
             const overContainer = findContainer(overIdStr, prev);
 
-            if (!activeContainer || !overContainer || activeContainer === overContainer) {
-                return prev;
-            }
+            if (!activeContainer || !overContainer) return prev;
 
             const activeIndex = prev.findIndex((o) => o.id === activeId);
             const overIndex = prev.findIndex((o) => o.id === overIdStr);
 
+            // Same-column reordering
+            if (activeContainer === overContainer) {
+                if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+                    return arrayMove(prev, activeIndex, overIndex);
+                }
+                return prev;
+            }
+
+            // Cross-column move
             let newIndex;
             if (overIndex !== -1) {
                 newIndex = overIndex;
             } else {
-                // If dropped on empty container, find first/last index for that container
                 const containerItems = prev.filter(o => o.stage === overContainer);
                 if (containerItems.length > 0) {
                     newIndex = prev.findIndex(o => o.id === containerItems[containerItems.length - 1].id) + 1;
@@ -184,59 +190,22 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
     }
 
     function handleDragEnd(event: DragEndEvent) {
-        const { active, over } = event;
-        const overId = over?.id;
-
-        if (!overId) {
+        if (!event.over) {
             setActiveId(null);
             setStartStage(null);
             return;
         }
 
-        const activeId = active.id as string;
-        const overIdStr = overId as string;
+        const activeId = event.active.id as string;
 
         setOpportunities((prev) => {
-            const activeIndex = prev.findIndex((o) => o.id === activeId);
-            let overIndex = prev.findIndex((o) => o.id === overIdStr);
+            const item = prev.find(o => o.id === activeId);
+            const currentStage = item?.stage;
 
-            const activeContainer = findContainer(activeId, prev);
-            const overContainer = findContainer(overIdStr, prev);
-
-            if (!activeContainer || !overContainer) return prev;
-
-            // Reordering within the same column or final drop after DragOver
-            if (activeContainer === overContainer) {
-                if (overIndex === -1) {
-                    // Try to move to the very top of the column if dropped on the container/header
-                    overIndex = prev.findIndex(o => o.stage === overContainer);
-                }
-
-                if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
-                    const newItems = arrayMove(prev, activeIndex, overIndex);
-                    // Defer callbacks to avoid state updates during render
-                    queueMicrotask(() => {
-                        onReorder?.(newItems);
-                    });
-                    return newItems;
-                }
+            if (startStage && currentStage && startStage !== currentStage) {
+                queueMicrotask(() => onStageChange?.(activeId, currentStage as OpportunityStage));
             }
-
-            // If we've reached here, either no reorder was needed or it was a cross-column move
-            // Check if stage change needs reporting
-            if (startStage && activeContainer && startStage !== activeContainer) {
-                queueMicrotask(() => {
-                    onStageChange?.(activeId, activeContainer as OpportunityStage);
-                });
-                queueMicrotask(() => {
-                    onReorder?.(prev);
-                });
-            } else if (activeIndex !== -1) {
-                // Occasion when same column move but DragEnd didn't change indices (already handled by DragOver)
-                queueMicrotask(() => {
-                    onReorder?.(prev);
-                });
-            }
+            queueMicrotask(() => onReorder?.(prev));
 
             return prev;
         });

@@ -764,8 +764,7 @@ export default function ShipmentDetailPage() {
 
             {/* ===== DOCUMENT CHECKLIST ===== */}
             {(() => {
-                const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const uploadedTypes = documents.map(d => normalize(d.document_type || ''));
+                const uploadedTypeSet = new Set(documents.map(d => d.document_type).filter(Boolean));
                 const allCategories = [
                     ...DOCUMENT_CATEGORIES,
                     ...(isThaiGacp ? [{
@@ -783,7 +782,7 @@ export default function ShipmentDetailPage() {
                 const processed = allCategories.map(cat => {
                     const types = cat.types.map(type => ({
                         ...type,
-                        isUploaded: uploadedTypes.some(u => u === normalize(type.id))
+                        isUploaded: uploadedTypeSet.has(type.id)
                     }));
                     return { ...cat, types, uploadedCount: types.filter(t => t.isUploaded).length };
                 });
