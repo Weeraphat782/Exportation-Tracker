@@ -38,7 +38,7 @@ export default function OpportunitiesPage() {
     let query = supabase
       .from('opportunities')
       // Select opportunity fields AND linked quotations(id)
-      .select('*, quotations(id), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
+      .select('*, quotations(id, price_confirmed), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
 
     // Filter by owner_id if user is logged in
     if (userId) {
@@ -76,7 +76,7 @@ export default function OpportunitiesPage() {
         destination_id?: string;
         destination?: { country: string; port: string | null };
         product_id?: string | null;
-        quotations?: { id: string }[];
+        quotations?: { id: string; price_confirmed?: boolean }[];
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
         focus_color?: string | null;
@@ -85,9 +85,12 @@ export default function OpportunitiesPage() {
 
       // Map DB fields to Frontend types
       const mapped: Opportunity[] = (data as unknown as RawSupabaseOpportunity[]).map((item) => {
-        // item.quotations will be an array of objects { id: ... } - get ALL quotation IDs
+        // item.quotations will be an array of objects { id, price_confirmed }
         const quotationIds = item.quotations && item.quotations.length > 0
           ? item.quotations.map(q => q.id)
+          : [];
+        const quotationDetails = item.quotations && item.quotations.length > 0
+          ? item.quotations.map(q => ({ id: q.id, price_confirmed: q.price_confirmed ?? false }))
           : [];
 
         // Extract destination name
@@ -118,7 +121,8 @@ export default function OpportunitiesPage() {
           productId: item.opportunity_products?.map(op => op.product.id) || [],
           productName: item.opportunity_products?.map(op => op.product.name) || [],
 
-          quotationIds: quotationIds,
+          quotationIds,
+          quotationDetails,
           closureStatus: item.closure_status || null,
           focusColor: item.focus_color || null,
           sortOrder: item.sort_order || null

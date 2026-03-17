@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -90,6 +90,21 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   };
 
   const quotationCount = opportunity.quotationIds?.length || 0;
+
+  const handleConfirmPrice = async (qId: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotations')
+        .update({ price_confirmed: true })
+        .eq('id', qId);
+      if (error) throw error;
+      toast.success('Price confirmed');
+      onRefresh?.();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to confirm price');
+    }
+  };
 
   const handleUpdateColor = async (color: string | null) => {
     // Optimistic update
@@ -319,18 +334,38 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                       {quotationCount} Quotation{quotationCount > 1 ? 's' : ''}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    {opportunity.quotationIds?.map((qId, index) => (
-                      <DropdownMenuItem
-                        key={qId}
-                        className="cursor-pointer text-xs"
-                        onSelect={() => router.push(`/shipping-calculator/preview?id=${qId}`)}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink className="mr-2 h-3 w-3" />
-                        View Quotation #{index + 1}
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent align="start" className="w-56">
+                    {opportunity.quotationIds?.map((qId, index) => {
+                      const detail = opportunity.quotationDetails?.[index];
+                      const isConfirmed = detail?.price_confirmed === true;
+                      return (
+                        <div key={qId} className="flex flex-col gap-0.5 py-1">
+                          <DropdownMenuItem
+                            className="cursor-pointer text-xs"
+                            onSelect={() => router.push(`/shipping-calculator/preview?id=${qId}`)}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="mr-2 h-3 w-3" />
+                            View Quotation #{index + 1}
+                          </DropdownMenuItem>
+                          {isConfirmed ? (
+                            <div className="px-2 py-1.5 text-xs text-emerald-600 flex items-center gap-1.5">
+                              <CheckCircle className="h-3 w-3" />
+                              Price Confirmed
+                            </div>
+                          ) : (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-xs text-amber-700 focus:text-amber-700"
+                              onSelect={() => handleConfirmPrice(qId)}
+                              onPointerDown={(e) => e.stopPropagation()}
+                            >
+                              <ShieldCheck className="mr-2 h-3 w-3" />
+                              Confirm Price
+                            </DropdownMenuItem>
+                          )}
+                        </div>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
 

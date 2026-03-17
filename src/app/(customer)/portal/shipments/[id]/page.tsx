@@ -553,6 +553,12 @@ export default function ShipmentDetailPage() {
                     </div>
                     <TrackingProgress sc={sc} />
                 </div>
+                {q.price_confirmed !== true && (
+                    <div className="mx-6 mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium flex items-center gap-2">
+                        <span className="text-amber-500">⚠</span>
+                        Waiting for price confirmation – final price might be changed
+                    </div>
+                )}
             </div>
 
             {/* ===== SHIPPING INFO + WEIGHT ===== */}

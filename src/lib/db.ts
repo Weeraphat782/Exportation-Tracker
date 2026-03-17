@@ -135,6 +135,7 @@ export interface Quotation {
 
   share_token?: string | null;
   storage_provider?: 'supabase' | 'r2';
+  price_confirmed?: boolean;
 
   opportunities?: {
     stage: string;
