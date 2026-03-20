@@ -9,8 +9,8 @@ const carriers = [
     { country: "Macedonia", city: "Skopje", carrier: "LH", status: "Available" },
     { country: "Germany", city: "Munich, Frankfurt", carrier: "LH", status: "Available" },
     { country: "Australia", city: "Melbourne, Sydney", carrier: "TG", status: "Available" },
-    { country: "Czech", city: "Prague", carrier: "QR", status: "Suspended" },
-    { country: "Portugal", city: "Lisbon", carrier: "QR", status: "Suspended" },
+    { country: "Czech", city: "Prague", carrier: "QR", status: "Available" },
+    { country: "Portugal", city: "Lisbon", carrier: "QR", status: "Available" },
     { country: "New Zealand", city: "Auckland", carrier: "Qantas", status: "Available" },
 ];
 
