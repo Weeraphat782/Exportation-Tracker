@@ -1,6 +1,7 @@
 -- 10 Resources: Thai medical cannabis export → EU strategic framework
 -- Source synthesis from internal strategic brief (no third-party company names except Cantrak).
--- Cover images: eu-cannabis-res-01..10 in public/images/resources/ (matched per topic in seed script)
+-- Cover images: run `npm run upload:resources-r2` to put PNGs on Cloudflare R2 and set Supabase image_url.
+-- (Or keep paths under /images/resources/ for local-only.)
 -- Safe to re-run: UPSERT by slug
 
 INSERT INTO public.resources (

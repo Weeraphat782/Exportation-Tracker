@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "seed:eu-resources": "node scripts/seed-eu-resources.mjs"
+    "seed:eu-resources": "node scripts/seed-eu-resources.mjs",
+    "upload:resources-r2": "node scripts/upload-resource-covers-to-r2.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
