@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { MarkdownBody } from "@/components/marketing/MarkdownBody";
 
 interface PageProps {
     params: Promise<{ slug: string }>;
@@ -88,12 +89,10 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
                 </div>
             )}
             <h1 className="text-3xl font-bold leading-tight text-neutral-900">{item.title}</h1>
-            <div className="prose prose-neutral mt-8 max-w-none">
+            <div className="mt-8 max-w-none">
                 <p className="text-lg leading-relaxed text-neutral-600">{item.excerpt}</p>
                 {item.content && (
-                    <div className="mt-6 whitespace-pre-wrap text-neutral-600 leading-relaxed">
-                        {item.content}
-                    </div>
+                    <MarkdownBody className="mt-6">{item.content}</MarkdownBody>
                 )}
             </div>
         </article>
