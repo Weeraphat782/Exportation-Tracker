@@ -7,6 +7,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Opportunity, STAGE_COLORS } from '@/types/opportunity';
 import {
   DropdownMenu,
@@ -26,6 +28,8 @@ interface KanbanCardProps {
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
   onRefresh?: () => void;
+  /** Patch parent/board state after phyto saves — avoids full refetch */
+  onPhytoDoneChange?: (opportunityId: string, phytoDone: boolean) => void;
 }
 
 const FOCUS_COLORS = [
@@ -38,12 +42,14 @@ const FOCUS_COLORS = [
   { label: 'Orange', value: '#f97316', class: 'bg-orange-500' },
 ];
 
-export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase, onRefresh }: KanbanCardProps) {
+export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase, onRefresh, onPhytoDoneChange }: KanbanCardProps) {
   // console.log(`Card ${opportunity.id}: onEdit is`, !!onEdit);
   const router = useRouter();
   const [creating] = useState(false);
   const [isUpdatingColor, setIsUpdatingColor] = useState(false);
   const [displayColor, setDisplayColor] = useState(opportunity.focusColor);
+  const [phytoDone, setPhytoDone] = useState(!!opportunity.phytoDone);
+  const [isUpdatingPhyto, setIsUpdatingPhyto] = useState(false);
   const [noteHover, setNoteHover] = useState(false);
   const noteRef = useRef<HTMLDivElement>(null);
   const [notePos, setNotePos] = useState({ top: 0, left: 0, showBelow: false });
@@ -53,6 +59,10 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   useEffect(() => {
     setDisplayColor(opportunity.focusColor);
   }, [opportunity.focusColor]);
+
+  useEffect(() => {
+    setPhytoDone(!!opportunity.phytoDone);
+  }, [opportunity.phytoDone]);
 
   // Cleanup leave timeout on unmount
   useEffect(() => () => {
@@ -125,6 +135,29 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       toast.error('Failed to update color');
     } finally {
       setIsUpdatingColor(false);
+    }
+  };
+
+  const handlePhytoChange = async (checked: boolean) => {
+    const next = checked === true;
+    setPhytoDone(next);
+    setIsUpdatingPhyto(true);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ phyto_done: next })
+        .eq('id', opportunity.id);
+
+      if (error) throw error;
+
+      toast.success(next ? 'Saved: Phyto marked as done' : 'Phyto mark cleared');
+      onPhytoDoneChange?.(opportunity.id, next);
+    } catch (err) {
+      console.error('Error updating phyto_done:', err);
+      setPhytoDone(!!opportunity.phytoDone);
+      toast.error('Could not save phyto status');
+    } finally {
+      setIsUpdatingPhyto(false);
     }
   };
 
@@ -274,6 +307,26 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             <span className="font-bold text-gray-900">
               {opportunity.amount.toLocaleString()} {opportunity.currency}
             </span>
+          </div>
+
+          <div
+            className="flex items-center gap-2 mb-2"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              id={`phyto-${opportunity.id}`}
+              checked={phytoDone}
+              disabled={isUpdatingPhyto}
+              onCheckedChange={(v) => handlePhytoChange(v === true)}
+              className="border-emerald-300 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+            />
+            <Label
+              htmlFor={`phyto-${opportunity.id}`}
+              className="text-[10px] font-semibold text-slate-600 cursor-pointer leading-tight mb-0"
+            >
+              Phyto done
+            </Label>
           </div>
 
           {/* Compact Details - Only show key info */}

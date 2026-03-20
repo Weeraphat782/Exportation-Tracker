@@ -41,6 +41,8 @@ export interface Opportunity {
 
     // Closure status - separate from stage (card can be won/lost at any stage)
     closureStatus?: 'won' | 'lost' | null;
+    /** Kanban: staff tick when phyto is done */
+    phytoDone?: boolean;
     focusColor?: string | null;
     sortOrder?: number | null;
 }

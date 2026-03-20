@@ -79,6 +79,7 @@ export default function OpportunitiesPage() {
         quotations?: { id: string; price_confirmed?: boolean }[];
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
+        phyto_done?: boolean | null;
         focus_color?: string | null;
         sort_order?: number | null;
       }
@@ -124,6 +125,7 @@ export default function OpportunitiesPage() {
           quotationIds,
           quotationDetails,
           closureStatus: item.closure_status || null,
+          phytoDone: item.phyto_done === true,
           focusColor: item.focus_color || null,
           sortOrder: item.sort_order || null
         }
@@ -207,6 +209,12 @@ export default function OpportunitiesPage() {
       console.error('Error in handleDelete:', err);
     }
   };
+
+  const handlePhytoDoneChange = useCallback((opportunityId: string, phytoDone: boolean) => {
+    setOpportunities((prev) =>
+      prev.map((o) => (o.id === opportunityId ? { ...o, phytoDone } : o))
+    );
+  }, []);
 
   const handleReorder = async (updatedSubset: Opportunity[]) => {
     // Build order map from the reordered subset
@@ -616,6 +624,7 @@ export default function OpportunitiesPage() {
                   onWinCase={handleWinCase}
                   onLoseCase={handleLoseCase}
                   onRefresh={fetchOpportunities}
+                  onPhytoDoneChange={handlePhytoDoneChange}
                   onReorder={handleReorder}
                   initialOpportunities={filteredOpportunities}
                 />

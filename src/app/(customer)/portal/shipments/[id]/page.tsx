@@ -463,23 +463,7 @@ export default function ShipmentDetailPage() {
 
                 if (success) ok++;
             }
-            if (ok > 0) {
-                toast.success(`Uploaded ${ok} file(s)`);
-                fetch('/api/telegram/notify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        quotationId: id,
-                        quotationNo: quotation.quotation_no || id.slice(0, 8),
-                        customerName: quotation.company_name || 'N/A',
-                        destination: quotation.destination || 'N/A',
-                        documentTypes: [...new Set(uploadQueue.map(item => item.documentTypeName))],
-                        fileCount: ok,
-                    }),
-                }).catch(() => {});
-                setUploadQueue([]);
-                await loadData();
-            }
+            if (ok > 0) { toast.success(`Uploaded ${ok} file(s)`); setUploadQueue([]); await loadData(); }
         } catch (err) { console.error(err); toast.error('Upload error'); }
         finally { setUploading(false); }
     };
