@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -22,6 +22,7 @@ import {
   X,
   Newspaper,
   BookOpen,
+  Plane,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ const SETTINGS_ITEMS = [
   { href: '/settings/products', icon: Package, label: 'Product Master' },
   { href: '/settings/ai', icon: Sparkles, label: 'AI Settings' },
   { href: '/document-comparison/rules', icon: ListChecks, label: 'Comparison Rules' },
+  { href: '/settings/carrier-board', icon: Plane, label: 'Carrier board' },
 ];
 
 interface SidebarProps {
@@ -73,6 +75,17 @@ interface SidebarProps {
 const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pathname = usePathname();
+
+  // Expand Settings when user is on any settings route (incl. carrier-board) or comparison rules
+  useEffect(() => {
+    if (isCollapsed) return;
+    if (
+      pathname?.startsWith('/settings') ||
+      pathname?.startsWith('/document-comparison/rules')
+    ) {
+      setSettingsOpen(true);
+    }
+  }, [pathname, isCollapsed]);
 
   if (isCollapsed && settingsOpen) {
     setSettingsOpen(false);

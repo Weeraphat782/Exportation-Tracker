@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { ArrowUpCircle, FileText, Trash2 } from 'lucide-react';
+import { ArrowUpCircle, FileText, Trash2, Plane } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -337,10 +338,16 @@ export default function TemplatesAdminPage() {
           </div>
         </CardContent>
 
-        <CardFooter className="bg-gray-50 flex justify-between">
+        <CardFooter className="bg-gray-50 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500">
             Upload PDF or image examples for each document type
           </p>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/settings/carrier-board" className="inline-flex items-center gap-2">
+              <Plane className="h-4 w-4" />
+              Carrier board routes
+            </Link>
+          </Button>
         </CardFooter>
       </Card>
     </div>
