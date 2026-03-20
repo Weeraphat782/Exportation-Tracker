@@ -51,6 +51,7 @@ export interface Destination {
   id: string;
   country: string;
   port?: string;
+  is_active: boolean; // Added field
   created_at?: string;
   updated_at?: string;
   user_id?: string;
@@ -401,7 +402,7 @@ export async function deleteCompany(id: string) {
 }
 
 // DESTINATION FUNCTIONS
-export async function getDestinations() {
+export async function getDestinations(onlyActive: boolean = false) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -409,18 +410,23 @@ export async function getDestinations() {
       return [];
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('destinations')
-      .select('id, country, port')
-      .eq('user_id', user.id)
-      .order('country', { ascending: true });
+      .select('id, country, port, is_active')
+      .eq('user_id', user.id);
+    
+    if (onlyActive) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query.order('country', { ascending: true });
 
     if (error) {
       console.error('Error fetching destinations:', error);
       return [];
     }
 
-    return data as Pick<Destination, 'id' | 'country' | 'port'>[];
+    return data as Pick<Destination, 'id' | 'country' | 'port' | 'is_active'>[];
   } catch (error) {
     console.error('Error in getDestinations:', error);
     return [];
@@ -431,7 +437,7 @@ export async function getDestinationById(id: string) {
   try {
     const { data, error } = await supabase
       .from('destinations')
-      .select('id, country, port')
+      .select('id, country, port, is_active')
       .eq('id', id)
       .single();
 
@@ -440,7 +446,7 @@ export async function getDestinationById(id: string) {
       return null;
     }
 
-    return data as Pick<Destination, 'id' | 'country' | 'port'>;
+    return data as Pick<Destination, 'id' | 'country' | 'port' | 'is_active'>;
   } catch (error) {
     console.error('Error in getDestinationById:', error);
     return null;
@@ -458,13 +464,14 @@ export async function createDestination(destination: Omit<Destination, 'id' | 'c
     const dataToSave = {
       country: destination.country,
       port: destination.port || null,
+      is_active: destination.is_active ?? true,
       user_id: userId
     };
 
     const { data, error } = await supabase
       .from('destinations')
       .insert([dataToSave])
-      .select('id, country, port');
+      .select('id, country, port, is_active');
 
     if (error) {
       console.error('Error creating destination:', error);
@@ -478,13 +485,13 @@ export async function createDestination(destination: Omit<Destination, 'id' | 'c
   }
 }
 
-export async function updateDestination(id: string, updates: Partial<Pick<Destination, 'country' | 'port'>>) {
+export async function updateDestination(id: string, updates: Partial<Pick<Destination, 'country' | 'port' | 'is_active'>>) {
   try {
     const { data, error } = await supabase
       .from('destinations')
       .update(updates)
       .eq('id', id)
-      .select('id, country, port');
+      .select('id, country, port, is_active');
 
     if (error) {
       console.error('Error updating destination:', error);

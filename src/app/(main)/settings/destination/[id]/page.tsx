@@ -12,11 +12,14 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getDestinationById, updateDestination /*, Destination */ } from '@/lib/db'; // Import db functions
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 // ใช้ Schema เดียวกับหน้า New ที่แก้ไขแล้ว
 const destinationFormSchema = z.object({
   country: z.string().min(1, { message: 'Country name is required' }),
   port: z.string().optional(),
+  is_active: z.boolean(),
 });
 
 type DestinationFormValues = z.infer<typeof destinationFormSchema>;
@@ -34,6 +37,7 @@ export default function EditDestinationPage() {
     defaultValues: { // ค่าเริ่มต้นว่าง รอโหลดข้อมูล
       country: '',
       port: '',
+      is_active: true,
     },
   });
 
@@ -55,6 +59,7 @@ export default function EditDestinationPage() {
           form.reset({
             country: destination.country || '',
             port: destination.port || '',
+            is_active: destination.is_active ?? true,
           });
         } else {
           setError(`Destination with ID ${destinationId} not found.`);
@@ -84,6 +89,7 @@ export default function EditDestinationPage() {
       
       if (updatedDestination) {
         console.log('Updated destination in DB:', updatedDestination);
+        toast.success('Destination updated successfully');
         router.push('/settings/destination');
       } else {
         throw new Error('Failed to update destination in database.');
@@ -156,6 +162,28 @@ export default function EditDestinationPage() {
                           <Input placeholder="Enter port name (optional)" {...field} />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="is_active"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Active
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Active destinations are selectable in freight rates and shipping calculator.
+                          </p>
+                        </div>
                       </FormItem>
                     )}
                   />

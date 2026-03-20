@@ -65,7 +65,7 @@ export default function EditFreightRatePage() {
     async function loadDestinations() {
       setLoadingDestinations(true);
       try {
-        const data = await getDestinations();
+        const data = await getDestinations(true);
         setDestinations(data || []);
       } catch (err) {
         console.error("Error loading destinations:", err);

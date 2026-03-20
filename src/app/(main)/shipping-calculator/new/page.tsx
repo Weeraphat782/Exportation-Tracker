@@ -765,7 +765,7 @@ function ShippingCalculatorPageContent() {
 
                 // 2. Fetch other data concurrently
                 const [destinationsData, freightRatesData, companiesData, productsData] = await Promise.all([
-                    getDestinations(),
+                    getDestinations(true),
                     getFreightRates(),
                     getCompanies(),
                     getProducts()

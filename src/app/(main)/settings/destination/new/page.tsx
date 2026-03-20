@@ -12,10 +12,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createDestination } from '@/lib/db';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 const destinationFormSchema = z.object({
   country: z.string().min(1, { message: 'Country name is required' }),
   port: z.string().optional(),
+  is_active: z.boolean(),
 });
 
 type DestinationFormValues = z.infer<typeof destinationFormSchema>;
@@ -30,6 +33,7 @@ export default function NewDestinationPage() {
     defaultValues: {
       country: '',
       port: '',
+      is_active: true,
     },
   });
 
@@ -42,6 +46,7 @@ export default function NewDestinationPage() {
 
       if (newDestination) {
         console.log('Saved destination to DB:', newDestination);
+        toast.success('Destination created successfully');
         router.push('/settings/destination');
       } else {
         throw new Error('Failed to save destination to database.');
@@ -96,6 +101,28 @@ export default function NewDestinationPage() {
                         <Input placeholder="Enter port name (optional)" {...field} />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Active
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Active destinations are selectable in freight rates and shipping calculator.
+                        </p>
+                      </div>
                     </FormItem>
                   )}
                 />

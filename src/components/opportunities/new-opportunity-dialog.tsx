@@ -92,7 +92,7 @@ export function OpportunityDialog({
             try {
                 const [companiesData, destinationsData, productsData] = await Promise.all([
                     getCompanies(),
-                    getDestinations(),
+                    getDestinations(true),
                     getProducts()
                 ]);
                 console.log('Fetched Companies:', companiesData);

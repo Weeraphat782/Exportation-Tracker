@@ -3,11 +3,14 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getDestinations, deleteDestination as dbDeleteDestination, Destination as DestinationType } from '@/lib/db'; // Import จาก db.ts
+import { getDestinations, deleteDestination as dbDeleteDestination, updateDestination, Destination as DestinationType } from '@/lib/db'; // Import updateDestination
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 export default function DestinationSettingsPage() {
   const router = useRouter();
@@ -46,6 +49,28 @@ export default function DestinationSettingsPage() {
     router.push(`/settings/destination/${id}`);
   };
 
+  // Handle toggle active status
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    // Optimistically update UI
+    setDestinations(destinations.map(dest => 
+      dest.id === id ? { ...dest, is_active: !currentStatus } : dest
+    ));
+
+    try {
+      const updated = await updateDestination(id, { is_active: !currentStatus });
+      if (!updated) {
+        throw new Error("Failed to update status");
+      }
+      toast.success(`Destination ${!currentStatus ? 'activated' : 'disabled'} successfully`);
+    } catch (err) {
+      console.error('Error toggling destination status:', err);
+      toast.error('Failed to update destination status');
+      // Revert UI change on error
+      const originalData = await getDestinations();
+      setDestinations(originalData);
+    }
+  };
+
   // Handle delete button click
   const handleDelete = async (id: string) => {
     const destinationToDelete = destinations.find(d => d.id === id);
@@ -68,7 +93,7 @@ export default function DestinationSettingsPage() {
         setDestinations([...destinations]); 
       } else {
          console.log(`Deleted destination with ID: ${id}`);
-         // Optionally show a success message
+         toast.success('Destination deleted successfully');
       }
     } catch (err) {
       console.error('Error deleting destination:', err);
@@ -106,6 +131,7 @@ export default function DestinationSettingsPage() {
                 <TableRow>
                   <TableHead>Country</TableHead>
                   <TableHead>Port</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,6 +145,25 @@ export default function DestinationSettingsPage() {
                     <TableRow key={destination.id}>
                       <TableCell className="font-medium">{destination.country}</TableCell>
                       <TableCell>{destination.port || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Switch 
+                            checked={destination.is_active} 
+                            onCheckedChange={() => handleToggleActive(destination.id, destination.is_active)}
+                          />
+                          {destination.is_active ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 gap-1">
+                              <XCircle className="h-3 w-3" />
+                              Disabled
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button 
                           variant="outline" 
