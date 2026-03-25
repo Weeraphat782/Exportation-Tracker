@@ -28,7 +28,10 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
         },
     });
 
-    const totalAmount = opportunities.reduce((sum, opp) => sum + opp.amount, 0);
+    const totalAmount = opportunities.reduce((sum, opp) => {
+        const quotationTotal = opp.quotationDetails?.filter(q => q.total_cost && q.total_cost > 0).reduce((s, q) => s + (q.total_cost || 0), 0) || 0;
+        return sum + (quotationTotal > 0 ? quotationTotal : opp.amount);
+    }, 0);
 
     return (
         <div className="flex flex-col h-full min-w-[280px] w-[300px] bg-gray-50/50 rounded-lg border p-2">

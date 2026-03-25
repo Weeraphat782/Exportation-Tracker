@@ -81,6 +81,7 @@ const STAGES: OpportunityStage[] = [
     'pending_booking',
     'booking_requested',
     'awb_received',
+    'waiting_for_pickup',
     'payment_received',
 ];
 
@@ -157,27 +158,33 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
             const activeIndex = prev.findIndex((o) => o.id === activeId);
             const overIndex = prev.findIndex((o) => o.id === overIdStr);
 
+            // Common calculation for target index when dragging over a container (column background/header)
+            let newIndex;
+            if (overIndex !== -1) {
+                newIndex = overIndex;
+            } else {
+                // If overIndex is -1, we're likely over a column itself (not a card)
+                const containerItems = prev.filter(o => o.stage === overContainer);
+                if (containerItems.length > 0) {
+                    // Move to the end of that container
+                    const lastItemInContainer = containerItems[containerItems.length - 1];
+                    const lastIdx = prev.findIndex(o => o.id === lastItemInContainer.id);
+                    newIndex = lastIdx + 1;
+                } else {
+                    // Empty column, move to end of all items (it's fine for Kanban list)
+                    newIndex = prev.length;
+                }
+            }
+
             // Same-column reordering
             if (activeContainer === overContainer) {
-                if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
-                    return arrayMove(prev, activeIndex, overIndex);
+                if (activeIndex !== -1 && newIndex !== -1 && activeIndex !== newIndex) {
+                    return arrayMove(prev, activeIndex, newIndex);
                 }
                 return prev;
             }
 
             // Cross-column move
-            let newIndex;
-            if (overIndex !== -1) {
-                newIndex = overIndex;
-            } else {
-                const containerItems = prev.filter(o => o.stage === overContainer);
-                if (containerItems.length > 0) {
-                    newIndex = prev.findIndex(o => o.id === containerItems[containerItems.length - 1].id) + 1;
-                } else {
-                    newIndex = prev.length;
-                }
-            }
-
             const newItems = [...prev];
             const newStage = overContainer as OpportunityStage;
             newItems[activeIndex] = {

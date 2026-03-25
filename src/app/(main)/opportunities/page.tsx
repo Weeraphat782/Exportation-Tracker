@@ -38,7 +38,7 @@ export default function OpportunitiesPage() {
     let query = supabase
       .from('opportunities')
       // Select opportunity fields AND linked quotations(id)
-      .select('*, quotations(id, price_confirmed), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
+      .select('*, quotations(id, price_confirmed, total_cost, quotation_no), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
 
     // Filter by owner_id if user is logged in
     if (userId) {
@@ -76,12 +76,13 @@ export default function OpportunitiesPage() {
         destination_id?: string;
         destination?: { country: string; port: string | null };
         product_id?: string | null;
-        quotations?: { id: string; price_confirmed?: boolean }[];
+        quotations?: { id: string; price_confirmed?: boolean; total_cost?: number; quotation_no?: string }[];
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
         phyto_done?: boolean | null;
         focus_color?: string | null;
         sort_order?: number | null;
+        pickup_date?: string | null;
       }
 
       // Map DB fields to Frontend types
@@ -91,7 +92,7 @@ export default function OpportunitiesPage() {
           ? item.quotations.map(q => q.id)
           : [];
         const quotationDetails = item.quotations && item.quotations.length > 0
-          ? item.quotations.map(q => ({ id: q.id, price_confirmed: q.price_confirmed ?? false }))
+          ? item.quotations.map(q => ({ id: q.id, price_confirmed: q.price_confirmed ?? false, total_cost: q.total_cost, quotation_no: q.quotation_no }))
           : [];
 
         // Extract destination name
@@ -127,7 +128,8 @@ export default function OpportunitiesPage() {
           closureStatus: item.closure_status || null,
           phytoDone: item.phyto_done === true,
           focusColor: item.focus_color || null,
-          sortOrder: item.sort_order || null
+          sortOrder: item.sort_order || null,
+          pickupDate: item.pickup_date || undefined
         }
       });
       setOpportunities(mapped);
@@ -217,26 +219,24 @@ export default function OpportunitiesPage() {
   }, []);
 
   const handleReorder = async (updatedSubset: Opportunity[]) => {
-    // Build order map from the reordered subset
-    const orderMap = new Map(updatedSubset.map((opp, index) => [opp.id, index]));
-
-    // Update parent state: replace items AND reorder the array
+    // Update parent state: replace items in their original "slots"
     setOpportunities(prevOpportunities => {
-      const updatedMap = new Map(updatedSubset.map(opp => [opp.id, opp]));
+      const newOpportunities = [...prevOpportunities];
+      
+      // Find the original indices where the visible items were located
+      const subsetIds = new Set(updatedSubset.map(opp => opp.id));
+      const originalIndices = prevOpportunities
+        .map((opp, index) => subsetIds.has(opp.id) ? index : -1)
+        .filter(idx => idx !== -1);
 
-      // Update fields for items that were reordered
-      const merged = prevOpportunities.map(opp => {
-        const updated = updatedMap.get(opp.id);
-        return updated ? updated : opp;
+      // Map newly ordered items back into those original slots
+      updatedSubset.forEach((updatedOpp, i) => {
+        if (i < originalIndices.length) {
+          newOpportunities[originalIndices[i]] = updatedOpp;
+        }
       });
-
-      // Sort so items from the subset appear in their new order
-      return merged.sort((a, b) => {
-        const aOrder = orderMap.has(a.id) ? orderMap.get(a.id)! : Infinity;
-        const bOrder = orderMap.has(b.id) ? orderMap.get(b.id)! : Infinity;
-        if (aOrder !== Infinity && bOrder !== Infinity) return aOrder - bOrder;
-        return 0;
-      });
+      
+      return newOpportunities;
     });
 
     try {
@@ -301,6 +301,7 @@ export default function OpportunitiesPage() {
         notes: opportunityData.notes || null,
         destination_id: opportunityData.destinationId || null,
         owner_id: user?.id || null, // Set owner if available
+        pickup_date: opportunityData.pickupDate || null,
       };
 
       console.log('Payload to save:', payload);

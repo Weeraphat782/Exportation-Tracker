@@ -5,6 +5,7 @@ export type OpportunityStage =
     | 'pending_booking'
     | 'booking_requested'
     | 'awb_received'
+    | 'waiting_for_pickup'
     | 'payment_received';
 
 // Closure status - separate from stage
@@ -24,6 +25,7 @@ export interface Opportunity {
     ownerName: string;
     createdAt: string;
     updatedAt: string;
+    pickupDate?: string;
 
     // Optional fields
     vehicleType?: string;
@@ -37,7 +39,7 @@ export interface Opportunity {
 
     // Links - Support multiple quotations
     quotationIds?: string[]; // Array of linked quotation IDs
-    quotationDetails?: { id: string; price_confirmed?: boolean }[]; // For Confirm Price button
+    quotationDetails?: { id: string; price_confirmed?: boolean; total_cost?: number; quotation_no?: string }[]; // For price display & Confirm Price button
 
     // Closure status - separate from stage (card can be won/lost at any stage)
     closureStatus?: 'won' | 'lost' | null;
@@ -54,6 +56,7 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
     pending_booking: 'Pending Booking',
     booking_requested: 'Booking Requested',
     awb_received: 'AWB Received',
+    waiting_for_pickup: 'Waiting for Pickup',
     payment_received: 'Payment Received',
 };
 
@@ -64,5 +67,6 @@ export const STAGE_COLORS: Record<OpportunityStage, string> = {
     pending_booking: 'bg-purple-50 text-purple-700 border-purple-200',
     booking_requested: 'bg-violet-50 text-violet-700 border-violet-200',
     awb_received: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    waiting_for_pickup: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     payment_received: 'bg-amber-50 text-amber-700 border-amber-200',
 };

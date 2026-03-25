@@ -50,6 +50,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   const [displayColor, setDisplayColor] = useState(opportunity.focusColor);
   const [phytoDone, setPhytoDone] = useState(!!opportunity.phytoDone);
   const [isUpdatingPhyto, setIsUpdatingPhyto] = useState(false);
+  const [pickupDate, setPickupDate] = useState(opportunity.pickupDate || '');
+  const [isUpdatingPickupDate, setIsUpdatingPickupDate] = useState(false);
   const [noteHover, setNoteHover] = useState(false);
   const noteRef = useRef<HTMLDivElement>(null);
   const [notePos, setNotePos] = useState({ top: 0, left: 0, showBelow: false });
@@ -63,6 +65,10 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   useEffect(() => {
     setPhytoDone(!!opportunity.phytoDone);
   }, [opportunity.phytoDone]);
+
+  useEffect(() => {
+    setPickupDate(opportunity.pickupDate || '');
+  }, [opportunity.pickupDate]);
 
   // Cleanup leave timeout on unmount
   useEffect(() => () => {
@@ -161,6 +167,26 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
     }
   };
 
+  const handlePickupDateChange = async (date: string) => {
+    setPickupDate(date);
+    setIsUpdatingPickupDate(true);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ pickup_date: date || null })
+        .eq('id', opportunity.id);
+
+      if (error) throw error;
+      toast.success('Pickup date updated');
+    } catch (err) {
+      console.error('Error updating pickup date:', err);
+      setPickupDate(opportunity.pickupDate || '');
+      toast.error('Could not save pickup date');
+    } finally {
+      setIsUpdatingPickupDate(false);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -203,7 +229,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             )}
           </div>
           <div className="flex items-center gap-0.5 pr-0.5">
-            <div className="p-0.5 text-gray-300 cursor-grab opacity-40 hover:opacity-100 transition-opacity" onPointerDown={(e) => e.stopPropagation()}>
+            <div className="p-0.5 text-gray-300 cursor-grab opacity-40 hover:opacity-100 transition-opacity">
               <GripVertical className="h-3.5 w-3.5" />
             </div>
 
@@ -227,6 +253,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     }
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
                   Win Case
@@ -239,6 +266,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     }
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Lose Case
@@ -262,6 +290,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     }
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <Trash className="mr-2 h-4 w-4" />
                   Delete
@@ -302,12 +331,45 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           {/* Topic as subtitle */}
           <h4 className="text-xs text-slate-600 line-clamp-1 mb-1">{opportunity.topic}</h4>
 
-          {/* Amount */}
-          <div className="flex justify-between items-center text-xs mb-2">
-            <span className="font-bold text-gray-900">
-              {opportunity.amount.toLocaleString()} {opportunity.currency}
-            </span>
-          </div>
+          {/* Amount - Auto-populate from linked quotations */}
+          {(() => {
+            const quotationPrices = opportunity.quotationDetails?.filter(q => q.total_cost && q.total_cost > 0) || [];
+            const hasQuotationPrices = quotationPrices.length > 0;
+            const totalFromQuotations = hasQuotationPrices
+              ? quotationPrices.reduce((sum, q) => sum + (q.total_cost || 0), 0)
+              : 0;
+            const displayAmount = hasQuotationPrices ? totalFromQuotations : opportunity.amount;
+            const showMultiBreakdown = quotationPrices.length > 1;
+
+            return (
+              <div className="relative group flex justify-between items-center text-xs mb-2">
+                <span className={`font-bold ${hasQuotationPrices ? 'text-emerald-700' : 'text-gray-900'}`}>
+                  {displayAmount.toLocaleString()} {opportunity.currency}
+                  {showMultiBreakdown && (
+                    <span className="ml-1 text-[9px] text-slate-400 font-normal">
+                      ({quotationPrices.length} quotes)
+                    </span>
+                  )}
+                </span>
+                {/* Hover Tooltip for Multi-Quote Breakdown */}
+                {showMultiBreakdown && (
+                  <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block bg-white border border-slate-200 rounded-lg shadow-lg p-2 w-52">
+                    <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Quotation Breakdown</div>
+                    {quotationPrices.map((q, i) => (
+                      <div key={q.id} className="flex justify-between text-[11px] py-0.5 border-b border-slate-50 last:border-none">
+                        <span className="text-slate-600">{q.quotation_no || `Quote #${i + 1}`}</span>
+                        <span className="font-semibold text-slate-800">{(q.total_cost || 0).toLocaleString()} THB</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-[11px] pt-1 mt-1 border-t border-slate-200 font-bold">
+                      <span>Total</span>
+                      <span className="text-emerald-700">{totalFromQuotations.toLocaleString()} THB</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div
             className="flex items-center gap-2 mb-2"
@@ -328,6 +390,30 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               Phyto done
             </Label>
           </div>
+
+          {/* Pickup Date Field - Only for 'waiting_for_pickup' stage */}
+          {opportunity.stage === 'waiting_for_pickup' && (
+            <div
+              className="mt-1 mb-2 p-1.5 bg-emerald-50/50 border border-emerald-100 rounded-md"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Label htmlFor={`pickup-${opportunity.id}`} className="text-[10px] uppercase font-bold text-emerald-800 mb-1 block">
+                Pickup Date
+              </Label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  id={`pickup-${opportunity.id}`}
+                  className="bg-white border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] w-full focus:ring-1 focus:ring-emerald-500 outline-none"
+                  value={pickupDate}
+                  onChange={(e) => handlePickupDateChange(e.target.value)}
+                  disabled={isUpdatingPickupDate}
+                />
+                {isUpdatingPickupDate && <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />}
+              </div>
+            </div>
+          )}
 
           {/* Compact Details - Only show key info */}
           <div className="space-y-0.5 mb-2 text-xs">

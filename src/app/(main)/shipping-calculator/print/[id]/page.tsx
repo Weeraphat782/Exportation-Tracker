@@ -91,10 +91,10 @@ export default function PrintQuotationPage() {
     if (data?.is_chargeable_weight_manual && data.manual_chargeable_weight) {
       return Number(data.manual_chargeable_weight);
     }
-    
+
     // Priority 2: Pre-calculated value from DB
     if (typeof data?.chargeable_weight === 'number') return data.chargeable_weight;
-    
+
     // Priority 3: On-the-fly calculation
     const totalActualWeight = getTotalActualWeight();
     const totalVolumeWeight = getTotalVolumeWeight();
