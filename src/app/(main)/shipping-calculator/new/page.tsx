@@ -89,6 +89,10 @@ const quotationFormSchema = z.object({
     internalRemark: z.string().optional(),
     opportunityId: z.string().optional(),
     productId: z.string().optional(),
+    isChargeableWeightManual: z.boolean().optional(),
+    manualChargeableWeight: z.number().min(0).optional(),
+    isManualRate: z.boolean().optional(),
+    manualRate: z.number().min(0).optional(),
 });
 
 // Define the type based on the schema
@@ -458,7 +462,18 @@ interface CalculationResult {
 function calculateTotalFreightCost(
     pallets: PalletType[] = [],
     additionalCharges: AdditionalChargeType[] = [],
-    options: { clearanceCost?: number; deliveryRequired?: boolean; deliveryType?: string; deliveryRates?: Record<string, number>; destinationId?: string; freightRates?: FreightRate[] } = {}
+    options: { 
+        clearanceCost?: number; 
+        deliveryRequired?: boolean; 
+        deliveryType?: string; 
+        deliveryRates?: Record<string, number>; 
+        destinationId?: string; 
+        freightRates?: FreightRate[];
+        isChargeableWeightManual?: boolean;
+        manualChargeableWeight?: number;
+        isManualRate?: boolean;
+        manualRate?: number;
+    } = {}
 ): CalculationResult {
     // Calculate total volume (in cubic centimeters)
     const totalVolumeCm3 = pallets.reduce((acc, pallet) => {
@@ -480,14 +495,20 @@ function calculateTotalFreightCost(
         ? Math.round(totalVolumeWeight)
         : totalVolumeWeight;
 
-    // Get the chargeable weight (max of volume weight or actual weight)
-    const totalChargeableWeight = Math.max(roundedTotalVolumeWeight, totalWeight);
+    // Get the chargeable weight (max of volume weight or actual weight, or manual override)
+    const totalChargeableWeight = options.isChargeableWeightManual && options.manualChargeableWeight !== undefined && options.manualChargeableWeight > 0
+        ? options.manualChargeableWeight
+        : Math.max(roundedTotalVolumeWeight, totalWeight);
 
     // Calculate freight cost for each pallet using the proper rates and sum them
     let totalFreightCost = 0;
 
-    // If we have freight rates and destination, calculate properly
-    if (options.freightRates && options.freightRates.length > 0 && options.destinationId) {
+    // Use manual rate override if enabled
+    if (options.isManualRate && options.manualRate !== undefined && options.manualRate > 0) {
+        totalFreightCost = Math.round(totalChargeableWeight * options.manualRate);
+    } 
+    // Otherwise calculate based on db rates
+    else if (options.freightRates && options.freightRates.length > 0 && options.destinationId) {
         // Sum up individual pallet freight costs
         totalFreightCost = pallets.reduce((acc, pallet) => {
             const { freightCost } = calculateSinglePalletFreightCost(pallet, options.destinationId, options.freightRates || []);
@@ -872,6 +893,10 @@ function ShippingCalculatorPageContent() {
                             notes: typedExistingQuotation.notes || '',
                             productId: typedExistingQuotation.product_id || '',
                             opportunityId: typedExistingQuotation.opportunity_id || '', // IMPORTANT: Preserve opportunity link
+                            isChargeableWeightManual: typedExistingQuotation.is_chargeable_weight_manual ?? false,
+                            manualChargeableWeight: Number(typedExistingQuotation.manual_chargeable_weight) || 0,
+                            isManualRate: typedExistingQuotation.is_manual_rate ?? false,
+                            manualRate: Number(typedExistingQuotation.manual_rate) || 0,
                         });
 
                         // Set the ref to prevent initial sync if products are already loaded
@@ -899,7 +924,11 @@ function ShippingCalculatorPageContent() {
                                 deliveryType: typedExistingQuotation.delivery_vehicle_type || '4wheel',
                                 deliveryRates: { '4wheel': 3500, '6wheel': 6500 }, // Hardcoded for now as per useMemo below
                                 destinationId: typedExistingQuotation.destination_id || undefined,
-                                freightRates: freightRates
+                                freightRates: freightRates,
+                                isChargeableWeightManual: typedExistingQuotation.is_chargeable_weight_manual,
+                                manualChargeableWeight: Number(typedExistingQuotation.manual_chargeable_weight),
+                                isManualRate: typedExistingQuotation.is_manual_rate,
+                                manualRate: Number(typedExistingQuotation.manual_rate)
                             }
                         );
                         setCalculationResult(initialCalculation);
@@ -1177,7 +1206,11 @@ function ShippingCalculatorPageContent() {
                     deliveryType: deliveryVehicleType,
                     deliveryRates: deliveryRates,
                     destinationId: destinationId,
-                    freightRates: freightRates
+                    freightRates: freightRates,
+                    isChargeableWeightManual: formValues.isChargeableWeightManual,
+                    manualChargeableWeight: formValues.manualChargeableWeight,
+                    isManualRate: formValues.isManualRate,
+                    manualRate: formValues.manualRate
                 }
             );
 
@@ -1239,6 +1272,10 @@ function ShippingCalculatorPageContent() {
             total_volume_weight: calcResult.totalVolumeWeight,
             total_actual_weight: calcResult.totalActualWeight,
             chargeable_weight: calcResult.totalChargeableWeight,
+            is_chargeable_weight_manual: formData.isChargeableWeightManual || false,
+            manual_chargeable_weight: formData.manualChargeableWeight || null,
+            is_manual_rate: formData.isManualRate || false,
+            manual_rate: formData.manualRate || null,
             // Preserve existing status if in edit mode; for approve mode set to 'draft'; otherwise 'draft'
             status: isApproveMode ? 'draft' : (isEditMode && existingQuotation ? existingQuotation.status : 'draft'),
             company_name: selectedCompany?.name || formData.companyId,
@@ -1278,7 +1315,11 @@ function ShippingCalculatorPageContent() {
                     deliveryType: formData.deliveryVehicleType,
                     deliveryRates: deliveryRates,
                     destinationId: formData.destinationId,
-                    freightRates: freightRates
+                    freightRates: freightRates,
+                    isChargeableWeightManual: formData.isChargeableWeightManual,
+                    manualChargeableWeight: formData.manualChargeableWeight,
+                    isManualRate: formData.isManualRate,
+                    manualRate: formData.manualRate
                 }
             );
 
@@ -1754,6 +1795,100 @@ function ShippingCalculatorPageContent() {
                                         <span>Total Actual Weight:</span>
                                         <span className="font-bold text-slate-800">{formatNumber(calculationResult.totalActualWeight)} kg</span>
                                     </div>
+                                    
+                                    <Separator className="bg-blue-200/50" />
+                                    
+                                    {/* Manual Chargeable Weight Override UI */}
+                                    <div className="space-y-3 py-1">
+                                        <FormField
+                                            control={control}
+                                            name="isChargeableWeightManual"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between space-y-0 p-0">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                                                            <Zap className="h-3 w-3 fill-blue-500 text-blue-500" />
+                                                            Manual Chargeable Weight?
+                                                        </FormLabel>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {watch('isChargeableWeightManual') && (
+                                            <FormField
+                                                control={control}
+                                                name="manualChargeableWeight"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1">
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="number"
+                                                                    {...field}
+                                                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                                    className="h-9 pr-6 font-bold border-blue-300 focus:border-blue-500 bg-white"
+                                                                    placeholder="Weight"
+                                                                />
+                                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">kg</span>
+                                                            </div>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+
+                                        <FormField
+                                            control={control}
+                                            name="isManualRate"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-center justify-between space-y-0 p-0">
+                                                    <div className="space-y-0.5">
+                                                        <FormLabel className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                                                            <Zap className="h-3 w-3 fill-amber-500 text-amber-500" />
+                                                            Manual Rate Override?
+                                                        </FormLabel>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {watch('isManualRate') && (
+                                            <FormField
+                                                control={control}
+                                                name="manualRate"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1">
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="number"
+                                                                    {...field}
+                                                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                                    className="h-9 pr-12 font-bold border-blue-300 focus:border-blue-500 bg-white"
+                                                                    placeholder="Rate"
+                                                                />
+                                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">THB/kg</span>
+                                                            </div>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+
                                     <Separator className="bg-blue-200/50" />
                                     <div className="flex justify-between items-center pt-1 text-blue-700">
                                         <span className="font-bold">Aggregate Chargeable Wt:</span>

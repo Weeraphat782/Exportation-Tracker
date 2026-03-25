@@ -135,8 +135,12 @@ export function getChargeableWeight(
     width: number;
     height: number;
     weight: number;
-  }>
+  }>,
+  manualWeight?: number
 ): number {
+  if (manualWeight !== undefined && manualWeight > 0) {
+    return manualWeight;
+  }
   const totalVolumeWeight = getTotalVolumeWeight(pallets);
   const totalActualWeight = getTotalActualWeight(pallets);
 
@@ -154,6 +158,7 @@ export function calculateTotalCost({
   deliveryRates,
   clearanceCost,
   additionalCharges,
+  manualWeight,
 }: {
   pallets: Array<{
     length: number;
@@ -167,6 +172,7 @@ export function calculateTotalCost({
   deliveryRates: Record<string, number>;
   clearanceCost: number;
   additionalCharges: Array<{ description: string; amount: number }>;
+  manualWeight?: number;
 }): {
   totalFreightCost: number;
   deliveryCost: number;
@@ -195,7 +201,7 @@ export function calculateTotalCost({
   // Calculate total volume and actual weights
   const totalVolumeWeight = getTotalVolumeWeight(pallets);
   const totalActualWeight = getTotalActualWeight(pallets);
-  const chargeableWeight = getChargeableWeight(pallets);
+  const chargeableWeight = getChargeableWeight(pallets, manualWeight);
 
   // Calculate total cost - clearanceCost is kept as a separate item
   const totalCost = totalFreightCost + deliveryCost + clearanceCost + totalAdditionalCharges;

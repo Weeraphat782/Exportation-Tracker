@@ -122,6 +122,10 @@ export interface Quotation {
   total_volume_weight?: number | null; // Allow null
   chargeable_weight?: number | null; // Allow null
   internal_remark?: string | null; // Added field
+  is_chargeable_weight_manual?: boolean; // New field
+  manual_chargeable_weight?: number | null; // New field
+  is_manual_rate?: boolean; // New field
+  manual_rate?: number | null; // New field
   required_doc_types?: string[] | null; // Added field for tracking required documents
   customer_user_id?: string | null; // Assigned customer user ID
   quotation_no?: string; // Auto-generated quotation number
@@ -825,7 +829,11 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       required_doc_types: Array.isArray(quotationData.required_doc_types) ? quotationData.required_doc_types : null, // Added field
       // Ensure JSONB fields are properly formatted
       pallets: Array.isArray(quotationData.pallets) ? quotationData.pallets : [],
-      additional_charges: Array.isArray(quotationData.additional_charges) ? quotationData.additional_charges : []
+      additional_charges: Array.isArray(quotationData.additional_charges) ? quotationData.additional_charges : [],
+      is_chargeable_weight_manual: quotationData.is_chargeable_weight_manual || false,
+      manual_chargeable_weight: quotationData.manual_chargeable_weight || null,
+      is_manual_rate: quotationData.is_manual_rate || false,
+      manual_rate: quotationData.manual_rate || null
     };
 
     const { data, error } = await supabase

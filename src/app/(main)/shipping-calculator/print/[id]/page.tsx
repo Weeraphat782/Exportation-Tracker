@@ -87,7 +87,15 @@ export default function PrintQuotationPage() {
 
   // Calculate chargeable weight (max of volume weight and actual weight)
   const getChargeableWeight = (): number => {
+    // Priority 1: Manual Override
+    if (data?.is_chargeable_weight_manual && data.manual_chargeable_weight) {
+      return Number(data.manual_chargeable_weight);
+    }
+    
+    // Priority 2: Pre-calculated value from DB
     if (typeof data?.chargeable_weight === 'number') return data.chargeable_weight;
+    
+    // Priority 3: On-the-fly calculation
     const totalActualWeight = getTotalActualWeight();
     const totalVolumeWeight = getTotalVolumeWeight();
     return Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
@@ -329,7 +337,9 @@ export default function PrintQuotationPage() {
           </thead>
           <tbody>
             <tr className="border-b">
-              <td className="py-2 px-4 border">Freight Cost</td>
+              <td className="py-2 px-4 border">
+                Freight Cost
+              </td>
               <td className="py-2 px-4 text-right border">{formatNumber(freightCost)} THB</td>
             </tr>
             {clearanceCost > 0 && (

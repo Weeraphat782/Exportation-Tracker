@@ -152,7 +152,11 @@ function QuotationPreviewContent() {
 
   const totalActualWeight = quotationData.total_actual_weight || calculateTotalActualWeight();
   const totalVolumeWeight = quotationData.total_volume_weight || calculateTotalVolumeWeight();
-  const chargeableWeight = quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight));
+  
+  // Use manual override if enabled
+  const chargeableWeight = quotationData.is_chargeable_weight_manual && quotationData.manual_chargeable_weight 
+    ? Number(quotationData.manual_chargeable_weight)
+    : (quotationData.chargeable_weight || Math.max(totalActualWeight, Math.ceil(totalVolumeWeight)));
 
   // ใช้ค่าจาก quotationData แบบ camelCase (จากหน้าคำนวณ) หรือ snake_case (จากฐานข้อมูล)
   const totalFreightCost = quotationData.totalFreightCost !== undefined ? quotationData.totalFreightCost :
@@ -279,7 +283,9 @@ function QuotationPreviewContent() {
                   </tr>
                   <tr>
                     <td colSpan={2} className="py-2 font-medium">Chargeable Weight</td>
-                    <td colSpan={2} className="py-2">{Math.ceil(chargeableWeight)} kg</td>
+                    <td colSpan={2} className="py-2">
+                      {Math.ceil(chargeableWeight)} kg
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -296,7 +302,9 @@ function QuotationPreviewContent() {
                 </thead>
                 <tbody>
                   <tr className="border-b">
-                    <td className="py-2">Freight Cost</td>
+                    <td className="py-2">
+                      Freight Cost
+                    </td>
                     <td className="py-2 text-right">{formatNumber(totalFreightCost)}</td>
                   </tr>
                   {(clearanceCost || 0) > 0 && (
