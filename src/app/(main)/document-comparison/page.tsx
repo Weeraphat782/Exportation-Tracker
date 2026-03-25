@@ -59,8 +59,26 @@ export default function DocumentComparisonPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze documents');
+        let errorMessage = 'Failed to analyze documents';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            // Handle non-JSON errors (like 504 Gateway Timeout)
+            if (response.status === 504) {
+              errorMessage = 'Analysis timed out (Over 5 minutes). This usually happens with very large files or many documents. Please try with fewer files.';
+            } else if (response.status === 429) {
+              errorMessage = 'Rate limit exceeded. Too many people are using the AI right now. Please wait 1 minute and try again.';
+            } else {
+              errorMessage = `Server Error (${response.status}). Please try again later.`;
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

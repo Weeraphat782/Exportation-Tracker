@@ -28,7 +28,7 @@ INSERT INTO public.resources (
 **Operational takeaway**
 Treat export permitting as a continuous compliance process: each shipment should be defensible as a medical-grade movement, with files that can be presented to customs and health authorities without gaps.$$
 ,
-  ARRAY['Thailand', 'EU Export', 'Regulatory', 'Medical Cannabis'],
+  ARRAY['Thailand Regulatory'],
   '/images/resources/eu-cannabis-res-01.png',
   true,
   NOW()
@@ -47,7 +47,7 @@ Treat export permitting as a continuous compliance process: each shipment should
 **Risk control**
 Ambiguity between "agricultural commodity" and "controlled medical material" is where delays occur—document the batch as medical from the earliest internal step.$$
 ,
-  ARRAY['Compliance', 'Traceability', 'Medical Cannabis', 'EU Export'],
+  ARRAY['Thailand Regulatory'],
   '/images/resources/eu-cannabis-res-04.png',
   true,
   NOW()
@@ -66,7 +66,7 @@ Ambiguity between "agricultural commodity" and "controlled medical material" is 
 **Scale reality**
 Certified farm capacity remains a bottleneck relative to total licence holders—early GACP maturity is a competitive advantage when negotiating import partnerships.$$
 ,
-  ARRAY['GACP', 'Quality', 'Medical Cannabis', 'Thailand'],
+  ARRAY['Origin Quality'],
   '/images/resources/eu-cannabis-res-02.png',
   true,
   NOW()
@@ -85,7 +85,7 @@ Certified farm capacity remains a bottleneck relative to total licence holders�
 **Bridge from GACP**
 Operators should map each post-harvest unit operation to a **GMP step** with inputs, outputs, tolerances, and release criteria—before commissioning customer audits.$$
 ,
-  ARRAY['EU-GMP', 'Manufacturing', 'Medical Cannabis', 'Compliance'],
+  ARRAY['EU GMP & QP'],
   '/images/resources/eu-cannabis-res-03.png',
   true,
   NOW()
@@ -104,7 +104,7 @@ Operators should map each post-harvest unit operation to a **GMP step** with inp
 **Partnering note**
 Importers and contract manufacturers often structure QP access—Thai suppliers succeed fastest when their **batch folders** are already inspector-grade at origin.$$
 ,
-  ARRAY['EU', 'QP', 'Quality', 'Medical Cannabis'],
+  ARRAY['EU GMP & QP'],
   '/images/resources/eu-cannabis-res-05.png',
   true,
   NOW()
@@ -123,7 +123,7 @@ Importers and contract manufacturers often structure QP access—Thai suppliers 
 **Evidence pack**
 Couriers and terminals will challenge ambiguous paperwork—tie each temperature logger ID to **batch number and airwaybill** in one index.$$
 ,
-  ARRAY['GDP', 'Logistics', 'Cold Chain', 'EU Export'],
+  ARRAY['GDP Logistics'],
   '/images/resources/eu-cannabis-res-06.png',
   true,
   NOW()
@@ -142,7 +142,7 @@ Couriers and terminals will challenge ambiguous paperwork—tie each temperature
 **Adoption tip**
 Define mandatory fields at **harvest, processing, and release** so operators cannot mark a step complete without attaching the required evidentiary artifacts.$$
 ,
-  ARRAY['Cantrak', 'Traceability', 'Digital', 'Medical Cannabis'],
+  ARRAY['EU Market Strategy'],
   '/images/resources/eu-cannabis-res-07.png',
   true,
   NOW()
@@ -161,7 +161,7 @@ Define mandatory fields at **harvest, processing, and release** so operators can
 **Documentation habit**
 Treat every harvest season as a **stability and trend chapter**: charts that show your process is **in statistical control** resonate in technical meetings.$$
 ,
-  ARRAY['Ph. Eur.', 'Specifications', 'Quality', 'EU'],
+  ARRAY['Origin Quality'],
   '/images/resources/eu-cannabis-res-08.png',
   true,
   NOW()
@@ -179,7 +179,7 @@ Treat every harvest season as a **stability and trend chapter**: charts that sho
 **Thai exporter stance**
 Prioritize **technical compatibility**: if your dossier structure matches what German partners already file, you shorten diligence cycles.$$
 ,
-  ARRAY['Germany', 'Market Access', 'EU Export', 'Medical Cannabis'],
+  ARRAY['EU Market Strategy'],
   '/images/resources/eu-cannabis-res-09.png',
   true,
   NOW()
@@ -200,7 +200,7 @@ Prioritize **technical compatibility**: if your dossier structure matches what G
 **Closing**
 Winning bids are won in **document quality** and **batch repeatability**—invest there before scaling hectares alone.$$
 ,
-  ARRAY['Strategy', 'EU Export', 'Medical Cannabis', 'Thailand'],
+  ARRAY['EU Market Strategy'],
   '/images/resources/eu-cannabis-res-10.png',
   true,
   NOW()

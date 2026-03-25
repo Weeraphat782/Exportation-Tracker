@@ -14,12 +14,13 @@ import {
   type ExtractedData,
 } from '@/lib/document-comparison-utils';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 const GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 
 interface DocumentReviewJson {
+  document_id?: string;
   document_type: string;
   critical_issues: string[];
   warnings: string[];
@@ -177,16 +178,34 @@ export async function POST(request: Request) {
     const extractedMap: Record<string, ExtractedData> = {};
     const documentsWithData: Array<{ id: string; name: string; type: string; base64Data: string; mimeType: string }> = [];
 
-    // Phase 1: Extract fields per document
-    console.log('Phase 1: Extracting data from documents...');
+    // Phase 1: Batch Extract fields from all documents
+    console.log('Phase 1: Extracting data from documents in batch...');
     const extractionFields = rule.extraction_fields || [];
     const fieldsTemplate = extractionFields.reduce((acc: Record<string, string>, f: string) => {
       acc[f] = '';
       return acc;
     }, {});
 
-    const processPromises = documentList.map(async (doc: DocumentData) => {
-      try {
+    try {
+      // Prepare batch prompt
+      const batchPrompt = `Extract the following fields from these ${documentList.length} documents.
+For each document, provide the extracted data based on its content.
+Return STRICT JSON only (no prose) in this format:
+{
+  "results": [
+    {
+      "id": "<document_id>",
+      "extracted_data": ${JSON.stringify(fieldsTemplate)}
+    }
+  ]
+}
+
+Available fields to extract: ${extractionFields.join(', ')}`;
+
+      // Prepare files for batch request
+      const batchContents: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = [];
+      
+      for (const doc of documentList) {
         let base64Data: string;
         let mimeType: string;
 
@@ -203,48 +222,37 @@ export async function POST(request: Request) {
           mimeType = getMimeType(doc.file_name);
         }
 
-        const docData = { id: doc.id, name: doc.file_name || doc.document_type, type: doc.document_type, base64Data, mimeType };
-        const extractPrompt = `Extract the following fields from this document section called "${doc.file_name || doc.document_type}".
-Return STRICT JSON only (no prose) with keys (use empty string or null if not present):
-${JSON.stringify(fieldsTemplate, null, 2)}`;
-
-        const extraction = await retryWithBackoff(
-          () => ai.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: [
-              { inlineData: { mimeType, data: base64Data } },
-              { text: extractPrompt },
-            ],
-          }),
-          3,
-          2000
-        );
-
-        let extracted: ExtractedData = {};
-        try {
-          const text = (extraction as { text?: string })?.text ?? '';
-          extracted = JSON.parse(text || '{}') as ExtractedData;
-        } catch {
-          extracted = {};
-        }
-
-        return { docData, extracted };
-      } catch (error) {
-        console.error(`Error processing document ${doc.id}:`, error);
-        return {
-          docData: { id: doc.id, name: doc.file_name || doc.document_type, type: doc.document_type, base64Data: '', mimeType: 'application/pdf' },
-          extracted: {},
-        };
+        batchContents.push({ inlineData: { mimeType, data: base64Data } });
+        // Track for Phase 2
+        documentsWithData.push({ id: doc.id, name: doc.file_name, type: doc.document_type, base64Data, mimeType });
       }
-    });
 
-    const phase1Results = await Promise.all(processPromises);
-    phase1Results.forEach(({ docData, extracted }) => {
-      if (docData.base64Data) {
-        documentsWithData.push(docData);
-        extractedMap[docData.id] = extracted;
+      batchContents.push({ text: batchPrompt });
+
+      const batchExtraction = await retryWithBackoff(
+        () => ai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: batchContents,
+          config: { responseMimeType: 'application/json' },
+        }),
+        3,
+        2000
+      );
+
+      const batchText = (batchExtraction as { text?: string })?.text ?? '';
+      try {
+        const batchParsed = JSON.parse(batchText) as { results: Array<{ id: string; extracted_data: ExtractedData }> };
+        (batchParsed.results || []).forEach(res => {
+          extractedMap[res.id] = res.extracted_data || {};
+        });
+      } catch (parseErr) {
+        console.error('Batch extraction JSON parse failed:', parseErr);
+        // Fallback or retry individual? For now, we continue with empty map
       }
-    });
+    } catch (batchError) {
+      console.error('Phase 1 Batch error:', batchError);
+      throw batchError;
+    }
 
     // Phase 2: Cross-document comparison with structured JSON output
     console.log('Phase 2: Performing cross-document analysis...');
@@ -278,6 +286,7 @@ Use this exact schema:
 {
   "document_reviews": [
     {
+      "document_id": "<exact document id from the list>",
       "document_type": "<exact document type name from the list: ${allDocuments.map((d) => d.document_type).join(', ')}>",
       "critical_issues": ["<issue 1>", "<issue 2>"],
       "warnings": ["<warning 1>"],
@@ -298,6 +307,8 @@ Use this exact schema:
 You MUST include exactly one document_reviews entry for EACH document in this order: ${allDocuments.map((d) => d.document_type).join(', ')}.
 For critical_checks, include one entry for each critical check listed above.`;
 
+    // Only send files that don't have extracted data or if specifically needed for vision checks
+    // For now, to be safe but efficient, we send all but with optimized prompt
     const contents: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = [];
     for (const doc of documentsWithData) {
       contents.push({ inlineData: { mimeType: doc.mimeType, data: doc.base64Data } });
@@ -328,13 +339,14 @@ For critical_checks, include one entry for each critical check listed above.`;
       criticalChecksResults = parsed.critical_checks || [];
 
       documentSections = {};
-      const reviewsByType = new Map((parsed.document_reviews || []).map((r) => [r.document_type, r]));
+      const reviewsById = new Map((parsed.document_reviews || []).map((r) => [r.document_id || r.document_type, r]));
 
       for (const doc of documentsWithData) {
         const displayType = getDocumentTypeDisplayName(doc.type);
-        const review = reviewsByType.get(displayType) ?? parsed.document_reviews?.[documentsWithData.indexOf(doc)];
+        const review = reviewsById.get(doc.id) ?? reviewsById.get(displayType);
+        
         if (review) {
-          documentSections[doc.id] = formatDocumentSectionFromJson(review, doc.name);
+          documentSections[doc.id] = formatDocumentSectionFromJson(review as DocumentReviewJson, doc.name);
         } else {
           documentSections[doc.id] = `## ${displayType}\n\n### ⚠️ Warnings & Recommendations\n- No specific feedback generated for this document.\n*File: ${doc.name}*`;
         }

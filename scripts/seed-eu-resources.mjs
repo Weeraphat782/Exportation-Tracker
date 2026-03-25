@@ -71,7 +71,7 @@ const rows = [
 
 **Operational takeaway**
 Treat export permitting as a continuous compliance process: each shipment should be defensible as a medical-grade movement, with files that can be presented to customs and health authorities without gaps.`,
-    tags: ['Thailand', 'EU Export', 'Regulatory', 'Medical Cannabis'],
+    tags: ['Thailand Regulatory'],
     image_url: resourceCoverUrl('eu-cannabis-res-01.png'),
     is_published: true,
     published_at: publishedAt,
@@ -90,7 +90,7 @@ Treat export permitting as a continuous compliance process: each shipment should
 
 **Risk control**
 Ambiguity between "agricultural commodity" and "controlled medical material" is where delays occur—document the batch as medical from the earliest internal step.`,
-    tags: ['Compliance', 'Traceability', 'Medical Cannabis', 'EU Export'],
+    tags: ['Thailand Regulatory'],
     image_url: resourceCoverUrl('eu-cannabis-res-04.png'),
     is_published: true,
     published_at: publishedAt,
@@ -109,7 +109,7 @@ Ambiguity between "agricultural commodity" and "controlled medical material" is 
 
 **Scale reality**
 Certified farm capacity remains a bottleneck relative to total licence holders—early GACP maturity is a competitive advantage when negotiating import partnerships.`,
-    tags: ['GACP', 'Quality', 'Medical Cannabis', 'Thailand'],
+    tags: ['Origin Quality'],
     image_url: resourceCoverUrl('eu-cannabis-res-02.png'),
     is_published: true,
     published_at: publishedAt,
@@ -128,7 +128,7 @@ Certified farm capacity remains a bottleneck relative to total licence holders�
 
 **Bridge from GACP**
 Operators should map each post-harvest unit operation to a **GMP step** with inputs, outputs, tolerances, and release criteria—before commissioning customer audits.`,
-    tags: ['EU-GMP', 'Manufacturing', 'Medical Cannabis', 'Compliance'],
+    tags: ['EU GMP & QP'],
     image_url: resourceCoverUrl('eu-cannabis-res-03.png'),
     is_published: true,
     published_at: publishedAt,
@@ -147,8 +147,8 @@ Operators should map each post-harvest unit operation to a **GMP step** with inp
 
 **Partnering note**
 Importers and contract manufacturers often structure QP access—Thai suppliers succeed fastest when their **batch folders** are already inspector-grade at origin.`,
-    tags: ['EU', 'QP', 'Quality', 'Medical Cannabis'],
-    image_url: '/images/resources/eu-cannabis-res-05.png',
+    tags: ['EU GMP & QP'],
+    image_url: resourceCoverUrl('eu-cannabis-res-05.png'),
     is_published: true,
     published_at: publishedAt,
   },
@@ -166,7 +166,7 @@ Importers and contract manufacturers often structure QP access—Thai suppliers 
 
 **Evidence pack**
 Couriers and terminals will challenge ambiguous paperwork—tie each temperature logger ID to **batch number and airwaybill** in one index.`,
-    tags: ['GDP', 'Logistics', 'Cold Chain', 'EU Export'],
+    tags: ['GDP Logistics'],
     image_url: resourceCoverUrl('eu-cannabis-res-06.png'),
     is_published: true,
     published_at: publishedAt,
@@ -185,7 +185,7 @@ Couriers and terminals will challenge ambiguous paperwork—tie each temperature
 
 **Adoption tip**
 Define mandatory fields at **harvest, processing, and release** so operators cannot mark a step complete without attaching the required evidentiary artifacts.`,
-    tags: ['Cantrak', 'Traceability', 'Digital', 'Medical Cannabis'],
+    tags: ['EU Market Strategy'],
     image_url: resourceCoverUrl('eu-cannabis-res-07.png'),
     is_published: true,
     published_at: publishedAt,
@@ -204,7 +204,7 @@ Define mandatory fields at **harvest, processing, and release** so operators can
 
 **Documentation habit**
 Treat every harvest season as a **stability and trend chapter**: charts that show your process is **in statistical control** resonate in technical meetings.`,
-    tags: ['Ph. Eur.', 'Specifications', 'Quality', 'EU'],
+    tags: ['Origin Quality'],
     image_url: resourceCoverUrl('eu-cannabis-res-08.png'),
     is_published: true,
     published_at: publishedAt,
@@ -222,7 +222,7 @@ Treat every harvest season as a **stability and trend chapter**: charts that sho
 
 **Thai exporter stance**
 Prioritize **technical compatibility**: if your dossier structure matches what German partners already file, you shorten diligence cycles.`,
-    tags: ['Germany', 'Market Access', 'EU Export', 'Medical Cannabis'],
+    tags: ['EU Market Strategy'],
     image_url: resourceCoverUrl('eu-cannabis-res-09.png'),
     is_published: true,
     published_at: publishedAt,
@@ -243,7 +243,7 @@ Prioritize **technical compatibility**: if your dossier structure matches what G
 
 **Closing**
 Winning bids are won in **document quality** and **batch repeatability**—invest there before scaling hectares alone.`,
-    tags: ['Strategy', 'EU Export', 'Medical Cannabis', 'Thailand'],
+    tags: ['EU Market Strategy'],
     image_url: resourceCoverUrl('eu-cannabis-res-10.png'),
     is_published: true,
     published_at: publishedAt,
