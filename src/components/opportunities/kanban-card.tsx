@@ -391,8 +391,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             </Label>
           </div>
 
-          {/* Pickup Date Field - Only for 'waiting_for_pickup' stage */}
-          {opportunity.stage === 'waiting_for_pickup' && (
+          {/* Pickup Date Field - Editable on 'waiting_for_pickup', read-only display on other stages */}
+          {opportunity.stage === 'waiting_for_pickup' ? (
             <div
               className="mt-1 mb-2 p-1.5 bg-emerald-50/50 border border-emerald-100 rounded-md"
               onPointerDown={(e) => e.stopPropagation()}
@@ -413,7 +413,14 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 {isUpdatingPickupDate && <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />}
               </div>
             </div>
-          )}
+          ) : pickupDate ? (
+            <div className="mt-1 mb-2 flex items-center gap-1.5 text-[10px] bg-emerald-50/50 border border-emerald-100 rounded-md px-2 py-1">
+              <span className="font-bold text-emerald-800 uppercase">Pickup:</span>
+              <span className="text-emerald-700 font-semibold">
+                {new Date(pickupDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+          ) : null}
 
           {/* Compact Details - Only show key info */}
           <div className="space-y-0.5 mb-2 text-xs">
