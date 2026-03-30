@@ -15,19 +15,19 @@ export function ContinueExploring() {
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Link
           href="/site/resources"
-          className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
+          className="flex min-h-[44px] items-center rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
         >
           Regulatory &amp; export resources
         </Link>
         <Link
           href="/site/newsroom"
-          className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
+          className="flex min-h-[44px] items-center rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
         >
           Latest newsroom updates
         </Link>
         <Link
           href="/site/contact"
-          className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
+          className="flex min-h-[44px] items-center rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-white"
         >
           Talk to our logistics team
         </Link>

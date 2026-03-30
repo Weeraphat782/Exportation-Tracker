@@ -50,7 +50,7 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
                 <p className="mt-3 leading-relaxed text-neutral-600">{excerpt}</p>
                 <Link
                     href={`/site/newsroom/${slug}`}
-                    className="mt-4 inline-flex items-center text-sm font-medium"
+                    className="mt-4 inline-flex min-h-[44px] items-center rounded-md py-2 text-sm font-medium"
                     style={{ color: "var(--color-accent-ref)" }}
                 >
                     Read more

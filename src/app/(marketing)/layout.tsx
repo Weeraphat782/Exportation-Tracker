@@ -19,7 +19,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <TopBar />
         <Header />
       </div>
-      <main className="flex-1 bg-white">
+      <main className="flex-1 overflow-x-hidden bg-white">
         <MarketingBreadcrumbNav />
         {children}
       </main>

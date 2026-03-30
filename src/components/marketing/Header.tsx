@@ -24,6 +24,17 @@ export default function Header() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
+    useEffect(() => {
+        if (mobileMenuOpen) {
+            const prev = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            return () => {
+                document.body.style.overflow = prev;
+            };
+        }
+        return undefined;
+    }, [mobileMenuOpen]);
+
     return (
         <header
             className={`sticky top-0 z-50 transition-all duration-300 ${
@@ -136,7 +147,7 @@ export default function Header() {
                                 key={link.href}
                                 href={link.href}
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="block rounded-lg px-4 py-3 text-sm font-medium transition hover:bg-neutral-50"
+                                className="flex min-h-[44px] items-center rounded-lg px-4 py-3.5 text-sm font-medium transition hover:bg-neutral-50"
                                 style={{ color: "var(--color-primary-ref)" }}
                             >
                                 {link.label}
@@ -146,7 +157,7 @@ export default function Header() {
                             <Link
                                 href="/site/register"
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="flex-1 block rounded-lg px-4 py-3 text-center text-sm font-semibold border transition"
+                                className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg px-4 py-3 text-center text-sm font-semibold border transition"
                                 style={{
                                     borderColor: "var(--color-primary-ref)",
                                     color: "var(--color-primary-ref)",
@@ -157,7 +168,7 @@ export default function Header() {
                             <Link
                                 href="/site/login"
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="flex-1 block rounded-lg px-4 py-3 text-center text-sm font-semibold text-white"
+                                className="flex min-h-[44px] flex-1 items-center justify-center rounded-lg px-4 py-3 text-center text-sm font-semibold text-white"
                                 style={{ backgroundColor: "var(--color-accent-ref)" }}
                             >
                                 Login

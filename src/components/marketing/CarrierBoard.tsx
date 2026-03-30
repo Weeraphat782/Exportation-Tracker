@@ -37,7 +37,7 @@ function CarrierLogo({ carrier }: { carrier: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
-      <span className="text-[12px] font-black text-neutral-900 uppercase tracking-tighter">
+      <span className="text-xs font-black text-neutral-900 uppercase tracking-tighter sm:text-xs">
         {carrier}
       </span>
     );
@@ -124,19 +124,19 @@ export default function CarrierBoard() {
             </h3>
           </div>
           <div className="flex flex-col items-end gap-0.5">
-            <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
+            <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest sm:text-xs">
               Real-Time Feed
             </div>
             {loading && (
-              <span className="text-[9px] font-mono text-neutral-500">Loading…</span>
+              <span className="text-[10px] font-mono text-neutral-500 sm:text-xs">Loading…</span>
             )}
             {!loading && usedFallback && (
-              <span className="text-[9px] font-mono text-amber-500/90">Offline</span>
+              <span className="text-[10px] font-mono text-amber-500/90 sm:text-xs">Offline</span>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-white/5 bg-white/5 text-[9px] font-bold uppercase tracking-wider text-neutral-400 sm:px-4">
+        <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-white/5 bg-white/5 text-[10px] font-bold uppercase tracking-wider text-neutral-400 sm:px-4 sm:text-xs">
           <div className="col-span-5">Destination</div>
           <div className="col-span-4 text-center">Carrier</div>
           <div className="col-span-3 text-right">Status</div>
@@ -144,7 +144,7 @@ export default function CarrierBoard() {
 
         <div className="divide-y divide-white/5">
           {loading && (
-            <div className="px-4 py-8 text-center text-[11px] font-mono text-neutral-500">
+            <div className="px-4 py-8 text-center text-xs font-mono text-neutral-500">
               Loading carrier routes…
             </div>
           )}
@@ -158,7 +158,7 @@ export default function CarrierBoard() {
                 <span className="text-sm font-bold text-white transition-colors truncate group-hover:text-[var(--color-accent-ref)]">
                   {item.country}
                 </span>
-                <span className="text-[10px] text-neutral-400 font-mono truncate italic">
+                <span className="text-[10px] text-neutral-400 font-mono truncate italic sm:text-xs">
                   {item.city}
                 </span>
               </div>
@@ -172,7 +172,7 @@ export default function CarrierBoard() {
               <div className="col-span-3 text-right flex flex-col items-end">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[11px] font-mono font-bold uppercase tracking-tighter ${item.status === 'Available' ? '' : 'text-red-500'}`}
+                    className={`text-xs font-mono font-bold uppercase tracking-tighter ${item.status === 'Available' ? '' : 'text-red-500'}`}
                     style={item.status === 'Available' ? { color: ACCENT } : undefined}
                   >
                     {item.status}
@@ -192,7 +192,7 @@ export default function CarrierBoard() {
         </div>
 
         <div className="bg-black/20 px-3 py-2 border-t border-white/5 sm:px-4">
-          <p className="text-[9px] text-neutral-500 text-center font-mono uppercase tracking-[0.1em]">
+          <p className="text-[10px] text-neutral-500 text-center font-mono uppercase tracking-[0.1em] sm:text-xs">
             * Subject to active flight schedules and regional restrictions
           </p>
         </div>

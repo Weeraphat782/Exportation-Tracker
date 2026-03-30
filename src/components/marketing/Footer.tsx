@@ -55,7 +55,7 @@ export default function Footer() {
                                 href={linkedInUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-110"
+                                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-110"
                                 aria-label="LinkedIn"
                             >
                                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -66,7 +66,7 @@ export default function Footer() {
                                 href={xUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-110"
+                                className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-110"
                                 aria-label="X (Twitter)"
                             >
                                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -86,7 +86,7 @@ export default function Footer() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className="group inline-flex items-center gap-1.5 text-sm text-white/80 transition-all hover:text-white"
+                                    className="group inline-flex min-h-[44px] items-center gap-1.5 text-sm text-white/80 transition-all hover:text-white"
                                 >
                                     <span
                                         className="h-0.5 w-0 rounded-full transition-all duration-200 group-hover:w-3"
@@ -108,7 +108,7 @@ export default function Footer() {
                                 <Link
                                     key={link.href}
                                     href={link.href}
-                                    className="group inline-flex items-center gap-1.5 text-sm text-white/80 transition-all hover:text-white"
+                                    className="group inline-flex min-h-[44px] items-center gap-1.5 text-sm text-white/80 transition-all hover:text-white"
                                 >
                                     <span
                                         className="h-0.5 w-0 rounded-full transition-all duration-200 group-hover:w-3"
@@ -121,7 +121,7 @@ export default function Footer() {
                         <Link
                             href="/site/contact"
                             onClick={() => trackCtaClick("Request a Quote", "footer")}
-                            className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110 hover:shadow-lg"
+                            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110 hover:shadow-lg"
                             style={{ backgroundColor: "var(--color-accent-ref)" }}
                         >
                             Request a Quote

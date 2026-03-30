@@ -36,7 +36,7 @@ export default function ContactPage() {
       />
       <article>
         <header>
-          <h1 className="text-3xl font-bold text-neutral-900">Contact Us</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 sm:text-4xl">Contact Us</h1>
           <p className="mt-6 text-neutral-600">
             Request a quote for your air freight, customs clearance, warehousing, or
             controlled temperature transport requirements. Our team will respond within

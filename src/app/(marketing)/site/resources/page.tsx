@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import ResourcesList from "@/components/marketing/ResourcesList";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
@@ -82,7 +83,7 @@ export default async function ResourcesPage() {
 
       <header>
         <p className="text-sm text-neutral-500">Last updated: {reviewed}</p>
-        <h1 id="resources-heading" className="mt-2 text-3xl font-bold text-neutral-900">Resources</h1>
+        <h1 id="resources-heading" className="mt-2 text-3xl font-bold text-neutral-900 sm:text-4xl">Resources</h1>
         <p className="mt-4 text-neutral-600">
           Reading instructions for export and customs requirements. Filter by category
           to find relevant guides for your destination.
@@ -100,7 +101,8 @@ export default async function ResourcesPage() {
           Long-form explainers aligned to regulatory themes—use them alongside your
           internal QA and legal review for outbound shipments.
         </p>
-        <table className="mt-4 w-full max-w-lg text-left text-sm">
+        <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[min(100%,20rem)] max-w-lg text-left text-sm">
           <caption className="sr-only">At a glance: Resources</caption>
           <tbody className="divide-y divide-neutral-200">
             <tr>
@@ -121,6 +123,7 @@ export default async function ResourcesPage() {
             </tr>
           </tbody>
         </table>
+        </div>
       </aside>
 
       <div className="relative mb-8 mt-10 aspect-[3/1] overflow-hidden rounded-lg bg-neutral-100 shadow-md">
@@ -135,6 +138,8 @@ export default async function ResourcesPage() {
       </div>
 
       <ResourcesList resources={resources} allTags={allTags} />
+
+      <ContinueExploring />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import NewsCard from "@/components/marketing/NewsCard";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
@@ -82,7 +83,7 @@ export default async function NewsroomPage() {
 
       <header>
         <p className="text-sm text-neutral-500">Last updated: {reviewed}</p>
-        <h1 id="newsroom-heading" className="mt-2 text-3xl font-bold text-neutral-900">Newsroom</h1>
+        <h1 id="newsroom-heading" className="mt-2 text-3xl font-bold text-neutral-900 sm:text-4xl">Newsroom</h1>
         <p className="mt-4 text-neutral-600">
           Company announcements, route updates, and logistics industry news.
         </p>
@@ -99,7 +100,8 @@ export default async function NewsroomPage() {
           Curated updates on air cargo, compliance, and export programs—written for
           operators and partners tracking {BRAND_NAME} activity.
         </p>
-        <table className="mt-4 w-full max-w-lg text-left text-sm">
+        <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[min(100%,20rem)] max-w-lg text-left text-sm">
           <caption className="sr-only">At a glance: Newsroom</caption>
           <tbody className="divide-y divide-neutral-200">
             <tr>
@@ -120,6 +122,7 @@ export default async function NewsroomPage() {
             </tr>
           </tbody>
         </table>
+        </div>
       </aside>
 
       <div className="relative mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
@@ -151,6 +154,8 @@ export default async function NewsroomPage() {
           ))
         )}
       </div>
+
+      <ContinueExploring />
     </section>
   );
 }

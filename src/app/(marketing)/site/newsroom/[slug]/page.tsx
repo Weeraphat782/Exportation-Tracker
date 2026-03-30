@@ -91,6 +91,14 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
       })
     : "";
 
+  const formattedUpdated = item.updated_at
+    ? new Date(item.updated_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
   const wordCount =
     typeof item.content === "string"
       ? item.content.split(/\s+/).filter(Boolean).length
@@ -160,7 +168,15 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
             className="block text-sm font-medium"
             style={{ color: "var(--color-primary-ref)" }}
           >
-            {formattedDate}
+            Published {formattedDate}
+          </time>
+        )}
+        {item.updated_at && formattedUpdated && (
+          <time
+            dateTime={item.updated_at}
+            className="block text-sm text-neutral-500"
+          >
+            Last updated {formattedUpdated}
           </time>
         )}
       </div>
@@ -177,7 +193,7 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
         </div>
       )}
       <header>
-        <h1 className="text-3xl font-bold leading-tight text-neutral-900">
+        <h1 className="text-3xl font-bold leading-tight text-neutral-900 sm:text-4xl">
           {item.title}
         </h1>
       </header>

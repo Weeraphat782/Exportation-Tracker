@@ -57,7 +57,7 @@ export default function ResourceCard({
                 <p className="mt-3 text-neutral-600">{excerpt}</p>
                 <Link
                     href={`/site/resources/${slug}`}
-                    className="mt-4 inline-flex items-center text-sm font-medium"
+                    className="mt-4 inline-flex min-h-[44px] items-center rounded-md py-2 text-sm font-medium"
                     style={{ color: "var(--color-accent-ref)" }}
                 >
                     Read instructions

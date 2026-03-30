@@ -82,19 +82,24 @@ export default function EdgeCarousel() {
                 />
 
                 {/* Dots/Indicators */}
-                <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+                <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1">
                     {IMAGES.map((_, index) => (
                         <button
                             key={index}
                             type="button"
                             onClick={() => emblaApi?.scrollTo(index)}
-                            className={`h-2 rounded-full transition-all duration-200 ${
-                                index === selectedIndex
-                                    ? 'w-6 bg-white'
-                                    : 'w-2 bg-white/50 hover:bg-white/70'
-                            }`}
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                             aria-label={`Go to slide ${index + 1}`}
-                        />
+                            aria-current={index === selectedIndex ? "true" : undefined}
+                        >
+                            <span
+                                className={`block h-2 rounded-full transition-all duration-200 ${
+                                    index === selectedIndex
+                                        ? "w-6 bg-white"
+                                        : "w-2 bg-white/50 hover:bg-white/70"
+                                }`}
+                            />
+                        </button>
                     ))}
                 </div>
             </div>

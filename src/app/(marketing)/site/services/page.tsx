@@ -10,6 +10,7 @@ import {
 } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl, BRAND_NAME } from "@/lib/site";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import { services } from "@/data/marketing-services";
 
 export const metadata: Metadata = pageMeta({
@@ -54,7 +55,7 @@ export default function ServicesPage() {
 
       <header>
         <p className="text-sm text-neutral-500">Last updated: {reviewed}</p>
-        <h1 className="mt-2 text-3xl font-bold text-neutral-900">Our Services</h1>
+        <h1 className="mt-2 text-3xl font-bold text-neutral-900 sm:text-4xl">Our Services</h1>
         <p className="mt-4 text-lg text-neutral-600">
           {BRAND_NAME} delivers end-to-end logistics for specialized air freight, customs
           clearance, pharmaceutical-grade warehousing, and controlled temperature
@@ -74,7 +75,8 @@ export default function ServicesPage() {
           cold-chain transport—with documented handling and AI-assisted export
           documentation where applicable.
         </p>
-        <table className="mt-4 w-full max-w-lg text-left text-sm">
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[min(100%,20rem)] max-w-lg text-left text-sm">
           <caption className="sr-only">At a glance: OMG Experience services</caption>
           <tbody className="divide-y divide-neutral-200">
             <tr>
@@ -101,6 +103,7 @@ export default function ServicesPage() {
             </tr>
           </tbody>
         </table>
+        </div>
       </aside>
 
       <div className="relative mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
@@ -117,13 +120,13 @@ export default function ServicesPage() {
       <nav aria-label="Dedicated service landing pages" className="mb-8 flex flex-wrap gap-3">
         <Link
           href="/site/services/air-freight"
-          className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-400"
+          className="inline-flex min-h-[44px] items-center rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-400"
         >
           Air freight hub page
         </Link>
         <Link
           href="/site/services/customs-documents"
-          className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-400"
+          className="inline-flex min-h-[44px] items-center rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition hover:border-neutral-400"
         >
           Customs &amp; documents hub page
         </Link>
@@ -134,7 +137,7 @@ export default function ServicesPage() {
           <a
             key={service.id}
             href={`#${service.id}`}
-            className="rounded-full px-4 py-2 text-sm font-medium transition active:scale-95"
+            className="inline-flex min-h-[44px] items-center rounded-full px-4 py-2 text-sm font-medium transition active:scale-95"
             style={{
               backgroundColor: "var(--color-primary-ref)",
               color: "white",
@@ -188,6 +191,8 @@ export default function ServicesPage() {
           </section>
         ))}
       </div>
+
+      <ContinueExploring />
     </div>
   );
 }

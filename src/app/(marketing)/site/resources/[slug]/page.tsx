@@ -81,9 +81,16 @@ export default async function ResourceArticlePage({ params }: PageProps) {
 
   if (!item) notFound();
 
-  const dateIso = item.published_at || item.updated_at;
-  const formattedDate = dateIso
-    ? new Date(dateIso).toLocaleDateString("en-US", {
+  const publishedFormatted = item.published_at
+    ? new Date(item.published_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
+  const updatedFormatted = item.updated_at
+    ? new Date(item.updated_at).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -174,15 +181,19 @@ export default async function ResourceArticlePage({ params }: PageProps) {
         </div>
       )}
       <header className="mt-4">
-        <h1 className="text-3xl font-bold text-neutral-900">{item.title}</h1>
-        {formattedDate && dateIso && (
-          <time
-            dateTime={dateIso}
-            className="mt-2 block text-sm text-neutral-500"
-          >
-            Last published: {formattedDate}
-          </time>
-        )}
+        <h1 className="text-3xl font-bold text-neutral-900 sm:text-4xl">{item.title}</h1>
+        <div className="mt-2 flex flex-col gap-1 text-sm text-neutral-500 sm:flex-row sm:flex-wrap sm:gap-x-6">
+          {item.published_at && publishedFormatted && (
+            <time dateTime={item.published_at}>
+              Published {publishedFormatted}
+            </time>
+          )}
+          {item.updated_at && updatedFormatted && (
+            <time dateTime={item.updated_at}>
+              Last updated {updatedFormatted}
+            </time>
+          )}
+        </div>
       </header>
 
       <aside

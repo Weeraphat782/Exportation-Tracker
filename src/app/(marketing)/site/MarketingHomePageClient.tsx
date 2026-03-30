@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import PartnerSection from "@/components/marketing/PartnerSection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { trackCtaClick } from "@/lib/analytics";
@@ -14,7 +15,9 @@ const WorldMap = dynamic(() => import("@/components/marketing/WorldMap"), {
     <div className="min-h-[400px] animate-pulse rounded-2xl bg-neutral-100" aria-hidden />
   ),
 });
+/** Embla + indicators must be client-only to avoid SSR/client HTML mismatch (hydration errors). */
 const EdgeCarousel = dynamic(() => import("@/components/marketing/EdgeCarousel"), {
+  ssr: false,
   loading: () => (
     <div className="aspect-video animate-pulse rounded-xl bg-neutral-200" aria-hidden />
   ),
@@ -173,7 +176,8 @@ export default function MarketingHomePageClient() {
             verification—serving multiple regions with compliance-focused
             handling.
           </p>
-          <table className="mt-6 w-full max-w-xl text-left text-sm">
+          <div className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[min(100%,20rem)] max-w-xl text-left text-sm">
             <caption className="sr-only">
               Quick facts for OMG Experience home page
             </caption>
@@ -204,6 +208,7 @@ export default function MarketingHomePageClient() {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </aside>
 
@@ -239,7 +244,7 @@ export default function MarketingHomePageClient() {
           <div className="mt-12 text-center">
             <Link
               href="/site/services"
-              className="group inline-flex items-center gap-1 text-sm font-semibold transition hover:opacity-80"
+              className="group inline-flex min-h-[44px] items-center gap-1 rounded-md px-1 py-2 text-sm font-semibold transition hover:opacity-80"
               style={{ color: "var(--color-accent-ref)" }}
             >
               View all services
@@ -316,7 +321,7 @@ export default function MarketingHomePageClient() {
               <Link
                 href="/site/contact"
                 onClick={() => trackCtaClick("Discuss your requirements", "edge-section")}
-                className="group mt-8 inline-flex items-center gap-1 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md hover:-translate-y-0.5"
+                className="group mt-8 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md hover:-translate-y-0.5"
                 style={{ backgroundColor: "var(--color-primary-ref)" }}
               >
                 Discuss your requirements
@@ -350,6 +355,10 @@ export default function MarketingHomePageClient() {
 
       {/* NIA Partner Section */}
       <PartnerSection />
+
+      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <ContinueExploring />
+      </div>
     </>
   );
 }

@@ -1,9 +1,10 @@
-fix(seo): remaining SEO/GEO/Performance optimizations
+feat(marketing): mobile responsiveness, SEO hub links, hydration fix
 
-- robots.ts: disallow /portal, /track, /simple-login, /preview, /internal
-- MarkdownBody: downshift headings (h1->h2, h2->h3, h3->h4) to avoid H1 conflicts
-- Wire trackCtaClick into hero and footer CTA buttons
-- Add GTM noscript iframe fallback for full compliance
-- Add prefetch hints for /services and /contact, dns-prefetch for Vercel Insights
-- manifest.json: add 512x512 icon entry
-- next.config: add image qualities array and dangerouslyAllowSVG
+- Header: body scroll lock when mobile menu open; larger touch targets
+- Footer, cards, services pills, EdgeCarousel dots: min 44px touch targets
+- Responsive h1 scaling; TL;DR tables in overflow-x-auto
+- CarrierBoard: larger minimum font sizes on small screens
+- Marketing layout: overflow-x-hidden on main
+- ContinueExploring on home, services, about, newsroom, resources indexes
+- Newsroom/resource articles: visible Published + Last updated dates
+- EdgeCarousel: dynamic import with ssr:false to fix React hydration mismatch

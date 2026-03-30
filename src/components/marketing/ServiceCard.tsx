@@ -61,7 +61,7 @@ export default function ServiceCard({
 
                 <Link
                     href={href}
-                    className="group/link mt-5 inline-flex items-center gap-1 text-sm font-semibold transition-all hover:gap-2"
+                    className="group/link mt-5 inline-flex min-h-[44px] items-center gap-1 self-start rounded-md py-2 text-sm font-semibold transition-all hover:gap-2"
                     style={{ color: "var(--color-accent-ref)" }}
                 >
                     Learn more

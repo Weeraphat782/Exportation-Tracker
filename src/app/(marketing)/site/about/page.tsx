@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
 import { jsonLdScript, webPageSchema } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import { BRAND_NAME } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta({
@@ -36,7 +37,7 @@ export default function AboutPage() {
         ]}
       />
       <header>
-        <h1 className="text-3xl font-bold text-neutral-900">About Us</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 sm:text-4xl">About Us</h1>
         <p className="mt-2 text-sm text-neutral-500">
           Last updated: {new Date().toISOString().slice(0, 10)}
         </p>
@@ -130,6 +131,8 @@ export default function AboutPage() {
           Contact {BRAND_NAME}
         </Link>
       </p>
+
+      <ContinueExploring />
     </article>
   );
 }
