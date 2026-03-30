@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 interface ServiceCardProps {
@@ -25,11 +26,13 @@ export default function ServiceCard({
 
             {imageUrl && (
                 <div className="relative h-32 overflow-hidden sm:h-44">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                         src={imageUrl}
                         alt={title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        loading="lazy"
                     />
                     {/* Gradient overlay on image */}
                     <div

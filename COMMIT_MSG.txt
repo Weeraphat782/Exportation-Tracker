@@ -1,0 +1,14 @@
+feat(seo): Phase 2 — performance, analytics, and content strategy
+
+- Convert all raw img to next/image with priority/sizes/loading
+- Add force-static to marketing pages, ISR + generateStaticParams to slug pages
+- Dynamic import WorldMap, EdgeCarousel, CarrierBoard for code splitting
+- Create loading.tsx skeletons for newsroom and resources routes
+- Add preconnect + dns-prefetch hints for Supabase in root layout
+- Integrate Vercel Analytics + SpeedInsights
+- Add conditional GTM via NEXT_PUBLIC_GTM_ID env var
+- Create lib/analytics.ts with dataLayer event helpers
+- Add author attribution (Person type) to JSON-LD
+- Add FAQ schema extraction from markdown content
+- Configure security headers and cache policies in next.config
+- Fix R2 remote pattern for next/image

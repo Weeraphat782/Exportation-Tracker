@@ -5,6 +5,8 @@ import { jsonLdScript, webPageSchema } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { BRAND_NAME } from "@/lib/site";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = pageMeta({
   title: "Customs & Export Documents",
   description:

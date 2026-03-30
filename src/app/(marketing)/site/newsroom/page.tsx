@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import NewsCard from "@/components/marketing/NewsCard";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -121,12 +122,14 @@ export default async function NewsroomPage() {
         </table>
       </aside>
 
-      <div className="mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="relative mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
+        <Image
           src="/images/newsroom-hero.jpg"
           alt="Newsroom hero — logistics and global trade context"
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 896px) 100vw, 896px"
+          loading="lazy"
         />
       </div>
 

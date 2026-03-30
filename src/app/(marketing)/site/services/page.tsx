@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
@@ -17,6 +18,8 @@ export const metadata: Metadata = pageMeta({
     "Specialized air freight, shipping & customs, GDP warehousing, and controlled temperature transport—end-to-end logistics from OMG Experience.",
   path: "/site/services",
 });
+
+export const dynamic = "force-static";
 
 export default function ServicesPage() {
   const reviewed = new Date().toISOString().slice(0, 10);
@@ -100,12 +103,14 @@ export default function ServicesPage() {
         </table>
       </aside>
 
-      <div className="mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="relative mb-8 mt-10 aspect-[21/9] overflow-hidden rounded-xl bg-neutral-100 shadow-md">
+        <Image
           src="https://images.unsplash.com/photo-1767868280782-fc108d087050?q=80&w=1600&auto=format&fit=crop"
           alt="Air cargo terminal with freight handling equipment and infrastructure"
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 896px) 100vw, 896px"
+          loading="lazy"
         />
       </div>
 

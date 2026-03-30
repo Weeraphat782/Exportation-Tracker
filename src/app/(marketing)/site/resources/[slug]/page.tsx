@@ -1,14 +1,34 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
 import { MarkdownBody } from "@/components/marketing/MarkdownBody";
-import { articleSchema, jsonLdScript } from "@/lib/json-ld";
+import {
+  articleSchema,
+  extractFaqsFromMarkdown,
+  faqPageSchema,
+  jsonLdScript,
+} from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl } from "@/lib/site";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+export const revalidate = 3600;
+
+export async function generateStaticParams() {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("resources")
+    .select("slug")
+    .eq("is_published", true)
+    .order("published_at", { ascending: false })
+    .limit(50);
+  return (data ?? []).map((row: { slug: string }) => ({ slug: row.slug }));
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -70,6 +90,12 @@ export default async function ResourceArticlePage({ params }: PageProps) {
       })
     : "";
 
+  const faqs =
+    typeof item.content === "string"
+      ? extractFaqsFromMarkdown(item.content)
+      : [];
+  const faqLd = faqPageSchema(faqs);
+
   const ld = jsonLdScript([
     articleSchema({
       headline: item.title,
@@ -79,7 +105,15 @@ export default async function ResourceArticlePage({ params }: PageProps) {
       dateModified: item.updated_at || item.published_at || undefined,
       imageUrl: item.image_url || undefined,
     }),
+    ...(faqLd ? [faqLd] : []),
   ]);
+
+  const heroSrc =
+    item.image_url?.startsWith("http")
+      ? item.image_url
+      : item.image_url
+        ? absoluteUrl(item.image_url)
+        : "";
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
@@ -127,13 +161,15 @@ export default async function ResourceArticlePage({ params }: PageProps) {
           </span>
         ))}
       </div>
-      {item.image_url && (
-        <div className="mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 shadow-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.image_url}
+      {heroSrc && (
+        <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 shadow-sm">
+          <Image
+            src={heroSrc}
             alt={item.title}
-            className="h-full w-full object-cover"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 768px"
+            loading="lazy"
           />
         </div>
       )}

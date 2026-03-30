@@ -1,10 +1,17 @@
 "use client";
 
+import { trackFormSubmit } from "@/lib/analytics";
+
 export default function ContactForm() {
     return (
         <form
             className="mt-8 space-y-6"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                if (!form.reportValidity()) return;
+                trackFormSubmit("contact");
+            }}
         >
             <div className="grid gap-6 sm:grid-cols-2">
                 <div>

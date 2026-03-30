@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 interface ResourceCardProps {
@@ -18,12 +19,14 @@ export default function ResourceCard({
     return (
         <article className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md lg:flex">
             {imageUrl && (
-                <div className="shrink-0 lg:w-48">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                <div className="relative h-48 w-full shrink-0 lg:h-auto lg:min-h-[12rem] lg:w-48">
+                    <Image
                         src={imageUrl}
                         alt={title}
-                        className="h-48 w-full object-cover lg:h-full"
+                        fill
+                        className="object-cover lg:object-cover"
+                        sizes="(max-width: 1024px) 100vw, 192px"
+                        loading="lazy"
                     />
                 </div>
             )}

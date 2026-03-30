@@ -6,6 +6,9 @@ export const BRAND_NAME = "OMG Experience";
 export const BRAND_SHORT = "OMG Experience";
 export const BRAND_LEGAL_NAME = "OMG Experience";
 
+/** Editorial byline + JSON-LD Person name (E-E-A-T). */
+export const DEFAULT_AUTHOR_NAME = "Editorial Team, OMG Experience";
+
 export function getSiteUrl(): string {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");

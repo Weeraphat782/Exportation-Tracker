@@ -12,6 +12,8 @@ export const metadata: Metadata = pageMeta({
   path: "/site",
 });
 
+export const dynamic = "force-static";
+
 export default function MarketingHomePage() {
   const ld = jsonLdScript([
     webPageSchema({

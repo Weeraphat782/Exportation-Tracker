@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -29,6 +30,28 @@ function fallbackDisplayItems(): CarrierBoardDisplayItem[] {
       created_at: '',
       updated_at: '',
     })
+  );
+}
+
+function CarrierLogo({ carrier }: { carrier: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className="text-[12px] font-black text-neutral-900 uppercase tracking-tighter">
+        {carrier}
+      </span>
+    );
+  }
+  return (
+    <Image
+      src={`/images/carriers/logo-${carrier.toLowerCase()}.png`}
+      alt={carrier}
+      fill
+      className="object-contain p-0.5"
+      sizes="96px"
+      unoptimized
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -141,22 +164,8 @@ export default function CarrierBoard() {
               </div>
 
               <div className="col-span-4 flex justify-center">
-                <div className="w-16 h-10 bg-white/90 rounded-md flex items-center justify-center border border-white/20 shadow-sm px-2 py-1.5 relative sm:w-24 sm:h-14 sm:px-3 sm:py-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/images/carriers/logo-${item.carrier.toLowerCase()}.png`}
-                    alt={item.carrier}
-                    className="max-h-full max-w-full object-contain"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.style.display = 'none';
-                      const next = target.nextElementSibling as HTMLElement;
-                      if (next) next.style.display = 'block';
-                    }}
-                  />
-                  <span className="text-[12px] font-black text-neutral-900 hidden uppercase tracking-tighter">
-                    {item.carrier}
-                  </span>
+                <div className="relative w-16 h-10 bg-white/90 rounded-md flex items-center justify-center border border-white/20 shadow-sm px-2 py-1.5 sm:w-24 sm:h-14 sm:px-3 sm:py-2">
+                  <CarrierLogo carrier={item.carrier} />
                 </div>
               </div>
 

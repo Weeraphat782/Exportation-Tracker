@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 interface NewsCardProps {
@@ -18,12 +19,14 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
     return (
         <article className="flex flex-col gap-6 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
             {imageUrl && (
-                <div className="h-48 w-full shrink-0 md:h-auto md:w-64">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                <div className="relative h-48 w-full shrink-0 md:h-48 md:w-64">
+                    <Image
                         src={imageUrl}
                         alt={title}
-                        className="h-full w-full object-cover"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 256px"
+                        loading="lazy"
                     />
                 </div>
             )}

@@ -36,3 +36,8 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Optional analytics env (Phase 2)
+
+- `NEXT_PUBLIC_GTM_ID` — Google Tag Manager container ID (e.g. `GTM-XXXXXXX`). When set, GTM loads from `@next/third-parties/google`. Configure GA4 / tags inside GTM.
+- Vercel Analytics and Speed Insights are enabled in `src/app/layout.tsx` when deployed on Vercel (no extra env required).

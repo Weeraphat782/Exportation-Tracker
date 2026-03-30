@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import React, { useEffect, useCallback, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 
@@ -60,12 +61,15 @@ export default function EdgeCarousel() {
             <div className="relative aspect-video overflow-hidden" ref={emblaRef}>
                 <div className="flex h-full">
                     {IMAGES.map((img, index) => (
-                        <div key={index} className="relative min-w-0 flex-[0_0_100%] h-full">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
+                        <div key={index} className="relative min-w-0 flex-[0_0_100%] h-full min-h-[200px]">
+                            <Image
                                 src={img.url}
                                 alt={img.alt}
-                                className="h-full w-full object-cover"
+                                fill
+                                className="object-cover"
+                                sizes="100vw"
+                                loading={index === 0 ? "eager" : "lazy"}
+                                priority={index === 0}
                             />
                         </div>
                     ))}

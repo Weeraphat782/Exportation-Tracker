@@ -2,10 +2,94 @@ import {
   absoluteUrl,
   BRAND_NAME,
   BRAND_LEGAL_NAME,
+  DEFAULT_AUTHOR_NAME,
   getSiteUrl,
 } from "@/lib/site";
 
 type JsonLdGraph = Record<string, unknown>;
+
+function editorialAuthorPerson(): JsonLdGraph {
+  return {
+    "@type": "Person",
+    name: DEFAULT_AUTHOR_NAME,
+    url: absoluteUrl("/site/about"),
+    worksFor: { "@id": `${getSiteUrl()}/#organization` },
+  };
+}
+
+/**
+ * Parse markdown for `## FAQ` / `## Frequently Asked Questions` then `###` Q + body until next `###`.
+ */
+export function extractFaqsFromMarkdown(markdown: string): {
+  question: string;
+  answer: string;
+}[] {
+  if (!markdown?.trim()) return [];
+  const lines = markdown.split(/\r?\n/);
+  let inFaq = false;
+  const faqs: { question: string; answer: string }[] = [];
+  let currentQ: string | null = null;
+  let currentA: string[] = [];
+
+  const flush = () => {
+    if (currentQ && currentA.length) {
+      const answer = currentA.join("\n").trim();
+      if (answer) faqs.push({ question: currentQ, answer });
+    }
+    currentQ = null;
+    currentA = [];
+  };
+
+  for (const line of lines) {
+    const h2 = line.match(/^##\s+(.+)/);
+    if (h2) {
+      const title = h2[1].trim().toLowerCase();
+      const isFaq =
+        title.includes("faq") || title.includes("frequently asked");
+      if (isFaq) {
+        flush();
+        inFaq = true;
+        continue;
+      }
+      if (inFaq) {
+        flush();
+        inFaq = false;
+      }
+      continue;
+    }
+    if (!inFaq) continue;
+
+    const h3 = line.match(/^###\s+(.+)/);
+    if (h3) {
+      flush();
+      currentQ = h3[1].trim();
+      currentA = [];
+      continue;
+    }
+    if (currentQ) {
+      currentA.push(line);
+    }
+  }
+  if (inFaq) flush();
+  return faqs;
+}
+
+export function faqPageSchema(
+  faqs: { question: string; answer: string }[],
+): JsonLdGraph | null {
+  if (!faqs.length) return null;
+  return {
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.answer,
+      },
+    })),
+  };
+}
 
 export function jsonLdScript(graph: JsonLdGraph | JsonLdGraph[]) {
   const data = Array.isArray(graph)
@@ -77,10 +161,7 @@ export function blogPostingSchema(input: {
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     datePublished: input.datePublished,
     dateModified: input.dateModified || input.datePublished,
-    author: {
-      "@type": "Organization",
-      name: `${BRAND_NAME} Editorial`,
-    },
+    author: editorialAuthorPerson(),
     publisher: { "@id": `${getSiteUrl()}/#organization` },
     inLanguage: "en-US",
     ...(input.imageUrl
@@ -116,10 +197,7 @@ export function articleSchema(input: {
     ...(input.dateModified
       ? { dateModified: input.dateModified }
       : {}),
-    author: {
-      "@type": "Organization",
-      name: `${BRAND_NAME} Editorial`,
-    },
+    author: editorialAuthorPerson(),
     publisher: { "@id": `${getSiteUrl()}/#organization` },
     inLanguage: "en-US",
     ...(input.imageUrl

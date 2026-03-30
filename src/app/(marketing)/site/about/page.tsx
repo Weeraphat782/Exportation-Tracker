@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
@@ -12,6 +13,8 @@ export const metadata: Metadata = pageMeta({
     "From GSA and airline distribution heritage to specialized pharmaceutical-grade logistics—industry expertise and routing intelligence at OMG Experience.",
   path: "/site/about",
 });
+
+export const dynamic = "force-static";
 
 export default function AboutPage() {
   const ld = jsonLdScript([
@@ -39,12 +42,14 @@ export default function AboutPage() {
         </p>
       </header>
 
-      <div className="mt-8 aspect-video overflow-hidden rounded-xl bg-neutral-100 shadow-md">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="relative mt-8 aspect-video overflow-hidden rounded-xl bg-neutral-100 shadow-md">
+        <Image
           src="https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?q=80&w=1200&auto=format&fit=crop"
           alt="International air freight hub with cargo aircraft and ground handling equipment"
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 896px) 100vw, 896px"
+          loading="lazy"
         />
       </div>
 

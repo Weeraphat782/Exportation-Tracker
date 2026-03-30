@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import ResourcesList from "@/components/marketing/ResourcesList";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -122,12 +123,14 @@ export default async function ResourcesPage() {
         </table>
       </aside>
 
-      <div className="mb-8 mt-10 aspect-[3/1] overflow-hidden rounded-lg bg-neutral-100 shadow-md">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <div className="relative mb-8 mt-10 aspect-[3/1] overflow-hidden rounded-lg bg-neutral-100 shadow-md">
+        <Image
           src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=1600&auto=format&fit=crop"
           alt="Warehouse and logistics planning environment for export compliance content"
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 1024px) 100vw, 1024px"
+          loading="lazy"
         />
       </div>
 

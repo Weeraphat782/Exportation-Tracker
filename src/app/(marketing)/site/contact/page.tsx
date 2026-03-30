@@ -13,6 +13,8 @@ export const metadata: Metadata = pageMeta({
   path: "/site/contact",
 });
 
+export const dynamic = "force-static";
+
 export default function ContactPage() {
   const ld = jsonLdScript([
     webPageSchema({

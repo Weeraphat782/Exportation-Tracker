@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import Image from "next/image";
+import React, { useState } from 'react';
 
 export default function PartnerSection() {
+    const [niaLogoError, setNiaLogoError] = useState(false);
     return (
         <section className="bg-neutral-50 py-10 border-t border-neutral-100 sm:py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -22,26 +24,21 @@ export default function PartnerSection() {
                     </div>
 
                     {/* NIA LOGO SLOT */}
-                    <div className="group relative flex items-center justify-center p-6 bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl transition-all duration-300 sm:p-12">
-                        {/* 🛑 PLACE YOUR NIA LOGO HERE 🛑 */}
-                        {/* You can replace this <img> tag with your actual NIA logo file path */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="/images/partners/nia-logo.png"
-                            alt="NIA Logo"
-                            className="h-32 md:h-40 w-auto transition-all duration-500"
-                            onError={(e) => {
-                                // If image doesn't exist yet, show a clean placeholder box
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                const parent = (e.target as HTMLImageElement).parentElement;
-                                if (parent) {
-                                    const placeholder = document.createElement('div');
-                                    placeholder.className = "flex items-center justify-center px-12 py-6 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 font-bold uppercase tracking-widest";
-                                    placeholder.innerText = "NIA LOGO SLOT";
-                                    parent.appendChild(placeholder);
-                                }
-                            }}
-                        />
+                    <div className="group relative flex min-h-[8rem] items-center justify-center p-6 bg-white rounded-3xl border border-neutral-200 shadow-sm hover:shadow-xl transition-all duration-300 sm:min-h-[10rem] sm:p-12">
+                        {!niaLogoError ? (
+                            <Image
+                                src="/images/partners/nia-logo.png"
+                                alt="National Innovation Agency Thailand logo"
+                                width={320}
+                                height={160}
+                                className="h-32 w-auto max-w-full object-contain transition-all duration-500 md:h-40"
+                                onError={() => setNiaLogoError(true)}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center px-12 py-6 border-2 border-dashed border-neutral-200 rounded-xl text-neutral-400 font-bold uppercase tracking-widest">
+                                NIA LOGO SLOT
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

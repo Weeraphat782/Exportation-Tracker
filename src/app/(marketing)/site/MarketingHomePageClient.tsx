@@ -1,13 +1,28 @@
 'use client';
 
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
-import WorldMap from "@/components/marketing/WorldMap";
-import EdgeCarousel from "@/components/marketing/EdgeCarousel";
 import PartnerSection from "@/components/marketing/PartnerSection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import CarrierBoard from "@/components/marketing/CarrierBoard";
+
+const WorldMap = dynamic(() => import("@/components/marketing/WorldMap"), {
+  loading: () => (
+    <div className="min-h-[400px] animate-pulse rounded-2xl bg-neutral-100" aria-hidden />
+  ),
+});
+const EdgeCarousel = dynamic(() => import("@/components/marketing/EdgeCarousel"), {
+  loading: () => (
+    <div className="aspect-video animate-pulse rounded-xl bg-neutral-200" aria-hidden />
+  ),
+});
+const CarrierBoard = dynamic(() => import("@/components/marketing/CarrierBoard"), {
+  loading: () => (
+    <div className="min-h-[280px] w-full animate-pulse rounded-xl bg-white/5" aria-hidden />
+  ),
+});
 
 const serviceIcons: Record<string, React.ReactNode> = {
   "specialized-air-freight": (
@@ -45,11 +60,14 @@ export default function MarketingHomePageClient() {
     <>
       {/* Hero Section */}
       <section className="relative min-h-[60vh] overflow-hidden sm:min-h-[80vh]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?q=80&w=2000&auto=format&fit=crop"
           alt="Cargo aircraft on airport tarmac"
-          className="absolute inset-0 h-full w-full object-cover opacity-55 animate-fade-in"
+          fill
+          priority
+          fetchPriority="high"
+          className="object-cover opacity-55 animate-fade-in"
+          sizes="100vw"
         />
         {/* Multi-layer gradient for depth */}
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/80 via-neutral-900/50 to-transparent" />

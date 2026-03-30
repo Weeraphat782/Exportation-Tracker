@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { GoogleTagManager } from "@next/third-parties/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -15,6 +18,12 @@ const inter = Inter({ subsets: ["latin"], display: "swap", preload: true });
 
 const siteUrl = getSiteUrl();
 const defaultOg = getDefaultOgImageUrl();
+
+const supabaseOrigin =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ??
+  "https://olcjmlvjtykcariimjbz.supabase.co";
+
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -111,6 +120,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="overflow-x-hidden">
       <head>
+        <link rel="preconnect" href={supabaseOrigin} />
+        <link rel="dns-prefetch" href={supabaseOrigin} />
         <link
           rel="alternate"
           type="application/rss+xml"
@@ -119,9 +130,12 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} min-w-0 overflow-x-hidden`}>
+        {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         <JsonLd data={rootLd} />
         <ScrollToTop />
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -36,10 +36,17 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "pub-8bcc4f3b024b4819ba737865d58e9664.r2.dev",
+        port: "",
+        pathname: "/**",
+      },
     ],
   },
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    // `optimizeCss: true` (critters) caused build failure (PageNotFoundError: /_document) on Next 15.2.6 — re-enable when upstream fixes.
   },
   async headers() {
     return [
