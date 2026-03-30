@@ -122,6 +122,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href={supabaseOrigin} />
         <link rel="dns-prefetch" href={supabaseOrigin} />
+        <link rel="dns-prefetch" href="https://vitals.vercel-insights.com" />
+        <link rel="prefetch" href="/site/services" />
+        <link rel="prefetch" href="/site/contact" />
         <link
           rel="alternate"
           type="application/rss+xml"
@@ -131,6 +134,16 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} min-w-0 overflow-x-hidden`}>
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
+        {gtmId ? (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+            />
+          </noscript>
+        ) : null}
         <JsonLd data={rootLd} />
         <ScrollToTop />
         {children}

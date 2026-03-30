@@ -18,13 +18,13 @@ const components: Components = {
     ),
     li: ({ children }) => <li className="leading-relaxed">{children}</li>,
     h1: ({ children }) => (
-        <h1 className="mt-8 mb-3 text-2xl font-bold text-neutral-900">{children}</h1>
+        <h2 className="mt-8 mb-3 text-2xl font-bold text-neutral-900">{children}</h2>
     ),
     h2: ({ children }) => (
-        <h2 className="mt-6 mb-2 text-xl font-semibold text-neutral-900">{children}</h2>
+        <h3 className="mt-6 mb-2 text-xl font-semibold text-neutral-900">{children}</h3>
     ),
     h3: ({ children }) => (
-        <h3 className="mt-4 mb-2 text-lg font-semibold text-neutral-900">{children}</h3>
+        <h4 className="mt-4 mb-2 text-lg font-semibold text-neutral-900">{children}</h4>
     ),
     a: ({ href, children }) => (
         <a

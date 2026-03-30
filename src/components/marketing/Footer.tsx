@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { BRAND_NAME } from "@/lib/site";
+import { trackCtaClick } from "@/lib/analytics";
 
 const navLinks = [
     { href: "/site", label: "Home" },
@@ -117,6 +120,7 @@ export default function Footer() {
                         </nav>
                         <Link
                             href="/site/contact"
+                            onClick={() => trackCtaClick("Request a Quote", "footer")}
                             className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110 hover:shadow-lg"
                             style={{ backgroundColor: "var(--color-accent-ref)" }}
                         >

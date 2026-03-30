@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
-        disallow: ["/api/", "/admin/", "/cms/"],
+        allow: ["/", "/api/public/"],
+        disallow: ["/api/", "/admin/", "/cms/", "/portal/", "/track/", "/simple-login/", "/preview/", "/internal/"],
       },
       { userAgent: "Googlebot", allow: "/" },
       { userAgent: "Googlebot-News", allow: "/" },

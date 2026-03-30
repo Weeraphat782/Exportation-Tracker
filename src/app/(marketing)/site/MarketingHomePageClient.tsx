@@ -7,6 +7,7 @@ import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
 import PartnerSection from "@/components/marketing/PartnerSection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
+import { trackCtaClick } from "@/lib/analytics";
 
 const WorldMap = dynamic(() => import("@/components/marketing/WorldMap"), {
   loading: () => (
@@ -100,6 +101,7 @@ export default function MarketingHomePageClient() {
               <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center lg:justify-start">
                 <Link
                   href="/site/contact"
+                  onClick={() => trackCtaClick("Request a Quote", "hero")}
                   className="group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-7 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:brightness-110 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 animate-pulse-glow"
                   style={{
                     backgroundColor: "var(--color-accent-ref)",
@@ -112,6 +114,7 @@ export default function MarketingHomePageClient() {
                 </Link>
                 <Link
                   href="/site/services"
+                  onClick={() => trackCtaClick("View Services", "hero")}
                   className="inline-flex min-h-[48px] items-center justify-center rounded-lg border border-white/30 px-7 py-3 text-base font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:bg-white/10 hover:border-white/50 active:scale-95"
                 >
                   View Services
@@ -312,6 +315,7 @@ export default function MarketingHomePageClient() {
 
               <Link
                 href="/site/contact"
+                onClick={() => trackCtaClick("Discuss your requirements", "edge-section")}
                 className="group mt-8 inline-flex items-center gap-1 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-md hover:-translate-y-0.5"
                 style={{ backgroundColor: "var(--color-primary-ref)" }}
               >
