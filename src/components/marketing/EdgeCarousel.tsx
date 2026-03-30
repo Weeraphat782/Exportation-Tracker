@@ -67,9 +67,8 @@ export default function EdgeCarousel() {
                                 alt={img.alt}
                                 fill
                                 className="object-cover"
-                                sizes="100vw"
-                                loading={index === 0 ? "eager" : "lazy"}
-                                priority={index === 0}
+                                sizes="(max-width: 1024px) 100vw, 50vw"
+                                loading="lazy"
                             />
                         </div>
                     ))}

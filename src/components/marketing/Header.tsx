@@ -51,7 +51,7 @@ export default function Header() {
                         alt={`${BRAND_NAME} logo`}
                         width={360}
                         height={112}
-                        priority
+                        sizes="(max-width: 640px) 120px, (max-width: 1024px) 160px, 200px"
                         className="h-10 w-auto sm:h-12 lg:h-14 xl:h-[60px] xl:w-auto transition-all duration-300"
                     />
                 </Link>

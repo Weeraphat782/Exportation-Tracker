@@ -49,7 +49,6 @@ function CarrierLogo({ carrier }: { carrier: string }) {
       fill
       className="object-contain p-0.5"
       sizes="96px"
-      unoptimized
       onError={() => setFailed(true)}
     />
   );

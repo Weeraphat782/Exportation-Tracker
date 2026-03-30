@@ -123,8 +123,8 @@ export default function RootLayout({
         <link rel="preconnect" href={supabaseOrigin} />
         <link rel="dns-prefetch" href={supabaseOrigin} />
         <link rel="dns-prefetch" href="https://vitals.vercel-insights.com" />
-        <link rel="prefetch" href="/site/services" />
-        <link rel="prefetch" href="/site/contact" />
+        <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link
           rel="alternate"
           type="application/rss+xml"

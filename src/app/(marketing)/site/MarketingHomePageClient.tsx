@@ -10,11 +10,7 @@ import PartnerSection from "@/components/marketing/PartnerSection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { trackCtaClick } from "@/lib/analytics";
 
-const WorldMap = dynamic(() => import("@/components/marketing/WorldMap"), {
-  loading: () => (
-    <div className="min-h-[400px] animate-pulse rounded-2xl bg-neutral-100" aria-hidden />
-  ),
-});
+import WorldMapDeferred from "@/components/marketing/WorldMapDeferred";
 /** Embla + indicators must be client-only to avoid SSR/client HTML mismatch (hydration errors). */
 const EdgeCarousel = dynamic(() => import("@/components/marketing/EdgeCarousel"), {
   ssr: false,
@@ -348,7 +344,7 @@ export default function MarketingHomePageClient() {
             </p>
           </div>
           <div className="rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(33,84,151,0.25),0_8px_24px_-8px_rgba(0,0,0,0.15)]">
-            <WorldMap />
+            <WorldMapDeferred />
           </div>
         </div>
       </section>
