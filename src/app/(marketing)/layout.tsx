@@ -4,6 +4,7 @@ import { DM_Sans } from "next/font/google";
 import TopBar from "@/components/marketing/TopBar";
 import Header from "@/components/marketing/Header";
 import Footer from "@/components/marketing/Footer";
+import { MarketingBreadcrumbNav } from "@/components/marketing/MarketingBreadcrumbNav";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -19,6 +20,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <Header />
       </div>
       <main className="flex-1 bg-white">
+        <MarketingBreadcrumbNav />
         {children}
       </main>
       <Footer />

@@ -16,7 +16,7 @@ export default function PartnerSection() {
 
                     <div className="max-w-3xl mb-12">
                         <p className="text-lg text-neutral-600 leading-relaxed">
-                            OMGEXP is proud to be part of the Thai innovation ecosystem. The development of our AI-powered
+                            OMG Experience is proud to be part of the Thai innovation ecosystem. The development of our AI-powered
                             logistics platform is funded and supported by the <span className="font-bold text-neutral-900">National Innovation Agency (Public Organization)</span> or NIA, Thailand.
                         </p>
                     </div>

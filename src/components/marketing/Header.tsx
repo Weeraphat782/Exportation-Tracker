@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/site";
 import { useState, useEffect } from "react";
 
 const navLinks = [
@@ -36,7 +37,7 @@ export default function Header() {
                 <Link href="/site" className="flex shrink-0 items-center">
                     <Image
                         src="/logo.png"
-                        alt="OMGEXP"
+                        alt={`${BRAND_NAME} logo`}
                         width={360}
                         height={112}
                         priority

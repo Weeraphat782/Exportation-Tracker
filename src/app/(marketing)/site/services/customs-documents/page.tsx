@@ -20,8 +20,8 @@ function CustomsHero() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Link href="/site" className="inline-flex items-center gap-2 text-emerald-300 hover:text-white text-sm font-medium mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back to Home
+        <Link href="/site/services" className="inline-flex items-center gap-2 text-emerald-300 hover:text-white text-sm font-medium mb-8 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back to Services
         </Link>
 
         <div className="grid lg:grid-cols-2 gap-12 items-center">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { BRAND_NAME } from "@/lib/site";
 
 const navLinks = [
     { href: "/site", label: "Home" },
@@ -11,8 +12,8 @@ const navLinks = [
 ];
 
 const serviceLinks = [
-    { href: "/site/services#specialized-air-freight", label: "Air Freight" },
-    { href: "/site/services#shipping-customs", label: "Customs & Documents" },
+    { href: "/site/services/air-freight", label: "Air Freight" },
+    { href: "/site/services/customs-documents", label: "Customs & Documents" },
     { href: "/site/services#gdp-warehousing", label: "GDP Warehousing" },
     { href: "/site/services#controlled-temperature-transport", label: "Cold Chain Transport" },
 ];
@@ -36,7 +37,7 @@ export default function Footer() {
                         <Link href="/site" className="inline-block mb-4">
                             <Image
                                 src="/logo.png"
-                                alt="OMGEXP"
+                                alt={`${BRAND_NAME} logo`}
                                 width={220}
                                 height={68}
                                 className="h-12 w-auto brightness-0 invert"

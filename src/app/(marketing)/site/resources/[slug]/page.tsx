@@ -1,116 +1,185 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { ContinueExploring } from "@/components/marketing/ContinueExploring";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
 import { MarkdownBody } from "@/components/marketing/MarkdownBody";
+import { articleSchema, jsonLdScript } from "@/lib/json-ld";
+import { pageMeta } from "@/lib/page-meta";
+import { absoluteUrl } from "@/lib/site";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 interface PageProps {
-    params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({
-    params,
+  params,
 }: PageProps): Promise<Metadata> {
-    const { slug } = await params;
-    const supabase = getSupabaseServerClient();
-    if (!supabase) return {};
-    const { data: item } = await supabase
-        .from('resources')
-        .select('title, excerpt')
-        .eq('slug', slug)
-        .eq('is_published', true)
-        .single();
-    if (!item) return {};
-    return {
-        title: `${item.title} | OMG Experience`,
-        description: item.excerpt,
-        openGraph: {
-            title: item.title,
-            description: item.excerpt,
-        },
-    };
+  const { slug } = await params;
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return {};
+  const { data: item } = await supabase
+    .from("resources")
+    .select("title, excerpt, image_url, published_at, updated_at")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .single();
+  if (!item) return {};
+
+  const ogImage = item.image_url?.startsWith("http")
+    ? item.image_url
+    : item.image_url
+      ? absoluteUrl(item.image_url)
+      : undefined;
+
+  return pageMeta({
+    title: item.title,
+    description: item.excerpt,
+    path: `/site/resources/${slug}`,
+    ogImage,
+    ogImageAlt: item.title,
+    article: {
+      publishedTime: item.published_at || undefined,
+      modifiedTime: item.updated_at || item.published_at || undefined,
+    },
+  });
 }
 
 export default async function ResourceArticlePage({ params }: PageProps) {
-    const { slug } = await params;
-    const supabase = getSupabaseServerClient();
-    if (!supabase) notFound();
+  const { slug } = await params;
+  const supabase = getSupabaseServerClient();
+  if (!supabase) notFound();
 
-    const { data: item } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_published', true)
-        .single();
+  const { data: item } = await supabase
+    .from("resources")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .single();
 
-    if (!item) notFound();
+  if (!item) notFound();
 
-    return (
-        <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-            <Link
-                href="/site/resources"
-                className="mb-8 inline-flex items-center text-sm font-medium transition hover:opacity-80"
-                style={{ color: "var(--color-primary-ref)" }}
+  const dateIso = item.published_at || item.updated_at;
+  const formattedDate = dateIso
+    ? new Date(dateIso).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
+  const ld = jsonLdScript([
+    articleSchema({
+      headline: item.title,
+      description: item.excerpt,
+      slug,
+      datePublished: item.published_at || undefined,
+      dateModified: item.updated_at || item.published_at || undefined,
+      imageUrl: item.image_url || undefined,
+    }),
+  ]);
+
+  return (
+    <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+      <JsonLd data={ld} />
+      <SeoBreadcrumbsJsonLd
+        items={[
+          { name: "Home", path: "/site" },
+          { name: "Resources", path: "/site/resources" },
+          { name: item.title, path: `/site/resources/${slug}` },
+        ]}
+      />
+
+      <Link
+        href="/site/resources"
+        className="mb-8 inline-flex items-center text-sm font-medium transition hover:opacity-80"
+        style={{ color: "var(--color-primary-ref)" }}
+      >
+        <svg
+          className="mr-2 h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Back to Resources
+      </Link>
+
+      <div className="flex flex-wrap gap-2" aria-label="Resource tags">
+        {(item.tags || []).map((tag: string) => (
+          <span
+            key={tag}
+            className="rounded-full px-3 py-1 text-xs font-medium"
+            style={{
+              backgroundColor: "var(--color-primary-ref)",
+              color: "white",
+            }}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+      {item.image_url && (
+        <div className="mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.image_url}
+            alt={item.title}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+      <header className="mt-4">
+        <h1 className="text-3xl font-bold text-neutral-900">{item.title}</h1>
+        {formattedDate && dateIso && (
+          <time
+            dateTime={dateIso}
+            className="mt-2 block text-sm text-neutral-500"
+          >
+            Last published: {formattedDate}
+          </time>
+        )}
+      </header>
+
+      <aside
+        className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 p-4"
+        aria-labelledby="resource-tldr"
+      >
+        <h2 id="resource-tldr" className="text-base font-semibold text-neutral-900">
+          TL;DR
+        </h2>
+        <p className="mt-2 text-sm text-neutral-700">{item.excerpt}</p>
+      </aside>
+
+      <div className="mt-8 max-w-none">
+        <p className="text-lg text-neutral-600">{item.excerpt}</p>
+        {item.content && (
+          <MarkdownBody className="mt-6">{item.content}</MarkdownBody>
+        )}
+        {item.file_url && (
+          <div className="mt-8 rounded-lg bg-blue-50 p-4">
+            <a
+              href={item.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-medium"
+              style={{ color: "var(--color-primary-ref)" }}
             >
-                <svg
-                    className="mr-2 h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                    />
-                </svg>
-                Back to Resources
-            </Link>
-            <div className="flex flex-wrap gap-2">
-                {(item.tags || []).map((tag: string) => (
-                    <span
-                        key={tag}
-                        className="rounded-full px-3 py-1 text-xs font-medium"
-                        style={{
-                            backgroundColor: "var(--color-primary-ref)",
-                            color: "white",
-                        }}
-                    >
-                        {tag}
-                    </span>
-                ))}
-            </div>
-            {item.image_url && (
-                <div className="mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100 shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="h-full w-full object-cover"
-                    />
-                </div>
-            )}
-            <h1 className="mt-4 text-3xl font-bold text-neutral-900">{item.title}</h1>
-            <div className="mt-8 max-w-none">
-                <p className="text-lg text-neutral-600">{item.excerpt}</p>
-                {item.content && (
-                    <MarkdownBody className="mt-6">{item.content}</MarkdownBody>
-                )}
-                {item.file_url && (
-                    <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-                        <a
-                            href={item.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-sm font-medium"
-                            style={{ color: "var(--color-primary-ref)" }}
-                        >
-                            📄 Download Document
-                        </a>
-                    </div>
-                )}
-            </div>
-        </article>
-    );
+              Download document
+            </a>
+          </div>
+        )}
+      </div>
+
+      <ContinueExploring />
+    </article>
+  );
 }
