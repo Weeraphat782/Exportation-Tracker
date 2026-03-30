@@ -9,26 +9,27 @@ function escapeCdata(s: string): string {
 
 export async function GET() {
   const base = absoluteUrl("");
-  const supabase = getSupabaseServerClient();
   const now = new Date().toUTCString();
 
   let itemsXml = "";
-  if (supabase) {
-    const { data: posts } = await supabase
-      .from("news_articles")
-      .select("slug, title, excerpt, published_at, updated_at")
-      .eq("is_published", true)
-      .order("published_at", { ascending: false })
-      .limit(20);
+  try {
+    const supabase = getSupabaseServerClient();
+    if (supabase) {
+      const { data: posts } = await supabase
+        .from("news_articles")
+        .select("slug, title, excerpt, published_at, updated_at")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(20);
 
-    if (posts?.length) {
-      itemsXml = posts
-        .map((p) => {
-          const link = `${base}/site/newsroom/${p.slug}`;
-          const pub = p.published_at
-            ? new Date(p.published_at).toUTCString()
-            : now;
-          return `
+      if (posts?.length) {
+        itemsXml = posts
+          .map((p) => {
+            const link = `${base}/site/newsroom/${p.slug}`;
+            const pub = p.published_at
+              ? new Date(p.published_at).toUTCString()
+              : now;
+            return `
 <item>
   <title><![CDATA[${escapeCdata(p.title)}]]></title>
   <description><![CDATA[${escapeCdata(p.excerpt || "")}]]></description>
@@ -37,9 +38,12 @@ export async function GET() {
   <pubDate>${pub}</pubDate>
   <author>${BRAND_NAME} Editorial</author>
 </item>`;
-        })
-        .join("");
+          })
+          .join("");
+      }
     }
+  } catch {
+    // Return empty feed if Supabase connection fails
   }
 
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
