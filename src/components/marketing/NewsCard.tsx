@@ -17,9 +17,9 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
     });
 
     return (
-        <article className="flex flex-col gap-6 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
+        <article className="flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
             {imageUrl && (
-                <div className="relative h-52 w-full shrink-0 md:h-auto md:w-72 md:self-stretch">
+                <div className="relative h-52 w-full shrink-0 md:h-auto md:min-h-[200px] md:w-72">
                     <Image
                         src={imageUrl}
                         alt={title}
