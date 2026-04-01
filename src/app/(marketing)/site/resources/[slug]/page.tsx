@@ -104,6 +104,12 @@ export default async function ResourceArticlePage({ params }: PageProps) {
       : [];
   const faqLd = faqPageSchema(faqs);
 
+  const jsonLdImageUrl =
+    item.image_url &&
+    (item.image_url.startsWith("http")
+      ? item.image_url
+      : absoluteUrl(item.image_url));
+
   const ld = jsonLdScript([
     articleSchema({
       headline: item.title,
@@ -111,17 +117,13 @@ export default async function ResourceArticlePage({ params }: PageProps) {
       slug,
       datePublished: item.published_at || undefined,
       dateModified: item.updated_at || item.published_at || undefined,
-      imageUrl: item.image_url || undefined,
+      imageUrl: jsonLdImageUrl || undefined,
     }),
     ...(faqLd ? [faqLd] : []),
   ]);
 
   const heroSrc =
-    item.image_url?.startsWith("http")
-      ? item.image_url
-      : item.image_url
-        ? absoluteUrl(item.image_url)
-        : "";
+    item.image_url?.startsWith("http") ? item.image_url : item.image_url || "";
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">

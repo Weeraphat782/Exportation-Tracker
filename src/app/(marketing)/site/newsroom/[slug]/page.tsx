@@ -110,6 +110,12 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
       : [];
   const faqLd = faqPageSchema(faqs);
 
+  const jsonLdImageUrl =
+    item.image_url &&
+    (item.image_url.startsWith("http")
+      ? item.image_url
+      : absoluteUrl(item.image_url));
+
   const ld = jsonLdScript([
     blogPostingSchema({
       headline: item.title,
@@ -117,18 +123,15 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
       slug,
       datePublished: item.published_at || new Date().toISOString(),
       dateModified: item.updated_at || item.published_at || undefined,
-      imageUrl: item.image_url || undefined,
+      imageUrl: jsonLdImageUrl || undefined,
       wordCount,
     }),
     ...(faqLd ? [faqLd] : []),
   ]);
 
+  /** Same-origin files in `public/` must stay root-relative for `next/image`; full URL is treated as remote and needs remotePatterns for every deploy hostname. */
   const heroSrc =
-    item.image_url?.startsWith("http")
-      ? item.image_url
-      : item.image_url
-        ? absoluteUrl(item.image_url)
-        : "";
+    item.image_url?.startsWith("http") ? item.image_url : item.image_url || "";
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
