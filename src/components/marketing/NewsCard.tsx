@@ -17,9 +17,13 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
     });
 
     return (
-        <article className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex md:flex-row">
+        <article
+            className={`overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md ${
+                imageUrl ? "md:grid md:grid-cols-[288px_1fr]" : ""
+            }`}
+        >
             {imageUrl && (
-                <div className="relative h-48 w-full shrink-0 md:h-auto md:min-h-[12rem] md:w-72">
+                <div className="relative h-48 w-full md:h-full md:min-h-[12rem]">
                     <Image
                         src={imageUrl}
                         alt={title}
@@ -30,7 +34,7 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
                     />
                 </div>
             )}
-            <div className="flex flex-1 flex-col p-6 md:p-8">
+            <div className="flex flex-col p-6 md:p-8">
                 <time
                     dateTime={date}
                     className="block text-sm font-medium"
