@@ -539,6 +539,7 @@ export default function ShipmentDetailPage() {
         setUploading(true);
         try {
             let ok = 0;
+            const uploadedTypeNames: string[] = [];
             for (const item of uploadQueue) {
                 // 1. Get Signed URL
                 const generateUrlResponse = await fetch('/api/generate-upload-url', {
@@ -580,9 +581,40 @@ export default function ShipmentDetailPage() {
                     storage_provider: (provider === 'r2' ? 'r2' : 'supabase')
                 } as Omit<DocumentSubmission, 'id' | 'submitted_at'>);
 
-                if (success) ok++;
+                if (success) {
+                    ok++;
+                    uploadedTypeNames.push(item.documentTypeName);
+                }
             }
-            if (ok > 0) { toast.success(`Uploaded ${ok} file(s)`); setUploadQueue([]); await loadData(); }
+            if (ok > 0) {
+                toast.success(`Uploaded ${ok} file(s)`);
+                setUploadQueue([]);
+                await loadData();
+
+                try {
+                    const documentTypes = [...new Set(uploadedTypeNames)];
+                    await fetch('/api/telegram/notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            quotationId: id,
+                            quotationNo: quotation.quotation_no ?? null,
+                            customerName:
+                                quotation.customer_name ||
+                                quotation.company_name ||
+                                null,
+                            destination:
+                                quotation.destination ||
+                                quotation.requested_destination ||
+                                null,
+                            documentTypes,
+                            fileCount: ok,
+                        }),
+                    });
+                } catch (notifyErr) {
+                    console.error('Telegram notify (portal upload):', notifyErr);
+                }
+            }
         } catch (err) { console.error(err); toast.error('Upload error'); }
         finally { setUploading(false); }
     };
