@@ -17,14 +17,14 @@ export default function NewsCard({ slug, title, date, excerpt, imageUrl }: NewsC
     });
 
     return (
-        <article className="flex flex-col gap-6 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex-row md:items-stretch md:gap-6">
+        <article className="flex flex-col gap-6 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:shadow-md md:flex-row">
             {imageUrl && (
-                <div className="relative h-48 w-full shrink-0 md:h-auto md:w-72 md:min-h-[12rem]">
+                <div className="relative h-52 w-full shrink-0 md:h-auto md:w-72 md:self-stretch">
                     <Image
                         src={imageUrl}
                         alt={title}
                         fill
-                        className="object-cover object-center"
+                        className="object-cover"
                         sizes="(max-width: 768px) 100vw, 288px"
                         loading="lazy"
                     />
