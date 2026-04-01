@@ -159,51 +159,73 @@ export default function MarketingHomePageClient() {
         className="border-b border-neutral-200 bg-neutral-50"
         aria-labelledby="home-tldr-heading"
       >
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <h2
-            id="home-tldr-heading"
-            className="text-lg font-semibold text-neutral-900"
-          >
-            TL;DR
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <h2 id="home-tldr-heading" className="sr-only">
+            Quick links
           </h2>
-          <p className="mt-2 max-w-3xl text-neutral-700">
-            OMG Experience provides specialized air freight, customs and GDP
-            warehousing, and cold-chain logistics with AI-assisted document
-            verification—serving multiple regions with compliance-focused
-            handling.
-          </p>
-          <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[min(100%,20rem)] max-w-xl text-left text-sm">
-            <caption className="sr-only">
-              Quick facts for OMG Experience home page
-            </caption>
-            <tbody className="divide-y divide-neutral-200">
-              <tr>
-                <th scope="row" className="py-2 pr-4 font-medium text-neutral-800">
-                  Focus
-                </th>
-                <td className="py-2 text-neutral-600">
-                  Pharma-grade and time-critical air cargo
-                </td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-2 pr-4 font-medium text-neutral-800">
-                  Coverage
-                </th>
-                <td className="py-2 text-neutral-600">
-                  Multi-region destinations (e.g. EU, APAC, Africa)
-                </td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-2 pr-4 font-medium text-neutral-800">
-                  Differentiator
-                </th>
-                <td className="py-2 text-neutral-600">
-                  AI document intelligence + GDP-aware processes
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <Link
+              href="/site/newsroom"
+              className="group flex min-h-[44px] flex-1 flex-col justify-center rounded-xl border border-neutral-200 bg-white px-5 py-4 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+            >
+              <span className="text-base font-semibold text-neutral-900">
+                Newsroom
+              </span>
+              <span className="mt-1 text-sm text-neutral-600">
+                Latest logistics updates
+              </span>
+              <span
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold"
+                style={{ color: "var(--color-accent-ref)" }}
+              >
+                Read more
+                <svg
+                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </span>
+            </Link>
+            <Link
+              href="/site/resources"
+              className="group flex min-h-[44px] flex-1 flex-col justify-center rounded-xl border border-neutral-200 bg-white px-5 py-4 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+            >
+              <span className="text-base font-semibold text-neutral-900">
+                Resources
+              </span>
+              <span className="mt-1 text-sm text-neutral-600">
+                Regulatory and export guides
+              </span>
+              <span
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold"
+                style={{ color: "var(--color-accent-ref)" }}
+              >
+                Browse guides
+                <svg
+                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </span>
+            </Link>
           </div>
         </div>
       </aside>
