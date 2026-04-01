@@ -1,6 +1,9 @@
 /**
  * Upserts the editorial pharma / air cargo / GDP article into Supabase news_articles.
  *
+ * image_url: if R2_PUBLIC_URL is set → `{R2_PUBLIC_URL}/news/pharma/<slug>.png` (run
+ * `npm run upload:pharma-news-r2` first). Else local `/images/news-covers/...`.
+ *
  * Usage: npm run insert:pharma-news
  * Requires: .env.local with SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
  */
@@ -37,6 +40,8 @@ function loadDotEnvLocal() {
 
 loadDotEnvLocal();
 
+const r2PublicBase = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -64,12 +69,16 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 
 const publishedAt = new Date().toISOString();
 
+const imageUrl = r2PublicBase
+  ? `${r2PublicBase}/news/pharma/${SLUG}.png`
+  : IMAGE_LOCAL;
+
 const row = {
   slug: SLUG,
   title: TITLE,
   excerpt: EXCERPT,
   content,
-  image_url: IMAGE_URL,
+  image_url: imageUrl,
   is_pinned: false,
   is_published: true,
   published_at: publishedAt,

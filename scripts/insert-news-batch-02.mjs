@@ -1,8 +1,10 @@
 /**
  * Upserts 5 editorial news articles from scripts/data/news-batch-02/ (manifest.json + .md files).
  *
- * Cover images: manifest `image_url` points at `/images/news-covers/<slug>.png` (files in
- * `public/images/news-covers/`). Regenerate covers there if you replace artwork.
+ * Cover images:
+ * - If R2_PUBLIC_URL is set in .env.local → image_url = `{R2_PUBLIC_URL}/news/pharma/<slug>.png`
+ *   (upload binaries first: `npm run upload:pharma-news-r2`).
+ * - Else → manifest `image_url` or `/images/news-covers/<slug>.png` for local static files.
  *
  * Usage: npm run insert:news-batch-02
  * Requires: .env.local — SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
@@ -41,6 +43,8 @@ function loadDotEnvLocal() {
 
 loadDotEnvLocal();
 
+const r2PublicBase = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -76,12 +80,16 @@ for (const entry of manifest) {
   }
   const content = readFileSync(bodyPath, "utf8");
 
+  const resolvedImageUrl = r2PublicBase
+    ? `${r2PublicBase}/news/pharma/${slug}.png`
+    : image_url || `/images/news-covers/${slug}.png`;
+
   const row = {
     slug,
     title,
     excerpt: excerpt || "",
     content,
-    image_url: image_url || null,
+    image_url: resolvedImageUrl || null,
     is_pinned: false,
     is_published: true,
     published_at: publishedAt,
