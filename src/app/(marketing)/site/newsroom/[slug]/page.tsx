@@ -16,7 +16,18 @@ import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl } from "@/lib/site";
 import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
-export const revalidate = 3600;
+/** Always read fresh `image_url` from Supabase (R2 / CMS updates); ISR stale snapshot hid hero images. */
+export const dynamic = "force-dynamic";
+
+/** Normalize DB `image_url` for next/image (trim, protocol-relative, root-relative). */
+function normalizeNewsImageSrc(url: string | null | undefined): string {
+  if (url == null || typeof url !== "string") return "";
+  const t = url.trim();
+  if (!t) return "";
+  if (t.startsWith("//")) return `https:${t}`;
+  if (/^https?:\/\//i.test(t)) return t;
+  return t.startsWith("/") ? t : `/${t}`;
+}
 
 export async function generateStaticParams() {
   const supabase = getSupabasePublicSiteClient();
@@ -50,11 +61,14 @@ export async function generateMetadata({
     .single();
   if (!item) return {};
 
-  const ogImage = item.image_url?.startsWith("http")
-    ? item.image_url
-    : item.image_url
-      ? absoluteUrl(item.image_url)
-      : undefined;
+  const rawImg = item.image_url?.trim();
+  const ogImage = rawImg
+    ? rawImg.startsWith("//")
+      ? `https:${rawImg}`
+      : /^https?:\/\//i.test(rawImg)
+        ? rawImg
+        : absoluteUrl(rawImg)
+    : undefined;
 
   return pageMeta({
     title: item.title,
@@ -110,11 +124,10 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
       : [];
   const faqLd = faqPageSchema(faqs);
 
+  const normHero = normalizeNewsImageSrc(item.image_url);
   const jsonLdImageUrl =
-    item.image_url &&
-    (item.image_url.startsWith("http")
-      ? item.image_url
-      : absoluteUrl(item.image_url));
+    normHero &&
+    (normHero.startsWith("http") ? normHero : absoluteUrl(normHero));
 
   const ld = jsonLdScript([
     blogPostingSchema({
@@ -129,9 +142,7 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
     ...(faqLd ? [faqLd] : []),
   ]);
 
-  /** Same-origin files in `public/` must stay root-relative for `next/image`; full URL is treated as remote and needs remotePatterns for every deploy hostname. */
-  const heroSrc =
-    item.image_url?.startsWith("http") ? item.image_url : item.image_url || "";
+  const heroSrc = normHero;
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
@@ -184,14 +195,14 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
         )}
       </div>
       {heroSrc && (
-        <div className="relative mb-8 aspect-[16/9] overflow-hidden rounded-xl bg-neutral-100">
+        <div className="relative mb-8 w-full overflow-hidden rounded-xl bg-neutral-100 aspect-[16/9] min-h-[200px]">
           <Image
             src={heroSrc}
             alt={item.title}
             fill
-            className="object-cover"
+            className="object-cover object-center"
             sizes="(max-width: 768px) 100vw, 768px"
-            loading="lazy"
+            priority
           />
         </div>
       )}
