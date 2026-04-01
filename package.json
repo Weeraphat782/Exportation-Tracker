@@ -10,7 +10,8 @@
     "seed:eu-resources": "node scripts/seed-eu-resources.mjs",
     "seed:news-serpapi": "node scripts/seed-news-from-serpapi.mjs",
     "upload:resources-r2": "node scripts/upload-resource-covers-to-r2.mjs",
-    "upload:news-r2": "node scripts/upload-news-covers-to-r2.mjs"
+    "upload:news-r2": "node scripts/upload-news-covers-to-r2.mjs",
+    "insert:pharma-news": "node scripts/insert-pharma-editorial-news.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
