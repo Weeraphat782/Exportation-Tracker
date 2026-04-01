@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 import { absoluteUrl, BRAND_NAME, BRAND_LEGAL_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export async function GET() {
   const reviewed = new Date().toISOString().slice(0, 10);
 
   let pillarLines = "";
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   if (supabase) {
     const { data: news } = await supabase
       .from("news_articles")

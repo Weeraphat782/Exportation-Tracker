@@ -83,15 +83,9 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        source: "/site/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, s-maxage=3600, stale-while-revalidate=86400",
-          },
-        ],
-      },
+      // Do not set long CDN cache on /site/* HTML — these routes read Supabase (news, resources).
+      // A shared s-maxage here caused stale empty resource lists for up to an hour (or SWR longer)
+      // after DB updates without a redeploy. Rely on Next route config (e.g. force-dynamic) instead.
     ];
   },
   webpack: (config) => {

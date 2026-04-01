@@ -14,12 +14,12 @@ import {
 } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl } from "@/lib/site";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   if (!supabase) return [];
   const { data } = await supabase
     .from("news_articles")
@@ -38,7 +38,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   if (!supabase) return {};
   const { data: item } = await supabase
     .from("news_articles")
@@ -71,7 +71,7 @@ export async function generateMetadata({
 
 export default async function NewsroomArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   if (!supabase) notFound();
 
   const { data: item } = await supabase

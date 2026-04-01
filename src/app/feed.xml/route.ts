@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 import { absoluteUrl, BRAND_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function GET() {
 
   let itemsXml = "";
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabasePublicSiteClient();
     if (supabase) {
       const { data: posts } = await supabase
         .from("news_articles")

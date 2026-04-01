@@ -12,19 +12,19 @@ import {
 } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl, BRAND_NAME } from "@/lib/site";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = pageMeta({
   title: "Resources",
   description:
-    "Export and customs reading instructions: EU compliance, destination requirements, and documentation guides from OMG Experience.",
+    "Long-form guides for Thailand medical cannabis export to Europe: B.E. 2568 licensing, GACP, EU-GMP Annex 7, QP batch release, GDP cold chain, Ph. Eur. specifications, Germany market access, and digital traceability.",
   path: "/site/resources",
 });
 
 export const dynamic = "force-dynamic";
 
 export default async function ResourcesPage() {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   let resources: {
     slug: string;
     title: string;
@@ -35,11 +35,15 @@ export default async function ResourcesPage() {
   let allTags: string[] = [];
 
   if (supabase) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("resources")
       .select("slug, title, excerpt, tags, image_url")
       .eq("is_published", true)
       .order("published_at", { ascending: false });
+
+    if (error) {
+      console.error("[resources] Supabase select failed:", error.message);
+    }
 
     resources = (data || []).map((item) => ({
       slug: item.slug,
@@ -64,7 +68,7 @@ export default async function ResourcesPage() {
       path: "/site/resources",
       name: `${BRAND_NAME} resource library`,
       description:
-        "Guides on export compliance, destination requirements, and documentation.",
+        "Deep-dive articles on Thai controlled-herb export, EU GMP and QP expectations, GDP logistics, pharmacopoeia-aligned specs, and EU market strategy.",
     }),
     ...(listItems.length
       ? [itemListSchema(`${BRAND_NAME} resources`, listItems)]
@@ -84,10 +88,23 @@ export default async function ResourcesPage() {
       <header>
         <p className="text-sm text-neutral-500">Last updated: {reviewed}</p>
         <h1 id="resources-heading" className="mt-2 text-3xl font-bold text-neutral-900 sm:text-4xl">Resources</h1>
-        <p className="mt-4 text-neutral-600">
-          Reading instructions for export and customs requirements. Filter by category
-          to find relevant guides for your destination.
-        </p>
+        <div className="mt-4 space-y-3 text-neutral-600">
+          <p>
+            Reading instructions and compliance explainers for teams moving medical-grade
+            cannabis from Thailand toward European markets. Topics span controlled-herb
+            licensing intent, DTAM-facing traceability, farm-level GACP, when post-harvest
+            becomes EU-GMP manufacturing, Qualified Person batch folders, long-haul GDP cold
+            chain evidence, Ph. Eur.-style specifications, Germany import dynamics, and
+            roadmaps that treat digital traceability as part of the core stack—not an
+            afterthought.
+          </p>
+          <p>
+            Filter by category to narrow guides for your role—regulatory, quality,
+            operations, or logistics—and use each article alongside your own legal and QA
+            review; these resources are educational context, not jurisdiction-specific
+            legal advice.
+          </p>
+        </div>
       </header>
 
       <aside
@@ -137,7 +154,15 @@ export default async function ResourcesPage() {
         />
       </div>
 
-      <ResourcesList resources={resources} allTags={allTags} />
+      {resources.length === 0 ? (
+        <p className="mt-10 py-8 text-center text-neutral-500">
+          {supabase
+            ? "No published guides yet. In CMS, turn on Publish for each resource, or run npm run seed:eu-resources for this Supabase project."
+            : "Resources are unavailable (missing Supabase URL and NEXT_PUBLIC_SUPABASE_ANON_KEY or service role on the server)."}
+        </p>
+      ) : (
+        <ResourcesList resources={resources} allTags={allTags} />
+      )}
 
       <ContinueExploring />
     </section>

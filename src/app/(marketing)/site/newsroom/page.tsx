@@ -12,7 +12,7 @@ import {
 } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl, BRAND_NAME } from "@/lib/site";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = pageMeta({
   title: "Newsroom",
@@ -24,7 +24,7 @@ export const metadata: Metadata = pageMeta({
 export const dynamic = "force-dynamic";
 
 export default async function NewsroomPage() {
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabasePublicSiteClient();
   let articles: {
     slug: string;
     title: string;

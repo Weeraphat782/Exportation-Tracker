@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 import { absoluteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getSupabasePublicSiteClient();
     if (!supabase) {
       return staticMarketing;
     }
