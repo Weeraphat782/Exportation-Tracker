@@ -1,6 +1,9 @@
 /**
  * Upserts 5 editorial news articles from scripts/data/news-batch-02/ (manifest.json + .md files).
  *
+ * Cover images: manifest `image_url` points at `/images/news-covers/<slug>.png` (files in
+ * `public/images/news-covers/`). Regenerate covers there if you replace artwork.
+ *
  * Usage: npm run insert:news-batch-02
  * Requires: .env.local — SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
  */

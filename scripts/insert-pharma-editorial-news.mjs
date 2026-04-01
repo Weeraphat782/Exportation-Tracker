@@ -53,7 +53,7 @@ const TITLE =
 const EXCERPT =
   "From IATA CEIV Pharma to cold-chain hubs in Europe and Asia: how airlines, handlers, and forwarders keep temperature-sensitive medicines compliant—and what shippers should expect in 2026.";
 const IMAGE_URL =
-  "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?q=80&w=1200&auto=format&fit=crop";
+  "/images/news-covers/pharma-airfreight-gdp-ceiv-global-networks.png";
 
 const bodyPath = join(__dirname, "data", "pharma-airfreight-editorial.body.md");
 const content = readFileSync(bodyPath, "utf8");
