@@ -72,7 +72,7 @@ export default async function NewsroomPage() {
   ]);
 
   return (
-    <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8" aria-labelledby="newsroom-heading">
+    <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8" aria-labelledby="newsroom-heading">
       <JsonLd data={ld} />
       <SeoBreadcrumbsJsonLd
         items={[

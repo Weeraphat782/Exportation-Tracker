@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { sendTelegramDocumentUploadNotification } from '@/lib/telegram-admin-notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +78,52 @@ export async function POST(request: NextRequest) {
       }
     }
     // ---> END: Update Quotation Status
+
+    // Notify staff on Telegram (non-blocking for client if this fails)
+    try {
+      const { data: quoteRow } = await supabase
+        .from('quotations')
+        .select(
+          'quotation_no, customer_name, company_name, destination, requested_destination'
+        )
+        .eq('id', quotationId)
+        .maybeSingle()
+
+      const { data: subsRows } = await supabase
+        .from('document_submissions')
+        .select('document_type_name')
+        .eq('quotation_id', quotationId)
+
+      const typeNames = [
+        ...new Set(
+          (subsRows ?? [])
+            .map((r) => r.document_type_name)
+            .filter((n): n is string => Boolean(n))
+        ),
+      ]
+      const fileCount = subsRows?.length ?? 0
+
+      const dest =
+        quoteRow?.destination ||
+        quoteRow?.requested_destination ||
+        null
+      const customerLabel =
+        quoteRow?.customer_name ||
+        quoteRow?.company_name ||
+        companyName ||
+        null
+
+      await sendTelegramDocumentUploadNotification({
+        quotationId,
+        quotationNo: quoteRow?.quotation_no ?? null,
+        customerName: customerLabel,
+        destination: dest,
+        documentTypes: typeNames.length > 0 ? typeNames : [documentTypeName],
+        fileCount: fileCount > 0 ? fileCount : 1,
+      })
+    } catch (notifyErr) {
+      console.error('Telegram notify after confirm-upload:', notifyErr)
+    }
 
     // Success
     return NextResponse.json({
