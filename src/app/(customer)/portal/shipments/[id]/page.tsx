@@ -91,7 +91,8 @@ const TRACKING_STEPS = [
     { label: 'Pending Booking', step: 2 },
     { label: 'Booking Requested', step: 3 },
     { label: 'AWB Received', step: 4 },
-    { label: 'Delivered', step: 5 }
+    { label: 'Waiting for Pick Up', step: 5 },
+    { label: 'Delivered', step: 6 },
 ];
 
 // ============ HELPERS ============
@@ -107,10 +108,11 @@ function formatAmount(amount: number) {
 }
 
 function getStageDisplay(stage?: string, status?: string) {
-    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5 };
+    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6 };
     if (status === 'Shipped') return { label: 'Shipped', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4 };
     switch (stage) {
-        case 'payment_received': return { label: 'Payment Received', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5 };
+        case 'payment_received': return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6 };
+        case 'waiting_for_pickup': return { label: 'Waiting for Pick Up', color: 'text-teal-700', bgColor: 'bg-teal-50 border-teal-200', step: 5 };
         case 'awb_received': return { label: 'AWB Received', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4 };
         case 'booking_requested': return { label: 'Booking Requested', color: 'text-cyan-700', bgColor: 'bg-cyan-50 border-cyan-200', step: 3 };
         case 'pending_booking': return { label: 'Pending Booking', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200', step: 2 };
@@ -167,21 +169,26 @@ function TrackingProgress({ sc }: { sc: ReturnType<typeof getStageDisplay> }) {
             <div className="relative">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 rounded-full" />
                 <div
-                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${sc.step === 5 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                    style={{ width: `${Math.min((sc.step / 5) * 100, 100)}%` }}
+                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${sc.step >= 6 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                    style={{ width: `${Math.min((sc.step / 6) * 100, 100)}%` }}
                 />
                 <div className="relative flex justify-between">
                     {TRACKING_STEPS.map((step) => {
                         const isActive = sc.step >= step.step;
                         const isCurrent = sc.step === step.step;
+                        const doneEmerald = sc.step >= 6;
                         return (
                             <div key={step.step} className="flex flex-col items-center">
                                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-500 z-10 ${isCurrent
-                                    ? 'bg-white border-blue-600 scale-125 shadow-lg shadow-blue-100'
-                                    : isActive ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-200'
+                                    ? doneEmerald && step.step === 6
+                                        ? 'bg-white border-emerald-600 scale-125 shadow-lg shadow-emerald-100'
+                                        : 'bg-white border-blue-600 scale-125 shadow-lg shadow-blue-100'
+                                    : isActive
+                                        ? doneEmerald ? 'bg-emerald-600 border-emerald-600' : 'bg-blue-600 border-blue-600'
+                                        : 'bg-white border-gray-200'
                                     }`}>
                                     {isActive && !isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                    {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
+                                    {isCurrent && <div className={`w-2 h-2 rounded-full animate-pulse ${step.step === 6 ? 'bg-emerald-600' : 'bg-blue-600'}`} />}
                                 </div>
                                 <span className={`text-[10px] font-black uppercase tracking-tighter mt-3 transition-colors ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
                                     {step.label}
@@ -202,6 +209,161 @@ interface QueuedFile {
     documentType: string;
     documentTypeName: string;
     id: string;
+}
+
+/**
+ * Matches staff `/shipping-calculator/new` logic: optional manual chargeable weight,
+ * then optional single manual THB/kg rate on that chargeable (else per-pallet band rates).
+ */
+function computeShipmentTotalsFromPallets(
+    quotation: Quotation,
+    pallets: Pallet[],
+    freightRates: FreightRate[],
+): {
+    totalFreightCost: number;
+    totalActualWeight: number;
+    totalVolumeWeight: number;
+    chargeableWeight: number;
+    deliveryCost: number;
+    totalAdditionalCharges: number;
+    totalCost: number;
+    hasManualChargeable: boolean;
+    hasManualRate: boolean;
+} {
+    let totalFreightCost = 0;
+    let totalActualWeight = 0;
+    let totalVolumeWeight = 0;
+
+    const useManualRate =
+        Boolean(quotation.is_manual_rate) && Number(quotation.manual_rate) > 0;
+
+    pallets.forEach((pallet) => {
+        const length = Number(pallet.length) || 0;
+        const width = Number(pallet.width) || 0;
+        const height = Number(pallet.height) || 0;
+        const weight = Number(pallet.weight) || 0;
+        const quantity = Number(pallet.quantity) || 1;
+        const volWt = calculateVolumeWeight(length, width, height);
+        const lineChargeable = Math.max(volWt, weight);
+
+        totalActualWeight += weight * quantity;
+        totalVolumeWeight += volWt * quantity;
+
+        if (!useManualRate) {
+            const overriddenRate = Number(pallet.overridden_rate) || 0;
+            const applicableRates = freightRates.filter(
+                (rate) =>
+                    (rate.min_weight === null || lineChargeable >= rate.min_weight) &&
+                    (rate.max_weight === null || lineChargeable <= rate.max_weight),
+            );
+            const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+            const rate = overriddenRate > 0 ? overriddenRate : baseRate;
+            const cost = Math.round(lineChargeable * rate) * quantity;
+            totalFreightCost += cost;
+        }
+    });
+
+    const computedChargeable = Math.max(totalActualWeight, totalVolumeWeight);
+    const manualCW = Number(quotation.manual_chargeable_weight) || 0;
+    const hasManualChargeable =
+        Boolean(quotation.is_chargeable_weight_manual) && manualCW > 0;
+    const chargeableWeight = hasManualChargeable ? manualCW : computedChargeable;
+
+    const manualRate = Number(quotation.manual_rate) || 0;
+    const hasManualRate = Boolean(quotation.is_manual_rate) && manualRate > 0;
+
+    if (hasManualRate) {
+        totalFreightCost = Math.round(chargeableWeight * manualRate);
+    }
+
+    const deliveryRates: Record<string, number> = { '4wheel': 3500, '6wheel': 6500 };
+    const deliveryCost =
+        quotation.delivery_service_required && quotation.delivery_vehicle_type
+            ? deliveryRates[quotation.delivery_vehicle_type] || 0
+            : 0;
+    const totalAdditionalCharges = (quotation.additional_charges || []).reduce(
+        (sum: number, charge: AdditionalCharge) => sum + (Number(charge.amount) || 0),
+        0,
+    );
+    const totalCost =
+        totalFreightCost +
+        deliveryCost +
+        (quotation.clearance_cost || 0) +
+        totalAdditionalCharges;
+
+    return {
+        totalFreightCost,
+        totalActualWeight,
+        totalVolumeWeight,
+        chargeableWeight,
+        deliveryCost,
+        totalAdditionalCharges,
+        totalCost,
+        hasManualChargeable,
+        hasManualRate,
+    };
+}
+
+/** Per-pallet rows for save; when manual rate applies, freight is prorated by line chargeable×qty. */
+function mapPalletsForCustomerSave(
+    quotation: Quotation,
+    pallets: Pallet[],
+    freightRates: FreightRate[],
+    aggregateFreightCost: number,
+): Pallet[] {
+    const useManualRate =
+        Boolean(quotation.is_manual_rate) && Number(quotation.manual_rate) > 0;
+
+    const rows = pallets.map((pallet) => {
+        const length = Number(pallet.length) || 0;
+        const width = Number(pallet.width) || 0;
+        const height = Number(pallet.height) || 0;
+        const weight = Number(pallet.weight) || 0;
+        const quantity = Number(pallet.quantity) || 1;
+        const volWt = calculateVolumeWeight(length, width, height);
+        const chargeableWeight = Math.max(volWt, weight);
+        const overriddenRate = Number(pallet.overridden_rate) || 0;
+        const applicableRates = freightRates.filter(
+            (rate) =>
+                (rate.min_weight === null || chargeableWeight >= rate.min_weight) &&
+                (rate.max_weight === null || chargeableWeight <= rate.max_weight),
+        );
+        const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
+        const rate = overriddenRate > 0 ? overriddenRate : baseRate;
+        const cost = Math.round(chargeableWeight * rate) * quantity;
+        const lineShare = chargeableWeight * quantity;
+        return { pallet, length, width, height, weight, quantity, volWt, chargeableWeight, cost, lineShare };
+    });
+
+    const sumShares = rows.reduce((acc, r) => acc + r.lineShare, 0);
+    let allocated = 0;
+    const lineFreights = rows.map((row, i) => {
+        if (useManualRate) {
+            if (!sumShares) return 0;
+            const isLast = i === rows.length - 1;
+            if (isLast) return Math.max(0, aggregateFreightCost - allocated);
+            const f = Math.round((aggregateFreightCost * row.lineShare) / sumShares);
+            allocated += f;
+            return f;
+        }
+        return row.cost;
+    });
+
+    return rows.map((row, i) => {
+        const freightForLine = lineFreights[i];
+        const customerFreightCost = row.quantity > 0 ? freightForLine / row.quantity : 0;
+        return {
+            ...row.pallet,
+            length: row.length,
+            width: row.width,
+            height: row.height,
+            weight: row.weight,
+            quantity: row.quantity,
+            volumeWeight: row.volWt,
+            chargeableWeight: row.chargeableWeight,
+            customerFreightCost,
+        };
+    });
 }
 
 // ============ MAIN PAGE ============
@@ -293,39 +455,7 @@ export default function ShipmentDetailPage() {
     // ---- Calculations ----
     const totals = useMemo(() => {
         if (!quotation) return null;
-        let totalFreightCost = 0, totalActualWeight = 0, totalVolumeWeight = 0;
-
-        pallets.forEach(pallet => {
-            const length = Number(pallet.length) || 0;
-            const width = Number(pallet.width) || 0;
-            const height = Number(pallet.height) || 0;
-            const weight = Number(pallet.weight) || 0;
-            const quantity = Number(pallet.quantity) || 1;
-            const volWt = calculateVolumeWeight(length, width, height);
-            const chargeableWeight = Math.max(volWt, weight);
-
-            const overriddenRate = Number(pallet.overridden_rate) || 0;
-            const applicableRates = freightRates.filter(rate =>
-                (rate.min_weight === null || chargeableWeight >= rate.min_weight) &&
-                (rate.max_weight === null || chargeableWeight <= rate.max_weight)
-            );
-            const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
-            const rate = overriddenRate > 0 ? overriddenRate : baseRate;
-            const cost = Math.round(chargeableWeight * rate) * quantity;
-            totalFreightCost += cost;
-            totalActualWeight += weight * quantity;
-            totalVolumeWeight += volWt * quantity;
-        });
-
-        const chargeableWeight = Math.max(totalActualWeight, totalVolumeWeight);
-        const deliveryRates: Record<string, number> = { '4wheel': 3500, '6wheel': 6500 };
-        const deliveryCost = quotation.delivery_service_required && quotation.delivery_vehicle_type
-            ? (deliveryRates[quotation.delivery_vehicle_type] || 0) : 0;
-        const totalAdditionalCharges = (quotation.additional_charges || []).reduce(
-            (sum: number, charge: AdditionalCharge) => sum + (Number(charge.amount) || 0), 0);
-        const totalCost = totalFreightCost + deliveryCost + (quotation.clearance_cost || 0) + totalAdditionalCharges;
-
-        return { totalFreightCost, deliveryCost, totalActualWeight, totalVolumeWeight, chargeableWeight, totalCost };
+        return computeShipmentTotalsFromPallets(quotation, pallets, freightRates);
     }, [pallets, quotation, freightRates]);
 
     // ---- Pallet handlers ----
@@ -354,34 +484,23 @@ export default function ShipmentDetailPage() {
         if (isPalletLocked) return;
         setSaving(true);
         try {
-            let totalFreightCost = 0, totalActualWeight = 0, totalVolumeWeight = 0;
-            const updatedPallets = pallets.map((pallet: Pallet) => {
-                const length = Number(pallet.length) || 0, width = Number(pallet.width) || 0;
-                const height = Number(pallet.height) || 0, weight = Number(pallet.weight) || 0;
-                const quantity = Number(pallet.quantity) || 1;
-                const volWt = calculateVolumeWeight(length, width, height);
-                const chargeableWeight = Math.max(volWt, weight);
-                const overriddenRate = Number(pallet.overridden_rate) || 0;
-                const applicableRates = freightRates.filter(rate =>
-                    (rate.min_weight === null || chargeableWeight >= rate.min_weight) &&
-                    (rate.max_weight === null || chargeableWeight <= rate.max_weight));
-                const baseRate = applicableRates.length > 0 ? applicableRates[0].base_rate : 0;
-                const rate = overriddenRate > 0 ? overriddenRate : baseRate;
-                const cost = Math.round(chargeableWeight * rate) * quantity;
-                totalFreightCost += cost; totalActualWeight += weight * quantity; totalVolumeWeight += volWt * quantity;
-                return { ...pallet, length, width, height, weight, quantity, volumeWeight: volWt, chargeableWeight, customerFreightCost: cost / quantity };
-            });
-            const chargeableWeight = Math.max(totalActualWeight, totalVolumeWeight);
-            const deliveryRates: Record<string, number> = { '4wheel': 3500, '6wheel': 6500 };
-            const deliveryCost = quotation.delivery_service_required && quotation.delivery_vehicle_type ? (deliveryRates[quotation.delivery_vehicle_type] || 0) : 0;
-            const totalAdditionalCharges = (quotation.additional_charges || []).reduce((sum: number, c: AdditionalCharge) => sum + (Number(c.amount) || 0), 0);
-            const totalCost = totalFreightCost + deliveryCost + (quotation.clearance_cost || 0) + totalAdditionalCharges;
+            const t = computeShipmentTotalsFromPallets(quotation, pallets, freightRates);
+            const updatedPallets = mapPalletsForCustomerSave(
+                quotation,
+                pallets,
+                freightRates,
+                t.totalFreightCost,
+            );
 
             const success = await updateCustomerQuotation(quotation.id, {
-                pallets: updatedPallets, total_freight_cost: totalFreightCost,
-                total_actual_weight: totalActualWeight, total_volume_weight: totalVolumeWeight,
-                chargeable_weight: chargeableWeight, delivery_cost: deliveryCost,
-                total_cost: totalCost, updated_at: new Date().toISOString()
+                pallets: updatedPallets,
+                total_freight_cost: t.totalFreightCost,
+                total_actual_weight: t.totalActualWeight,
+                total_volume_weight: t.totalVolumeWeight,
+                chargeable_weight: t.chargeableWeight,
+                delivery_cost: t.deliveryCost,
+                total_cost: t.totalCost,
+                updated_at: new Date().toISOString(),
             });
             if (success) { toast.success('Saved!'); await loadData(); }
             else toast.error('Failed to save');
@@ -517,14 +636,14 @@ export default function ShipmentDetailPage() {
                 <div className="p-6 md:p-8">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
                         <div className="flex items-start gap-4">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${sc.step === 5 ? 'bg-emerald-50 text-emerald-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${sc.step >= 6 ? 'bg-emerald-50 text-emerald-600' : sc.step === 5 ? 'bg-teal-50 text-teal-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
                                 <Plane className={`w-7 h-7 ${sc.step >= 4 ? 'animate-bounce' : ''}`} />
                             </div>
                             <div className="space-y-1.5">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-xl font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</h1>
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
-                                        {sc.step === 4 && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 animate-pulse" />}
+                                        {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-2 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-blue-500'}`} />}
                                         {sc.label}
                                     </span>
                                     <StatusBadge status={q.status} />
@@ -614,6 +733,9 @@ export default function ShipmentDetailPage() {
                         <div className="bg-amber-50/50 p-3 rounded-lg border border-amber-100/50 text-center">
                             <div className="text-[9px] font-bold text-amber-600 uppercase">Chargeable</div>
                             <div className="text-base font-bold text-amber-700">{totals.chargeableWeight} kg</div>
+                            {totals.hasManualChargeable && (
+                                <div className="text-[8px] text-amber-600 font-semibold mt-0.5">Staff override</div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -628,7 +750,15 @@ export default function ShipmentDetailPage() {
                 </div>
                 <div className="divide-y divide-gray-50">
                     <div className="px-5 py-3 flex justify-between items-center">
-                        <div><span className="text-sm text-gray-600">Freight Cost</span><br /><span className="text-[10px] text-gray-400">Based on chargeable weight</span></div>
+                        <div>
+                            <span className="text-sm text-gray-600">Freight Cost</span>
+                            <br />
+                            <span className="text-[10px] text-gray-400">
+                                {totals.hasManualRate
+                                    ? `Manual rate: ${Number(q.manual_rate) || 0} THB/kg × ${totals.chargeableWeight} kg chargeable`
+                                    : 'Based on chargeable weight per pallet & rate bands'}
+                            </span>
+                        </div>
                         <span className="text-sm font-bold text-gray-900">{formatAmount(totals.totalFreightCost)}</span>
                     </div>
                     {totals.deliveryCost > 0 && (

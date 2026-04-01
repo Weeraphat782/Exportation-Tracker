@@ -18,7 +18,8 @@ const TRACKING_STEPS = [
     { label: 'Pending Booking', step: 2 },
     { label: 'Booking Requested', step: 3 },
     { label: 'AWB Received', step: 4 },
-    { label: 'Delivered', step: 5 }
+    { label: 'Waiting for Pick Up', step: 5 },
+    { label: 'Delivered', step: 6 },
 ];
 
 // ============ HELPERS ============
@@ -34,10 +35,11 @@ function formatAmount(amount: number) {
 }
 
 function getStageDisplay(stage?: string, status?: string) {
-    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5 };
+    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6 };
     if (status === 'Shipped') return { label: 'Shipped', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4 };
     switch (stage) {
-        case 'payment_received': return { label: 'Payment Received', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5 };
+        case 'payment_received': return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6 };
+        case 'waiting_for_pickup': return { label: 'Waiting for Pick Up', color: 'text-teal-700', bgColor: 'bg-teal-50 border-teal-200', step: 5 };
         case 'awb_received': return { label: 'AWB Received', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4 };
         case 'booking_requested': return { label: 'Booking Requested', color: 'text-cyan-700', bgColor: 'bg-cyan-50 border-cyan-200', step: 3 };
         case 'pending_booking': return { label: 'Pending Booking', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200', step: 2 };
@@ -54,21 +56,26 @@ function TrackingProgress({ sc }: { sc: ReturnType<typeof getStageDisplay> }) {
             <div className="relative">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 rounded-full" />
                 <div
-                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${sc.step === 5 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                    style={{ width: `${Math.min((sc.step / 5) * 100, 100)}%` }}
+                    className={`absolute top-1/2 left-0 h-1 -translate-y-1/2 rounded-full transition-all duration-1000 ${sc.step >= 6 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                    style={{ width: `${Math.min((sc.step / 6) * 100, 100)}%` }}
                 />
                 <div className="relative flex justify-between">
                     {TRACKING_STEPS.map((step) => {
                         const isActive = sc.step >= step.step;
                         const isCurrent = sc.step === step.step;
+                        const doneEmerald = sc.step >= 6;
                         return (
                             <div key={step.step} className="flex flex-col items-center">
                                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-500 z-10 ${isCurrent
-                                    ? 'bg-white border-blue-600 scale-125 shadow-lg shadow-blue-100'
-                                    : isActive ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-200'
+                                    ? doneEmerald && step.step === 6
+                                        ? 'bg-white border-emerald-600 scale-125 shadow-lg shadow-emerald-100'
+                                        : 'bg-white border-blue-600 scale-125 shadow-lg shadow-blue-100'
+                                    : isActive
+                                        ? doneEmerald ? 'bg-emerald-600 border-emerald-600' : 'bg-blue-600 border-blue-600'
+                                        : 'bg-white border-gray-200'
                                     }`}>
                                     {isActive && !isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                    {isCurrent && <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />}
+                                    {isCurrent && <div className={`w-2 h-2 rounded-full animate-pulse ${step.step === 6 ? 'bg-emerald-600' : 'bg-blue-600'}`} />}
                                 </div>
                                 <span className={`mt-2 text-[10px] font-semibold text-center leading-tight max-w-[60px] ${isCurrent ? 'text-blue-700 font-black' : isActive ? 'text-gray-600' : 'text-gray-300'}`}>
                                     {step.label}
@@ -217,14 +224,14 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                     <div className="p-6 md:p-8">
                         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
                             <div className="flex items-start gap-4">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${sc.step === 5 ? 'bg-emerald-50 text-emerald-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${sc.step >= 6 ? 'bg-emerald-50 text-emerald-600' : sc.step === 5 ? 'bg-teal-50 text-teal-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
                                     <Plane className={`w-7 h-7 ${sc.step >= 4 ? 'animate-bounce' : ''}`} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <div className="flex items-center gap-3 flex-wrap">
                                         <h1 className="text-xl font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</h1>
                                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
-                                            {sc.step === 4 && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 animate-pulse" />}
+                                            {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-2 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-blue-500'}`} />}
                                             {sc.label}
                                         </span>
                                     </div>

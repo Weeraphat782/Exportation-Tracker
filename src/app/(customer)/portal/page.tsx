@@ -24,10 +24,11 @@ function formatAmount(amount: number) {
 }
 
 function getStageDisplay(stage?: string, status?: string) {
-    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5, barColor: 'bg-emerald-500' };
+    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6, barColor: 'bg-emerald-500' };
     if (status === 'Shipped') return { label: 'Shipped', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
     switch (stage) {
-        case 'payment_received': return { label: 'Payment Received', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 5, barColor: 'bg-emerald-500' };
+        case 'payment_received': return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6, barColor: 'bg-emerald-500' };
+        case 'waiting_for_pickup': return { label: 'Waiting for Pick Up', color: 'text-teal-700', bgColor: 'bg-teal-50 border-teal-200', step: 5, barColor: 'bg-teal-500' };
         case 'awb_received': return { label: 'AWB Received', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
         case 'booking_requested': return { label: 'Booking Requested', color: 'text-cyan-700', bgColor: 'bg-cyan-50 border-cyan-200', step: 3, barColor: 'bg-cyan-500' };
         case 'pending_booking': return { label: 'Pending Booking', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200', step: 2, barColor: 'bg-purple-500' };
@@ -40,12 +41,12 @@ function getStageDisplay(stage?: string, status?: string) {
 
 function MiniProgress({ step }: { step: number }) {
     return (
-        <div className="flex items-center gap-1 w-full max-w-[140px]">
-            {[1, 2, 3, 4, 5].map((s) => (
+        <div className="flex items-center gap-1 w-full max-w-[168px]">
+            {[1, 2, 3, 4, 5, 6].map((s) => (
                 <div
                     key={s}
                     className={`h-1.5 flex-1 rounded-full transition-all ${s <= step
-                        ? step === 5 ? 'bg-emerald-500' : 'bg-blue-500'
+                        ? step >= 6 ? 'bg-emerald-500' : 'bg-blue-500'
                         : 'bg-gray-100'
                         }`}
                 />
@@ -68,7 +69,7 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     {/* Left: Icon + Info */}
                     <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${sc.step === 5 ? 'bg-emerald-50 text-emerald-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${sc.step >= 6 ? 'bg-emerald-50 text-emerald-600' : sc.step === 5 ? 'bg-teal-50 text-teal-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
                             }`}>
                             <Plane className={`w-6 h-6 ${sc.step >= 4 ? 'animate-bounce' : ''}`} />
                         </div>
@@ -76,7 +77,7 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                             <div className="flex items-center gap-2.5 flex-wrap">
                                 <span className="text-base font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</span>
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
-                                    {sc.step === 4 && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5 animate-pulse" />}
+                                    {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-1.5 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-blue-500'}`} />}
                                     {sc.label}
                                 </span>
                             </div>
@@ -177,11 +178,11 @@ export default function MyShipmentsPage() {
         }).length;
         const shipped = quotations.filter(q => {
             const s = getStageDisplay(q.opportunities?.stage, q.status);
-            return s.step === 4;
+            return s.step === 4 || s.step === 5;
         }).length;
         const delivered = quotations.filter(q => {
             const s = getStageDisplay(q.opportunities?.stage, q.status);
-            return s.step === 5;
+            return s.step === 6;
         }).length;
         return { total, active, shipped, delivered };
     }, [quotations]);
