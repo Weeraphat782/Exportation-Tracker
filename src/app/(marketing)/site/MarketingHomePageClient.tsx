@@ -18,7 +18,9 @@ const EdgeCarousel = dynamic(() => import("@/components/marketing/EdgeCarousel")
     <div className="aspect-video animate-pulse rounded-xl bg-neutral-200" aria-hidden />
   ),
 });
+/** Client-only: CarrierBoard uses next/image + fetch; SSR vs first paint can mismatch (hydration warnings). */
 const CarrierBoard = dynamic(() => import("@/components/marketing/CarrierBoard"), {
+  ssr: false,
   loading: () => (
     <div className="min-h-[280px] w-full animate-pulse rounded-xl bg-white/5" aria-hidden />
   ),

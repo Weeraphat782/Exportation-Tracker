@@ -91,6 +91,58 @@ export function faqPageSchema(
   };
 }
 
+/** FAQs for /site/services/air-freight — keep in sync with visible FAQ on that page. */
+export const airFreightServiceFaqs: { question: string; answer: string }[] = [
+  {
+    question: "What is GDP-compliant air freight?",
+    answer:
+      "GDP (Good Distribution Practice) air freight means your pharmaceutical and temperature-sensitive cargo is handled, documented, and transferred according to internationally recognized quality standards for distribution. This includes traceable handoffs, appropriate storage conditions before flight, and alignment with regulatory expectations for medicinal products in transit.",
+  },
+  {
+    question: "How long does pharmaceutical air freight from Thailand take?",
+    answer:
+      "Typical airport-to-airport transit for standard air freight is often 3–5 business days depending on destination, carrier, and routing. Express priority services may reduce that to roughly 1–3 business days. Final door delivery depends on customs clearance and local handling at destination.",
+  },
+  {
+    question: "What temperature ranges are supported for pharma cargo?",
+    answer:
+      "We support controlled-temperature logistics aligned with common pharmaceutical needs, including cold chain (approximately 2–8°C) and controlled room temperature (approximately 15–25°C), using validated packaging and monitoring approaches where required. Exact ranges and packaging should be confirmed per shipment with our operations team.",
+  },
+  {
+    question: "What documents are required for pharmaceutical air freight?",
+    answer:
+      "Requirements vary by product, destination, and regulator. Commonly you will need commercial invoice, packing list, and product-specific certificates or permits. For exports from Thailand, Thai FDA and customs documentation may apply. Our team can guide you through the checklist and coordinate with our customs and document services.",
+  },
+  {
+    question: "How is chargeable weight calculated?",
+    answer:
+      "Airlines bill using chargeable weight: the greater of actual gross weight and volumetric (volume) weight. Volume weight is typically computed from dimensions using an industry divisor (for example L×W×H in cm ÷ 6,000 for many routes). Your quote on our platform reflects this automatically so pricing stays transparent.",
+  },
+  {
+    question: "Do you offer cold chain monitoring for air shipments?",
+    answer:
+      "Yes. For temperature-sensitive and pharmaceutical air freight we emphasize documented cold chain handling, appropriate packaging, and status visibility through the journey where available. Discuss data loggers, passive or active containers, and lane-specific SOPs with our team when you book.",
+  },
+];
+
+export function airFreightServiceSchema(): JsonLdGraph {
+  const url = absoluteUrl("/site/services/air-freight");
+  return {
+    "@type": "Service",
+    "@id": `${url}#service`,
+    name: `${BRAND_NAME} pharmaceutical air freight`,
+    serviceType: "Pharmaceutical air freight",
+    description:
+      "GDP-oriented air freight from Thailand for pharmaceutical, temperature-sensitive, and time-critical cargo, with cold chain awareness, compliance documentation support, and transparent chargeable weight pricing.",
+    url,
+    provider: { "@id": `${getSiteUrl()}/#organization` },
+    areaServed: [
+      { "@type": "Country", name: "Thailand" },
+      { "@type": "Place", name: "Bangkok" },
+    ],
+  };
+}
+
 export function jsonLdScript(graph: JsonLdGraph | JsonLdGraph[]) {
   const data = Array.isArray(graph)
     ? { "@context": "https://schema.org", "@graph": graph }
@@ -111,6 +163,14 @@ export function organizationSchema(): JsonLdGraph {
     },
     description:
       "Specialized air freight and pharmaceutical-grade logistics for time-sensitive, temperature-controlled, and compliance-critical cargo.",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "TH",
+    },
+    areaServed: [
+      { "@type": "Country", name: "Thailand" },
+      { "@type": "AdministrativeArea", name: "Southeast Asia" },
+    ],
     sameAs: [
       "https://www.linkedin.com/company/omgexp",
       "https://x.com/omgexp",

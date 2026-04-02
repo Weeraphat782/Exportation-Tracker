@@ -1,16 +1,25 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { SeoBreadcrumbsJsonLd } from "@/components/seo/SeoBreadcrumbsJsonLd";
-import { jsonLdScript, webPageSchema } from "@/lib/json-ld";
+import {
+  airFreightServiceFaqs,
+  airFreightServiceSchema,
+  faqPageSchema,
+  jsonLdScript,
+  webPageSchema,
+} from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
 import { BRAND_NAME } from "@/lib/site";
 
 export const dynamic = "force-static";
 
+const WEB_PAGE_DESC =
+  "GDP-certified air freight for pharmaceutical, temperature-sensitive, and time-critical cargo from Thailand to 50+ countries. Cold chain handling, compliance documentation support, and transparent chargeable weight pricing.";
+
 export const metadata: Metadata = pageMeta({
-  title: "Air Freight Services",
+  title: "Pharmaceutical Air Freight from Thailand | GDP-Certified Cargo",
   description:
-    "Dedicated and consolidation air freight, dimensional weight, ULD planning, and carrier selection from OMG Experience.",
+    "GDP-certified air freight for pharmaceutical, temperature-sensitive, and time-critical cargo from Thailand to 50+ countries. Cold chain handling, compliance documentation, and transparent chargeable weight pricing.",
   path: "/site/services/air-freight",
 });
 
@@ -19,13 +28,15 @@ export default function AirFreightLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const faqLd = faqPageSchema(airFreightServiceFaqs);
   const ld = jsonLdScript([
     webPageSchema({
       path: "/site/services/air-freight",
-      name: `${BRAND_NAME} Air Freight Services`,
-      description:
-        "Dedicated and consolidation air freight with dimensional weight, ULD planning, and carrier selection.",
+      name: `${BRAND_NAME} — Pharmaceutical air freight from Thailand`,
+      description: WEB_PAGE_DESC,
     }),
+    airFreightServiceSchema(),
+    ...(faqLd ? [faqLd] : []),
   ]);
 
   return (

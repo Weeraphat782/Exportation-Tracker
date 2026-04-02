@@ -1,11 +1,21 @@
-'use client';
-
-import Link from 'next/link';
+import Link from "next/link";
 import {
-  Plane, ArrowRight, CheckCircle2, Package, Scale, Ruler,
-  MapPin, Truck,
-  Calculator, Zap, BarChart3, ArrowLeft
-} from 'lucide-react';
+  Plane,
+  ArrowRight,
+  CheckCircle2,
+  Package,
+  Scale,
+  Ruler,
+  MapPin,
+  Truck,
+  Calculator,
+  Zap,
+  BarChart3,
+  ArrowLeft,
+  ShieldCheck,
+  Thermometer,
+} from "lucide-react";
+import { airFreightServiceFaqs } from "@/lib/json-ld";
 
 // ============ HERO ============
 function AirFreightHero() {
@@ -26,19 +36,23 @@ function AirFreightHero() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full">
               <Plane className="w-4 h-4 text-sky-400" />
-              <span className="text-sky-300 text-sm font-medium">Air Freight Services</span>
+              <span className="text-sky-300 text-sm font-medium">
+                Pharmaceutical & GDP-ready air freight
+              </span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
-              Fast, reliable{' '}
+              GDP-certified{' '}
               <span className="bg-gradient-to-r from-sky-400 to-cyan-400 bg-clip-text text-transparent">
-                air cargo
+                pharmaceutical air freight
               </span>{' '}
               from Thailand to the world
             </h1>
 
             <p className="text-lg text-sky-100/80 leading-relaxed max-w-lg">
-              From factory to destination airport — with automated weight calculations, competitive chargeable weight pricing, and real-time shipment tracking throughout the journey.
+              From factory to destination airport — cold chain–aware handling, compliance-focused
+              documentation, automated chargeable weight pricing, and shipment visibility for
+              time-critical and regulated cargo.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -111,7 +125,7 @@ function ServiceOptions() {
     {
       icon: Plane,
       title: 'Standard Air Freight',
-      desc: 'Our standard air cargo service for general shipments. The system automatically calculates Chargeable Weight for accurate, transparent pricing.',
+      desc: 'Our standard air cargo service for general and pharma-ready shipments. The system automatically calculates Chargeable Weight for accurate, transparent pricing.',
       features: [
         'Delivered within 3-5 business days',
         'Automatic weight calculation (Actual vs Volume)',
@@ -144,10 +158,11 @@ function ServiceOptions() {
             <Package className="w-4 h-4" /> Service Options
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Choose the service that fits <span className="text-sky-600">your business</span>
+            Pharma-ready air options for <span className="text-sky-600">your lane</span>
           </h2>
           <p className="text-gray-500 text-lg">
-            Both Standard and Express use the same transparent pricing system — based on Chargeable Weight and destination Freight Rate.
+            Standard and Express both support GDP-oriented handling where required. Pricing stays
+            transparent — Chargeable Weight and destination freight rates, with no hidden line items.
           </p>
         </div>
 
@@ -183,6 +198,145 @@ function ServiceOptions() {
                 Request Quote <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============ PHARMACEUTICAL & GDP ============
+function PharmaceuticalAirFreightSection() {
+  return (
+    <section className="py-20 bg-slate-50 border-y border-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-50 text-cyan-800 text-sm font-medium rounded-full mb-4">
+              <ShieldCheck className="w-4 h-4" /> Good Distribution Practice
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+              Pharmaceutical-grade air freight from Thailand
+            </h2>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              When you move medicines, biologics, vaccines, or other regulated products by air, every
+              handoff matters. Our pharmaceutical air freight program is built around{" "}
+              <strong className="text-gray-900">GDP (Good Distribution Practice)</strong> principles:
+              traceable processes, qualified partners where needed, and alignment with common
+              regulatory expectations for distribution — not just “generic” air cargo.
+            </p>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              From Bangkok and major Thai origins, we coordinate booking, documentation, and airport
+              delivery with an eye on{" "}
+              <strong className="text-gray-900">cold chain integrity</strong>. That means selecting
+              appropriate packaging lanes, planning for ambient versus chilled requirements, and
+              keeping communication tight when timelines slip or flights reroute.
+            </p>
+            <p className="text-gray-600 leading-relaxed mb-6">
+              Our digital quoting engine still applies the same transparent{" "}
+              <strong className="text-gray-900">chargeable weight</strong> logic you see elsewhere on
+              this page — so pharmaceutical shippers get predictable air freight economics alongside
+              compliance-oriented execution. For exports, we can align with your quality agreements
+              and support document packages that satisfy customs and health authorities at destination.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/site/services/customs-documents"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700 hover:text-cyan-900"
+              >
+                Customs & export documents <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                  <Thermometer className="w-5 h-5 text-cyan-700" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Temperature & monitoring</h3>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                Typical pharmaceutical lanes include{" "}
+                <strong>2–8°C (cold chain)</strong> and{" "}
+                <strong>15–25°C (controlled room temperature)</strong>. We work with validated
+                packaging, passive and active solutions where appropriate, and lane-specific standard
+                operating procedures so your product profile drives the plan — not a one-size box.
+              </p>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li className="flex gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  GDP-aware handling and documented transfers
+                </li>
+                <li className="flex gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  Cold chain and CRT options discussed per shipment
+                </li>
+                <li className="flex gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  Real-time status visibility through our platform where available
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
+                  <Package className="w-5 h-5 text-sky-700" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Documentation & compliance</h3>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Pharmaceutical air freight often requires invoices, packing lists, certificates of
+                analysis, permits, and country-specific declarations. We coordinate with your quality
+                and regulatory contacts so paperwork matches the physical shipment — reducing holds
+                at origin, transit, and arrival. Pair this page with our{" "}
+                <Link href="/site/services/customs-documents" className="text-sky-700 font-medium underline-offset-2 hover:underline">
+                  customs & documents
+                </Link>{" "}
+                service for end-to-end coverage.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ============ FAQ ============
+function AirFreightFaqSection() {
+  return (
+    <section className="py-20 bg-gray-50" aria-labelledby="air-freight-faq-heading">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2
+          id="air-freight-faq-heading"
+          className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 text-center"
+        >
+          Frequently Asked Questions
+        </h2>
+        <p className="text-gray-500 text-center mb-10">
+          Pharmaceutical air freight, GDP, cold chain, and how we price air cargo from Thailand.
+        </p>
+        <div className="space-y-3">
+          {airFreightServiceFaqs.map((item) => (
+            <details
+              key={item.question}
+              className="group bg-white rounded-xl border border-gray-200 shadow-sm open:shadow-md transition-shadow"
+            >
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-4 px-5 py-4 font-semibold text-gray-900 text-left [&::-webkit-details-marker]:hidden">
+                <span>{item.question}</span>
+                <span className="text-sky-600 text-xl leading-none group-open:rotate-45 transition-transform select-none">
+                  +
+                </span>
+              </summary>
+              <div className="px-5 pb-5 pt-0 border-t border-gray-100">
+                <p className="text-sm text-gray-600 leading-relaxed pt-4 whitespace-pre-line">
+                  {item.answer}
+                </p>
+              </div>
+            </details>
           ))}
         </div>
       </div>
@@ -463,8 +617,10 @@ export default function AirFreightPage() {
     <>
       <AirFreightHero />
       <ServiceOptions />
+      <PharmaceuticalAirFreightSection />
       <PricingSection />
       <DeliverySection />
+      <AirFreightFaqSection />
       <CTASection />
     </>
   );
