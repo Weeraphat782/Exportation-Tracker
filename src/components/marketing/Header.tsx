@@ -37,7 +37,7 @@ export default function Header() {
 
     return (
         <header
-            className={`sticky top-0 z-50 transition-all duration-300 ${
+            className={`transition-all duration-300 ${
                 scrolled
                     ? "bg-white/90 backdrop-blur-md shadow-md border-b border-neutral-200/60"
                     : "bg-white border-b border-neutral-200"
@@ -134,13 +134,15 @@ export default function Header() {
                 </div>
             </div>
 
-            {/* Mobile menu */}
+            {/* Mobile menu — max-h-96 was too short (384px); content + CTAs overflowed and looked like overlap with page */}
             <div
-                className={`overflow-hidden transition-all duration-300 md:hidden ${
-                    mobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out md:hidden shadow-2xl border-b border-neutral-200 ${
+                    mobileMenuOpen
+                        ? "max-h-[calc(100dvh-9rem)] opacity-100"
+                        : "max-h-0 opacity-0"
                 }`}
             >
-                <div className="border-t border-neutral-200 bg-white/95 backdrop-blur-sm px-4 py-4">
+                <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain border-t border-neutral-200 bg-white/95 backdrop-blur-sm px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]">
                     <nav className="flex flex-col gap-1">
                         {navLinks.map((link) => (
                             <Link
