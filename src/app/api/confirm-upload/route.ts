@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { sendTelegramDocumentUploadNotification } from '@/lib/telegram-admin-notify'
+import { sendDocumentUploadNotification } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
@@ -120,6 +121,14 @@ export async function POST(request: NextRequest) {
         destination: dest,
         documentTypes: typeNames.length > 0 ? typeNames : [documentTypeName],
         fileCount: fileCount > 0 ? fileCount : 1,
+      })
+
+      await sendDocumentUploadNotification({
+        customerName: customerLabel,
+        quotationNo: quoteRow?.quotation_no ?? null,
+        documentTypes: typeNames.length > 0 ? typeNames : [documentTypeName],
+        fileCount: fileCount > 0 ? fileCount : 1,
+        destination: dest,
       })
     } catch (notifyErr) {
       console.error('Telegram notify after confirm-upload:', notifyErr)

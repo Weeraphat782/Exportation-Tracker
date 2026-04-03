@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { sendTelegramContactNotification } from '@/lib/telegram-admin-notify';
+import { sendContactNotification } from '@/lib/mail';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,14 @@ export async function POST(request: NextRequest) {
     }
 
     await sendTelegramContactNotification({
+      name,
+      email,
+      company,
+      inquiryType,
+      message,
+    });
+
+    await sendContactNotification({
       name,
       email,
       company,
