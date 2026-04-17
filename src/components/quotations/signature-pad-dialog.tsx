@@ -24,6 +24,55 @@ export interface SignaturePadDialogProps {
 
 const CANVAS_HEIGHT = 200;
 
+// Manually trim transparent edges of a canvas to a new tight canvas.
+// Used instead of react-signature-canvas's getTrimmedCanvas(), which relies on
+// trim-canvas and has been observed to throw "P is not a function" after
+// minification on some mobile browsers.
+function trimCanvasToContent(src: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = src.getContext('2d');
+  if (!ctx) return src;
+  const { width, height } = src;
+  let data: Uint8ClampedArray;
+  try {
+    data = ctx.getImageData(0, 0, width, height).data;
+  } catch {
+    return src;
+  }
+
+  let top = height;
+  let bottom = -1;
+  let left = width;
+  let right = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha !== 0) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+
+  if (right < left || bottom < top) return src;
+
+  const pad = 4;
+  const sx = Math.max(0, left - pad);
+  const sy = Math.max(0, top - pad);
+  const sw = Math.min(width - sx, right - left + 1 + pad * 2);
+  const sh = Math.min(height - sy, bottom - top + 1 + pad * 2);
+
+  const out = document.createElement('canvas');
+  out.width = sw;
+  out.height = sh;
+  const outCtx = out.getContext('2d');
+  if (!outCtx) return src;
+  outCtx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+  return out;
+}
+
 export function SignaturePadDialog({
   open,
   onOpenChange,
@@ -93,14 +142,22 @@ export function SignaturePadDialog({
       return;
     }
     try {
-      const trimmed =
-        typeof canvas.getTrimmedCanvas === 'function'
-          ? canvas.getTrimmedCanvas()
-          : canvas.getCanvas();
+      const raw = canvas.getCanvas();
+      let trimmed: HTMLCanvasElement;
+      try {
+        trimmed = trimCanvasToContent(raw);
+      } catch {
+        trimmed = raw;
+      }
       const dataUrl = trimmed.toDataURL('image/png');
       await onConfirm(dataUrl, companyName.trim());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      console.error('signature submit failed:', e);
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Something went wrong. Please try again.'
+      );
     }
   };
 
