@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import {
   Dialog,
@@ -23,6 +23,8 @@ export interface SignaturePadDialogProps {
   busy?: boolean;
 }
 
+const CANVAS_HEIGHT = 180;
+
 export function SignaturePadDialog({
   open,
   onOpenChange,
@@ -31,14 +33,42 @@ export function SignaturePadDialog({
   busy = false,
 }: SignaturePadDialogProps) {
   const sigRef = useRef<SignatureCanvas>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [companyName, setCompanyName] = useState(defaultCompanyName);
+  const [canvasWidth, setCanvasWidth] = useState(360);
+
+  // Keep the canvas drawing buffer in sync with the CSS width so touch/mouse
+  // coordinates line up on both mobile and desktop.
+  const syncCanvasSize = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = Math.max(240, Math.floor(rect.width));
+    setCanvasWidth(width);
+  }, []);
 
   useEffect(() => {
-    if (open) {
-      setCompanyName(defaultCompanyName);
+    if (!open) return;
+    setCompanyName(defaultCompanyName);
+    sigRef.current?.clear();
+    // Measure after dialog paints
+    const raf = requestAnimationFrame(() => {
+      syncCanvasSize();
       sigRef.current?.clear();
-    }
-  }, [open, defaultCompanyName]);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, defaultCompanyName, syncCanvasSize]);
+
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return;
+    const handler = () => syncCanvasSize();
+    window.addEventListener('resize', handler);
+    window.addEventListener('orientationchange', handler);
+    return () => {
+      window.removeEventListener('resize', handler);
+      window.removeEventListener('orientationchange', handler);
+    };
+  }, [open, syncCanvasSize]);
 
   const handleClear = () => {
     sigRef.current?.clear();
@@ -81,30 +111,60 @@ export function SignaturePadDialog({
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Company name"
               disabled={busy}
+              autoComplete="organization"
             />
           </div>
 
-          <div className="rounded-md border border-slate-200 bg-white overflow-hidden">
+          <div
+            ref={wrapperRef}
+            className="rounded-md border border-slate-200 bg-white overflow-hidden select-none"
+            style={{ touchAction: 'none' }}
+          >
             <SignatureCanvas
               ref={sigRef}
               canvasProps={{
-                className: 'w-full h-[150px] touch-none',
-                width: 400,
-                height: 150,
+                width: canvasWidth,
+                height: CANVAS_HEIGHT,
+                className: 'block touch-none select-none',
+                style: {
+                  width: `${canvasWidth}px`,
+                  height: `${CANVAS_HEIGHT}px`,
+                  touchAction: 'none',
+                },
               }}
               backgroundColor="rgba(255,255,255,0)"
             />
           </div>
+          <p className="text-[11px] text-slate-500 text-center -mt-2">
+            Draw using your finger or mouse. Tap Clear to redo.
+          </p>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={handleClear} disabled={busy}>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClear}
+            disabled={busy}
+            className="w-full sm:w-auto"
+          >
             Clear
           </Button>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+            className="w-full sm:w-auto"
+          >
             Cancel
           </Button>
-          <Button type="button" onClick={handleConfirm} disabled={busy}>
+          <Button
+            type="button"
+            onClick={handleConfirm}
+            disabled={busy}
+            className="w-full sm:w-auto"
+          >
             {busy ? 'Submitting…' : 'Confirm & submit'}
           </Button>
         </DialogFooter>

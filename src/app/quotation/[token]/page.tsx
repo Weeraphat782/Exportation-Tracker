@@ -79,7 +79,7 @@ export default function PublicQuotationSignPage() {
   const isSigned = Boolean(quotation.customer_signature);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-slate-50 py-4 px-2 sm:py-8 sm:px-4">
       <div className="max-w-4xl mx-auto space-y-4">
         <div className="text-center print:hidden">
           <h1 className="text-xl font-bold text-slate-900">Quotation</h1>

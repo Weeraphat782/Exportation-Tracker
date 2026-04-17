@@ -111,21 +111,21 @@ export function QuotationPreviewContent({
   const hasSignature = Boolean(quotationData.customer_signature?.trim());
 
   return (
-    <Card className="p-8 max-w-4xl mx-auto bg-white shadow-sm print:shadow-none print:border-none print:p-0">
+    <Card className="p-4 sm:p-8 max-w-4xl mx-auto bg-white shadow-sm print:shadow-none print:border-none print:p-0">
       <CardContent className="p-0">
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-wrap justify-between items-start gap-3 mb-6 sm:mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">QUOTATION</h2>
-            <div className="text-sm text-slate-500 mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">QUOTATION</h2>
+            <div className="text-xs sm:text-sm text-slate-500 mt-1">
               Ref: {quotationData?.quotation_no || quotationData?.id || 'N/A'}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold text-slate-900">OMG Experience</div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900">OMG Experience</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
           <div>
             <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">CLIENT INFORMATION</h3>
             <table className="w-full text-sm">
@@ -173,9 +173,10 @@ export function QuotationPreviewContent({
           </div>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">PALLET INFORMATION</h3>
-          <table className="w-full text-sm border-collapse">
+          <div className="overflow-x-auto -mx-1 sm:mx-0">
+          <table className="w-full text-xs sm:text-sm border-collapse min-w-[420px]">
             <thead>
               <tr className="border-b">
                 <th className="py-2 text-left">#</th>
@@ -217,11 +218,13 @@ export function QuotationPreviewContent({
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">SERVICES & CHARGES</h3>
-          <table className="w-full text-sm border-collapse">
+          <div className="overflow-x-auto -mx-1 sm:mx-0">
+          <table className="w-full text-xs sm:text-sm border-collapse min-w-[320px]">
             <thead>
               <tr className="border-b">
                 <th className="py-2 text-left">Description</th>
@@ -260,6 +263,7 @@ export function QuotationPreviewContent({
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         {quotationData?.notes && (
@@ -287,8 +291,8 @@ export function QuotationPreviewContent({
           </div>
         </div>
 
-        <div className="mt-10 pt-6 break-inside-avoid print:break-inside-avoid">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+        <div className="mt-8 sm:mt-10 pt-4 sm:pt-6 break-inside-avoid print:break-inside-avoid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
             {/* Left — issuer (hardcoded) */}
             <div className="text-center">
               <p className="text-sm text-slate-700 mb-2">Yours sincerely,</p>
