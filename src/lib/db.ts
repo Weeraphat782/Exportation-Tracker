@@ -1719,7 +1719,8 @@ export async function getProformaInvoices(): Promise<ProformaInvoiceListItem[]> 
       const r = row as any;
       const q = r.quotation;
       const parent = q && !Array.isArray(q) ? q : Array.isArray(q) ? q[0] : null;
-      const { quotation: _drop, ...rest } = r;
+      const rest = { ...r };
+      delete (rest as Record<string, unknown>).quotation;
       const base = mapProformaRow(rest);
       return {
         ...base,
@@ -1853,7 +1854,8 @@ export async function updateProformaInvoice(
     const totals =
       nextLineItems !== undefined ? computeProformaTotals(nextLineItems) : null;
 
-    const { line_items: _li, ...rest } = patch;
+    const rest: Record<string, unknown> = { ...patch };
+    delete rest.line_items;
 
     const updatePayload: Record<string, unknown> = Object.fromEntries(
       Object.entries(rest).filter(([, v]) => v !== undefined)
