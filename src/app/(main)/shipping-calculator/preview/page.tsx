@@ -139,6 +139,9 @@ function QuotationPreviewPageInner() {
             <Link2 className="h-4 w-4 mr-2" />
             {copyingLink ? 'Copying…' : 'Copy sign link'}
           </Button>
+          <Button variant="outline" asChild>
+            <Link href={`/proforma-invoices/new?quotation_id=${quotationData.id}`}>Proforma Invoice</Link>
+          </Button>
           <Button onClick={handleSaveAsPdf}>
             <FileText className="h-4 w-4 mr-2" />
             Save as PDF

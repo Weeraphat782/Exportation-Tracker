@@ -176,6 +176,44 @@ export interface DocumentSubmission {
   storage_provider?: 'supabase' | 'r2';
 }
 
+export interface ProformaLineItem {
+  description: string;
+  amount: number;
+  /** Whether this line participates in VAT (7%). Defaults to true for legacy rows. */
+  taxable?: boolean;
+}
+
+export interface ProformaInvoice {
+  id: string;
+  quotation_id: string;
+  user_id: string | null;
+  invoice_no: string | null;
+  invoice_date: string | null;
+  customer_code: string | null;
+  customer_name: string | null;
+  customer_address: string | null;
+  consignee_name: string | null;
+  consignee_address: string | null;
+  freight_type: 'sea' | 'air' | null;
+  est_shipped_date: string | null;
+  est_gross_weight: number | null;
+  est_net_weight: number | null;
+  carrier: string | null;
+  mawb: string | null;
+  /** Free-text so users can include UOM, e.g. "2 plt / 145 kgs" */
+  qty_wt: string | null;
+  chargeable_weight: number | null;
+  airport_destination: string | null;
+  line_items: ProformaLineItem[];
+  subtotal: number | null;
+  vat: number | null;
+  grand_total: number | null;
+  status: 'draft' | 'sent' | 'signed' | 'cancelled';
+  share_token: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Setting {
   id: string;
   category: string;
@@ -1561,6 +1599,318 @@ export async function deleteProduct(id: string) {
     return true;
   } catch (err) {
     console.error('Failed to delete product:', err);
+    return false;
+  }
+}
+
+// ============================================================
+// PROFORMA INVOICES
+// ============================================================
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function computeProformaTotals(lineItems: ProformaLineItem[]): {
+  subtotal: number;
+  vat: number;
+  grand_total: number;
+} {
+  const subtotal = roundMoney(
+    lineItems.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+  );
+  const taxableBase = roundMoney(
+    lineItems.reduce((s, i) => {
+      const isTaxable = i.taxable !== false; // undefined -> taxable by default
+      return s + (isTaxable ? Number(i.amount) || 0 : 0);
+    }, 0)
+  );
+  const vat = roundMoney(taxableBase * 0.07);
+  const grand_total = roundMoney(subtotal + vat);
+  return { subtotal, vat, grand_total };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapProformaRow(row: any): ProformaInvoice {
+  const rawItems = row.line_items;
+  const line_items: ProformaLineItem[] = Array.isArray(rawItems)
+    ? rawItems.map((i: { description?: string; amount?: number; taxable?: boolean }) => ({
+        description: String(i.description ?? ''),
+        amount: Number(i.amount) || 0,
+        taxable: i.taxable === false ? false : true,
+      }))
+    : [];
+
+  return {
+    ...row,
+    line_items,
+    freight_type: row.freight_type === 'sea' || row.freight_type === 'air' ? row.freight_type : null,
+    est_gross_weight: row.est_gross_weight != null ? Number(row.est_gross_weight) : null,
+    est_net_weight: row.est_net_weight != null ? Number(row.est_net_weight) : null,
+    qty_wt: row.qty_wt != null && row.qty_wt !== '' ? String(row.qty_wt) : null,
+    chargeable_weight: row.chargeable_weight != null ? Number(row.chargeable_weight) : null,
+    subtotal: row.subtotal != null ? Number(row.subtotal) : null,
+    vat: row.vat != null ? Number(row.vat) : null,
+    grand_total: row.grand_total != null ? Number(row.grand_total) : null,
+  } as ProformaInvoice;
+}
+
+export function buildProformaDefaultsFromQuote(q: Quotation): Pick<
+  ProformaInvoice,
+  | 'customer_name'
+  | 'qty_wt'
+  | 'chargeable_weight'
+  | 'airport_destination'
+  | 'est_net_weight'
+  | 'line_items'
+> {
+  const items: ProformaLineItem[] = [];
+  if (q.total_freight_cost) {
+    items.push({ description: 'Freight Cost', amount: Number(q.total_freight_cost) });
+  }
+  if (q.clearance_cost) {
+    items.push({ description: 'Clearance Cost', amount: Number(q.clearance_cost) });
+  }
+  if (q.delivery_service_required && q.delivery_cost) {
+    items.push({
+      description: `Delivery Service (${q.delivery_vehicle_type || ''})`,
+      amount: Number(q.delivery_cost),
+    });
+  }
+  (q.additional_charges ?? []).forEach((c) =>
+    items.push({ description: c.description, amount: Number(c.amount) || 0 })
+  );
+
+  return {
+    customer_name: q.company_name ?? null,
+    qty_wt: q.pallets?.length ? String(q.pallets.length) : null,
+    chargeable_weight: q.chargeable_weight ?? null,
+    airport_destination: q.destination ?? null,
+    est_net_weight: q.total_actual_weight ?? null,
+    line_items: items,
+  };
+}
+
+export type ProformaInvoiceListItem = ProformaInvoice & {
+  quotation_no?: string | null;
+  /** From joined quotation row (display fallback next to proforma customer_name) */
+  company_name?: string | null;
+};
+
+export async function getProformaInvoices(): Promise<ProformaInvoiceListItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('proforma_invoices')
+      .select(
+        `
+        *,
+        quotation:quotations(quotation_no, company_name)
+      `
+      )
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching proforma invoices:', error);
+      return [];
+    }
+
+    return (data ?? []).map((row) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = row as any;
+      const q = r.quotation;
+      const parent = q && !Array.isArray(q) ? q : Array.isArray(q) ? q[0] : null;
+      const { quotation: _drop, ...rest } = r;
+      const base = mapProformaRow(rest);
+      return {
+        ...base,
+        quotation_no: parent?.quotation_no ?? null,
+        company_name: parent?.company_name ?? null,
+      };
+    });
+  } catch (err) {
+    console.error('Error in getProformaInvoices:', err);
+    return [];
+  }
+}
+
+export async function getProformaInvoicesByQuotation(quotationId: string): Promise<ProformaInvoice[]> {
+  try {
+    const { data, error } = await supabase
+      .from('proforma_invoices')
+      .select('*')
+      .eq('quotation_id', quotationId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching proforma invoices:', error);
+      return [];
+    }
+    return (data ?? []).map(mapProformaRow);
+  } catch (err) {
+    console.error('Error in getProformaInvoicesByQuotation:', err);
+    return [];
+  }
+}
+
+export async function getProformaInvoiceById(id: string): Promise<ProformaInvoice | null> {
+  try {
+    const { data, error } = await supabase.from('proforma_invoices').select('*').eq('id', id).single();
+
+    if (error) {
+      console.error('Error fetching proforma invoice:', error);
+      return null;
+    }
+    if (!data) return null;
+    return mapProformaRow(data);
+  } catch (err) {
+    console.error('Error in getProformaInvoiceById:', err);
+    return null;
+  }
+}
+
+export async function createProformaInvoice(
+  quotationId: string,
+  overrides?: Partial<
+    Omit<ProformaInvoice, 'id' | 'quotation_id' | 'created_at' | 'updated_at' | 'line_items'>
+  > & { line_items?: ProformaLineItem[] }
+): Promise<ProformaInvoice | null> {
+  try {
+    const q = await getQuotationById(quotationId);
+    if (!q) {
+      console.error('createProformaInvoice: quotation not found');
+      return null;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id ?? null;
+
+    const fromQuote = buildProformaDefaultsFromQuote(q);
+    const { line_items: ovLineItems, ...restOverrides } = overrides ?? {};
+    const line_items = ovLineItems ?? fromQuote.line_items;
+    const { subtotal, vat, grand_total } = computeProformaTotals(line_items);
+
+    const row = {
+      quotation_id: quotationId,
+      user_id: userId,
+      invoice_no: null,
+      invoice_date: null,
+      customer_code: null,
+      customer_address: null,
+      consignee_name: null,
+      consignee_address: null,
+      freight_type: null,
+      est_shipped_date: null,
+      est_gross_weight: null,
+      carrier: null,
+      mawb: null,
+      share_token: null,
+      status: 'draft' as const,
+      ...fromQuote,
+      ...restOverrides,
+      line_items,
+      subtotal,
+      vat,
+      grand_total,
+    };
+
+    const { data, error } = await supabase.from('proforma_invoices').insert([row]).select('*').single();
+
+    if (error) {
+      console.error(
+        'Error creating proforma invoice:',
+        JSON.stringify(
+          {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+          },
+          null,
+          2
+        )
+      );
+      return null;
+    }
+    return mapProformaRow(data);
+  } catch (err) {
+    console.error('Error in createProformaInvoice:', err);
+    return null;
+  }
+}
+
+export async function updateProformaInvoice(
+  id: string,
+  patch: Partial<
+    Omit<ProformaInvoice, 'id' | 'created_at' | 'updated_at' | 'quotation_id'>
+  >
+): Promise<ProformaInvoice | null> {
+  try {
+    let nextLineItems: ProformaLineItem[] | undefined;
+    if (patch.line_items) {
+      nextLineItems = patch.line_items;
+    }
+
+    const totals =
+      nextLineItems !== undefined ? computeProformaTotals(nextLineItems) : null;
+
+    const { line_items: _li, ...rest } = patch;
+
+    const updatePayload: Record<string, unknown> = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined)
+    );
+    updatePayload.updated_at = new Date().toISOString();
+
+    if (nextLineItems !== undefined) {
+      updatePayload.line_items = nextLineItems;
+      updatePayload.subtotal = totals!.subtotal;
+      updatePayload.vat = totals!.vat;
+      updatePayload.grand_total = totals!.grand_total;
+    }
+
+    // NOTE: no .single() — RLS may hide the updated row on read-back and produce
+    // an empty-looking error. We update first, then re-fetch separately.
+    const { error: updateError } = await supabase
+      .from('proforma_invoices')
+      .update(updatePayload)
+      .eq('id', id);
+
+    if (updateError) {
+      console.error(
+        'Error updating proforma invoice:',
+        JSON.stringify(
+          {
+            message: updateError.message,
+            code: updateError.code,
+            details: updateError.details,
+            hint: updateError.hint,
+          },
+          null,
+          2
+        ),
+        '\nPayload keys:',
+        Object.keys(updatePayload)
+      );
+      return null;
+    }
+
+    return await getProformaInvoiceById(id);
+  } catch (err) {
+    console.error('Error in updateProformaInvoice:', err);
+    return null;
+  }
+}
+
+export async function deleteProformaInvoice(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('proforma_invoices').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting proforma invoice:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Error in deleteProformaInvoice:', err);
     return false;
   }
 }

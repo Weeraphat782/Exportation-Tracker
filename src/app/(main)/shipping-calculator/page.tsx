@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2 } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, ScrollText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation, getPendingApprovalQuotations, generateShareToken } from '@/lib/db';
@@ -960,6 +960,17 @@ export default function ShippingCalculatorPage() {
                           <Link href={`/debit-note/${quotation.id}`} className="flex items-center">
                             <Receipt className="h-4 w-4 mr-2" />
                             Create Debit Note
+                          </Link>
+                        </DropdownMenuItem>
+
+                        {/* Create Proforma Invoice */}
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/proforma-invoices/new?quotation_id=${quotation.id}`}
+                            className="flex items-center"
+                          >
+                            <ScrollText className="h-4 w-4 mr-2" />
+                            Create Proforma Invoice
                           </Link>
                         </DropdownMenuItem>
 
