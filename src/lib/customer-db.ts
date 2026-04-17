@@ -142,7 +142,7 @@ export async function getCustomerStats(providedUserId?: string) {
   try {
     const quotations = await getCustomerQuotations(providedUserId);
 
-    const activeStatuses = ['draft', 'sent', 'accepted', 'docs_uploaded'];
+    const activeStatuses = ['draft', 'sent', 'accepted', 'docs_uploaded', 'signed'];
     const inTransitStatuses = ['Shipped'];
     const completedStatuses = ['completed'];
     const pendingStatuses = ['pending_approval'];

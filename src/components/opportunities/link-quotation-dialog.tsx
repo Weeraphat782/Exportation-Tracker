@@ -31,6 +31,7 @@ function getStatusBadge(status: string) {
         case 'sent': return { label: 'Submitted', variant: 'warning' as const };
         case 'accepted': return { label: 'Accepted', variant: 'success' as const };
         case 'pending_approval': return { label: 'Customer Request', variant: 'destructive' as const };
+        case 'signed': return { label: 'Signed', variant: 'success' as const };
         case 'docs_uploaded': return { label: 'Docs Uploaded', variant: 'purple' as const };
         case 'completed': return { label: 'Completed', variant: 'success' as const };
         default: return { label: status, variant: 'outline' as const };

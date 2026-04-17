@@ -5,7 +5,6 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import Breadcrumb from './Breadcrumb';
 import { cn } from '@/lib/utils';
-import { Toaster } from 'sonner';
 
 // Create context for sidebar toggle
 const SidebarContext = createContext<{
@@ -87,7 +86,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             onClick={() => setIsSidebarCollapsed(true)}
           />
         )}
-        <Toaster position="top-right" expand={true} richColors />
       </div>
     </SidebarContext.Provider>
   );

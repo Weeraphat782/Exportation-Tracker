@@ -8,10 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation, getPendingApprovalQuotations } from '@/lib/db';
+import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation, getPendingApprovalQuotations, generateShareToken } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -427,6 +427,8 @@ export default function ShippingCalculatorPage() {
         return 'success';
       case 'pending_approval':
         return 'destructive';
+      case 'signed':
+        return 'success';
       default:
         return 'outline';
     }
@@ -448,9 +450,22 @@ export default function ShippingCalculatorPage() {
         return 'Completed';
       case 'pending_approval':
         return '⏳ Customer Request';
+      case 'signed':
+        return 'Signed';
       default:
         return status;
     }
+  };
+
+  const handleCopySignLink = async (quotationId: string) => {
+    const token = await generateShareToken(quotationId);
+    if (!token) {
+      toast.error('Could not create sign link');
+      return;
+    }
+    const url = `${window.location.origin}/quotation/${token}`;
+    await navigator.clipboard.writeText(url);
+    toast.success('Sign link copied', { description: 'Send this link to the customer to e-sign.' });
   };
 
   // ============ ASSIGN CUSTOMER ============
@@ -889,6 +904,17 @@ export default function ShippingCalculatorPage() {
                       className="h-7 w-7 sm:h-9 sm:w-9 p-0"
                     >
                       <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+
+                    {/* Copy E-sign link */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopySignLink(quotation.id)}
+                      title="Copy sign link (customer e-sign)"
+                      className="h-7 w-7 sm:h-9 sm:w-9 p-0"
+                    >
+                      <Link2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
 
                     {/* Actions Dropdown Menu */}

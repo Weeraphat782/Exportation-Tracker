@@ -103,7 +103,7 @@ export interface Quotation {
   additional_charges: AdditionalCharge[]; // Use defined type
   notes?: string | null;
   total_cost: number;
-  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped' | 'pending_approval';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'docs_uploaded' | 'completed' | 'Shipped' | 'pending_approval' | 'signed';
   company_name?: string | null;
   destination?: string | null;
   requested_destination?: string | null;
@@ -141,6 +141,11 @@ export interface Quotation {
   share_token?: string | null;
   storage_provider?: 'supabase' | 'r2';
   price_confirmed?: boolean;
+
+  /** Base64 PNG data URL — stored in DB; omit from list queries */
+  customer_signature?: string | null;
+  signed_at?: string | null;
+  signed_company_name?: string | null;
 
   opportunities?: {
     stage: string;
@@ -663,6 +668,13 @@ export async function deleteFreightRate(id: string) {
 }
 
 // QUOTATION FUNCTIONS
+/** Strip heavy base64 signature from list payloads */
+function stripQuotationSignature<T extends Record<string, unknown>>(q: T): Omit<T, 'customer_signature'> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { customer_signature: _cs, ...rest } = q;
+  return rest as Omit<T, 'customer_signature'>;
+}
+
 export async function getQuotations(userId: string) {
   try {
     const { data, error } = await supabase
@@ -681,14 +693,23 @@ export async function getQuotations(userId: string) {
       return []; // Return empty array on error
     }
 
-    // Transform data to match Quotation interface, especially for nested objects
-    const transformedData = data.map(q => ({
-      ...q,
-      company_name: q.company?.name,
-      destination: q.destination_country ? `${q.destination_country.country} ${q.destination_country.port ? '- ' + q.destination_country.port : ''}` : 'N/A',
-      // shipment_photo_url should already be an array if the DB column type is TEXT[]
-      // shipment_photo_uploaded_at should be a string for timestamp
-    }));
+    const transformedData = data.map((q) => {
+      const row = q as {
+        company?: { name?: string };
+        destination_country?: { country?: string; port?: string | null };
+      } & Record<string, unknown>;
+      const lean = stripQuotationSignature(row);
+      const dc = row.destination_country;
+      const destination =
+        dc && dc.country
+          ? `${dc.country}${dc.port ? ` - ${dc.port}` : ''}`.trim()
+          : 'N/A';
+      return {
+        ...lean,
+        company_name: row.company?.name,
+        destination,
+      };
+    });
 
     return transformedData as Quotation[];
   } catch (err) {
@@ -713,7 +734,9 @@ export async function getPendingApprovalQuotations(): Promise<Quotation[]> {
       return [];
     }
 
-    return (data || []) as Quotation[];
+    return (data || []).map((q) =>
+      stripQuotationSignature(q as Record<string, unknown>)
+    ) as unknown as Quotation[];
   } catch (err) {
     console.error('Error in getPendingApprovalQuotations:', err);
     return [];
@@ -933,13 +956,22 @@ export async function getUnlinkedQuotations(userId?: string): Promise<Quotation[
       return [];
     }
 
-    const transformedData = (data || []).map(q => ({
-      ...q,
-      company_name: q.company?.name || q.company_name,
-      destination: q.destination_country
-        ? `${q.destination_country.country}${q.destination_country.port ? ' - ' + q.destination_country.port : ''}`
-        : q.destination || 'N/A',
-    }));
+    const transformedData = (data || []).map(q => {
+      const row = q as {
+        company?: { name?: string };
+        company_name?: string | null;
+        destination_country?: { country: string; port?: string | null };
+        destination?: string | null;
+      } & Record<string, unknown>;
+      const lean = stripQuotationSignature(row);
+      return {
+        ...lean,
+        company_name: row.company?.name || row.company_name,
+        destination: row.destination_country
+          ? `${row.destination_country.country}${row.destination_country.port ? ' - ' + row.destination_country.port : ''}`
+          : row.destination || 'N/A',
+      };
+    });
 
     return transformedData as Quotation[];
   } catch (err) {
@@ -1063,6 +1095,35 @@ export async function getQuotationByShareToken(token: string): Promise<(Quotatio
   } catch (err) {
     console.error('Error in getQuotationByShareToken:', err);
     return null;
+  }
+}
+
+/**
+ * Submit customer e-signature from public sign page (uses /api/quotation-sign + service role).
+ */
+export async function submitQuotationSignature(
+  token: string,
+  signatureDataUrl: string,
+  signedCompanyName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/quotation-sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        signatureDataUrl,
+        signedCompanyName: signedCompanyName.trim(),
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      return { success: false, error: data.error || `HTTP ${res.status}` };
+    }
+    return { success: true };
+  } catch (e) {
+    console.error('submitQuotationSignature:', e);
+    return { success: false, error: e instanceof Error ? e.message : 'Network error' };
   }
 }
 

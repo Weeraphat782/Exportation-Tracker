@@ -442,3 +442,16 @@
     border-radius: 9999px;
   }
 }
+
+/* Print / Save as PDF — breathing room at page edges (quotations, etc.) */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+}

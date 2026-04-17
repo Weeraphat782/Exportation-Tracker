@@ -114,24 +114,35 @@ export async function POST(request: NextRequest) {
         companyName ||
         null
 
-      await sendTelegramDocumentUploadNotification({
-        quotationId,
-        quotationNo: quoteRow?.quotation_no ?? null,
+      // Prepare shared notification data
+      const notifyData = {
         customerName: customerLabel,
-        destination: dest,
+        quotationNo: quoteRow?.quotation_no ?? null,
         documentTypes: typeNames.length > 0 ? typeNames : [documentTypeName],
         fileCount: fileCount > 0 ? fileCount : 1,
-      })
+        destination: dest,
+      };
 
-      await sendDocumentUploadNotification({
-        customerName: customerLabel,
-        quotationNo: quoteRow?.quotation_no ?? null,
-        documentTypes: typeNames.length > 0 ? typeNames : [documentTypeName],
-        fileCount: fileCount > 0 ? fileCount : 1,
-        destination: dest,
-      })
-    } catch (notifyErr) {
-      console.error('Telegram notify after confirm-upload:', notifyErr)
+      // Notify staff on Telegram (non-blocking)
+      try {
+        await sendTelegramDocumentUploadNotification({
+          quotationId,
+          ...notifyData,
+        });
+        console.log(`[confirm-upload] Telegram notification sent for quote ${quotationId}`);
+      } catch (tgErr) {
+        console.error('[confirm-upload] Telegram notification failed:', tgErr);
+      }
+
+      // Notify staff via Email (non-blocking)
+      try {
+        await sendDocumentUploadNotification(notifyData);
+        console.log(`[confirm-upload] Email notification sent for quote ${quotationId}`);
+      } catch (emailErr) {
+        console.error('[confirm-upload] Email notification failed:', emailErr);
+      }
+    } catch (dataErr) {
+      console.error('[confirm-upload] Failed to gather data for notifications:', dataErr);
     }
 
     // Success

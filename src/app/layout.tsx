@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Inter } from "next/font/google";
+import { Inter, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ScrollToTop";
+import { Toaster } from "sonner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { jsonLdScript, organizationSchema, websiteSchema } from "@/lib/json-ld";
 import {
@@ -15,6 +16,14 @@ import {
 } from "@/lib/site";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", preload: true });
+
+/** Cursive style for quotation issuer line (Shivek Sachdev) — use `[font-family:var(--font-quotation-signature)]` */
+const quotationSignatureFont = Dancing_Script({
+  subsets: ["latin"],
+  weight: ["700"],
+  display: "swap",
+  variable: "--font-quotation-signature",
+});
 
 const siteUrl = getSiteUrl();
 const defaultOg = getDefaultOgImageUrl();
@@ -132,7 +141,9 @@ export default function RootLayout({
           href={absoluteUrl("/feed.xml")}
         />
       </head>
-      <body className={`${inter.className} min-w-0 overflow-x-hidden`}>
+      <body
+        className={`${inter.className} ${quotationSignatureFont.variable} min-w-0 overflow-x-hidden`}
+      >
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         {gtmId ? (
           <noscript>
@@ -146,6 +157,7 @@ export default function RootLayout({
         ) : null}
         <JsonLd data={rootLd} />
         <ScrollToTop />
+        <Toaster position="top-right" expand richColors />
         {children}
         <Analytics />
         <SpeedInsights />
