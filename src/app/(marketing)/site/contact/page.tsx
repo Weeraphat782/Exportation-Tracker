@@ -150,7 +150,7 @@ export default function ContactPage() {
           <div className="lg:col-span-2">
             <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="mb-1 text-lg font-bold text-neutral-900">Send us a message</h2>
-              <p className="mb-6 text-sm text-neutral-500">Fill in the form and we'll get back to you promptly.</p>
+              <p className="mb-6 text-sm text-neutral-500">Fill in the form and we&apos;ll get back to you promptly.</p>
               <ContactForm />
             </div>
           </div>
