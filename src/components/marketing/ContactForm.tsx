@@ -93,7 +93,7 @@ export default function ContactForm() {
             required
             disabled={loading}
             autoComplete="name"
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-4 py-3 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 disabled:opacity-60"
+            className="mt-1 block w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm shadow-sm transition-colors disabled:opacity-60"
           />
         </div>
         <div>
@@ -110,7 +110,7 @@ export default function ContactForm() {
             required
             disabled={loading}
             autoComplete="email"
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-4 py-3 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 disabled:opacity-60"
+            className="mt-1 block w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm shadow-sm transition-colors disabled:opacity-60"
           />
         </div>
       </div>
@@ -128,7 +128,7 @@ export default function ContactForm() {
           type="text"
           disabled={loading}
           autoComplete="organization"
-          className="mt-1 block w-full rounded-md border border-neutral-300 px-4 py-3 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 disabled:opacity-60"
+          className="mt-1 block w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm shadow-sm transition-colors disabled:opacity-60"
         />
       </div>
 
@@ -143,7 +143,7 @@ export default function ContactForm() {
           id="inquiry"
           name="inquiry"
           disabled={loading}
-          className="mt-1 block w-full rounded-md border border-neutral-300 px-4 py-3 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 disabled:opacity-60"
+          className="mt-1 block w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm shadow-sm transition-colors disabled:opacity-60"
         >
           <option value="">Select service...</option>
           <option value="air-freight">Specialized Air Freight</option>
@@ -167,15 +167,15 @@ export default function ContactForm() {
           rows={5}
           required
           disabled={loading}
-          className="mt-1 block w-full rounded-md border border-neutral-300 px-4 py-3 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 disabled:opacity-60"
+          className="mt-1 block w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm shadow-sm transition-colors disabled:opacity-60"
         />
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md px-6 py-3 text-base font-semibold text-white transition enabled:hover:opacity-95 sm:w-auto disabled:opacity-60"
-        style={{ backgroundColor: "var(--color-accent-ref)" }}
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-8 py-3 text-sm font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+        style={{ backgroundColor: "var(--color-accent-ref)", boxShadow: "0 4px 14px rgba(91,191,33,0.3)" }}
       >
         {loading ? (
           <>

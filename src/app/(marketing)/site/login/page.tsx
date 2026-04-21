@@ -65,107 +65,154 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your customer portal</p>
+    <div className="flex min-h-[calc(100vh-80px)]">
+      {/* Left branding panel */}
+      <div
+        className="hidden lg:flex lg:w-5/12 xl:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
+        style={{ backgroundColor: "var(--color-primary-ref)" }}
+      >
+        {/* Background decorative circles */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-10" style={{ backgroundColor: "var(--color-accent-ref)" }} />
+        <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full opacity-10" style={{ backgroundColor: "var(--color-accent-ref)" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full opacity-5 border-2" style={{ borderColor: "var(--color-accent-ref)" }} />
+
+        <div className="relative z-10">
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-8"
+            style={{ backgroundColor: "rgba(91,191,33,0.15)", color: "var(--color-accent-ref)" }}
+          >
+            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: "var(--color-accent-ref)" }} />
+            Customer Portal
+          </div>
+          <h2 className="text-3xl xl:text-4xl font-bold text-white leading-snug">
+            Your shipments,<br />
+            <span style={{ color: "var(--color-accent-ref)" }}>always in sight.</span>
+          </h2>
+          <p className="mt-5 text-white/60 text-sm leading-relaxed max-w-xs">
+            Track your freight, access documents, and stay updated on every step of your logistics journey.
+          </p>
         </div>
 
-        {/* Verified banner */}
-        {verified && (
-          <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg mb-6">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <p className="text-sm text-emerald-700">Email verified successfully! You can now sign in.</p>
+        <div className="relative z-10 space-y-3">
+          {[
+            { icon: "📦", text: "Real-time shipment tracking" },
+            { icon: "📄", text: "Document access & downloads" },
+            { icon: "🔔", text: "Status notifications" },
+          ].map((item) => (
+            <div key={item.text} className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg text-sm" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                {item.icon}
+              </div>
+              <span className="text-sm text-white/70">{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-neutral-50">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-neutral-900">Welcome back</h1>
+            <p className="text-sm text-neutral-500 mt-1">Sign in to your customer portal</p>
           </div>
-        )}
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                  className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
-                />
-              </div>
+          {verified && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl mb-6">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <p className="text-sm text-emerald-700">Email verified! You can now sign in.</p>
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  className="w-full pl-10 pr-12 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>Sign In <ArrowRight className="w-4 h-4" /></>
+          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
               )}
-            </button>
-          </form>
 
-          <div className="mt-6 text-center space-y-4">
-            <p className="text-sm text-gray-500">
-              Don&apos;t have an account?{' '}
-              <Link href="/site/register" className="text-emerald-600 font-semibold hover:text-emerald-700">
-                Register here
-              </Link>
-            </p>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    className="w-full pl-10 pr-4 py-3 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 transition-colors"
+                    style={{ "--tw-ring-color": "rgba(33,84,151,0.15)" } as React.CSSProperties}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-ref)"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
+                  />
+                </div>
+              </div>
 
-            <div className="pt-4 border-t border-gray-100">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="w-full pl-10 pr-12 py-3 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 transition-colors"
+                    onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-ref)"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 text-white font-semibold rounded-xl transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{ backgroundColor: "var(--color-accent-ref)", boxShadow: "0 4px 14px rgba(91,191,33,0.3)" }}
               >
-                <Lock className="w-4 h-4" />
-                Login for Admin / Staff
-              </Link>
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Sign In <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center space-y-4">
+              <p className="text-sm text-neutral-500">
+                Don&apos;t have an account?{' '}
+                <Link href="/site/register" className="font-semibold hover:opacity-80 transition-opacity" style={{ color: "var(--color-primary-ref)" }}>
+                  Register here
+                </Link>
+              </p>
+              <div className="pt-4 border-t border-neutral-100">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-xl transition-colors"
+                >
+                  <Lock className="w-4 h-4" />
+                  Login for Admin / Staff
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Back to site */}
-        <div className="text-center mt-6">
-          <Link href="/site" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            &larr; Back to website
-          </Link>
+          <div className="text-center mt-6">
+            <Link href="/site" className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">
+              ← Back to website
+            </Link>
+          </div>
         </div>
       </div>
     </div>

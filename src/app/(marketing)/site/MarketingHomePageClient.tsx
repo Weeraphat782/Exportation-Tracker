@@ -50,9 +50,33 @@ const serviceIcons: Record<string, React.ReactNode> = {
 };
 
 const stats = [
-  { value: "7+", label: "Countries Served", icon: "🌍" },
-  { value: "GDP", label: "Certified Handling", icon: "✅" },
-  { value: "AI", label: "Document Intelligence", icon: "⚡" },
+  {
+    value: "7+",
+    label: "Countries Served",
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 004 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    value: "GDP",
+    label: "Certified Handling",
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+      </svg>
+    ),
+  },
+  {
+    value: "AI",
+    label: "Document Intelligence",
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function MarketingHomePageClient() {
@@ -86,6 +110,13 @@ export default function MarketingHomePageClient() {
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             {/* Hero Text */}
             <div className="text-center lg:text-left animate-fade-in-up">
+              {/* Trust badge */}
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-sm">
+                <span className="flex h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--color-accent-ref)" }} />
+                <span className="text-xs font-semibold uppercase tracking-widest text-white/80">
+                  GDP Certified · Pharma Grade Logistics
+                </span>
+              </div>
               <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Specialized Air Freight
                 <br />
@@ -139,16 +170,21 @@ export default function MarketingHomePageClient() {
             {stats.map((stat, i) => (
               <div
                 key={i}
-                className={`stat-card bg-neutral-800/50 px-4 py-4 text-center reveal-on-scroll stagger-${i + 1} sm:px-8 sm:py-7`}
+                className={`stat-card bg-neutral-800/50 px-4 py-5 text-center reveal-on-scroll stagger-${i + 1} sm:px-8 sm:py-8 flex flex-col items-center`}
               >
-                <div className="text-2xl mb-2">{stat.icon}</div>
+                <div
+                  className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: "rgba(91,191,33,0.15)", color: "var(--color-accent-ref)" }}
+                >
+                  {stat.icon}
+                </div>
                 <div
                   className="text-3xl font-black tracking-tight"
                   style={{ color: "var(--color-accent-ref)" }}
                 >
                   {stat.value}
                 </div>
-                <div className="mt-1 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                <div className="mt-1.5 text-xs font-semibold uppercase tracking-widest text-neutral-400">
                   {stat.label}
                 </div>
               </div>
@@ -282,11 +318,15 @@ export default function MarketingHomePageClient() {
       </section>
 
       {/* Our Edge - AI Document Management */}
-      <section className="relative bg-white py-12 overflow-hidden sm:py-24">
-        {/* Decorative background blob */}
+      <section className="relative py-12 overflow-hidden sm:py-24" style={{ background: "linear-gradient(160deg, #f8faff 0%, #ffffff 50%, #f0f7f0 100%)" }}>
+        {/* Decorative background blobs */}
         <div
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-5 blur-3xl"
+          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10 blur-3xl"
           style={{ backgroundColor: "var(--color-primary-ref)" }}
+        />
+        <div
+          className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full opacity-10 blur-3xl"
+          style={{ backgroundColor: "var(--color-accent-ref)" }}
         />
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 items-center">
@@ -359,12 +399,12 @@ export default function MarketingHomePageClient() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="accent-bar mx-auto mb-4" />
-            <h2 className="text-2xl font-bold uppercase tracking-wider text-neutral-900 sm:text-3xl">
+            <h2 className="text-3xl font-bold text-neutral-900 sm:text-4xl">
               Destinations We Serve
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-neutral-600">
-              We have shipped to Switzerland, Portugal, Australia, Czech Republic,
-              North Macedonia, South Africa, and Uganda.
+              Connecting Thailand to global markets across Europe, Oceania, and Africa —
+              with compliant, documented air freight on every route.
             </p>
           </div>
           <div className="rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(33,84,151,0.25),0_8px_24px_-8px_rgba(0,0,0,0.15)]">

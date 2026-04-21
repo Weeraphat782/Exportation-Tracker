@@ -17,26 +17,32 @@ export default function ServiceCard({
     href = "/site/contact",
 }: ServiceCardProps) {
     return (
-        <div className="group relative flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_-8px_rgba(33,84,151,0.15),0_8px_16px_-4px_rgba(0,0,0,0.08)]">
-            {/* Top accent line that reveals on hover */}
+        <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_24px_48px_-8px_rgba(33,84,151,0.18),0_8px_16px_-4px_rgba(0,0,0,0.08)]">
+            {/* Top accent line — always shows a hint, expands on hover */}
             <div
-                className="absolute top-0 left-0 right-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
+                className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: "linear-gradient(90deg, var(--color-primary-ref), var(--color-accent-ref))", opacity: 0.3 }}
+            />
+            <div
+                className="absolute top-0 left-0 right-0 h-[3px] origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
                 style={{ background: "linear-gradient(90deg, var(--color-primary-ref), var(--color-accent-ref))" }}
             />
 
             {imageUrl && (
-                <div className="relative h-32 overflow-hidden sm:h-44">
+                <div className="relative h-40 overflow-hidden sm:h-52">
                     <Image
                         src={imageUrl}
                         alt={title}
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         loading="lazy"
                     />
-                    {/* Gradient overlay on image */}
+                    {/* Persistent bottom gradient so text area blends well */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+                    {/* Stronger hover overlay */}
                     <div
-                        className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-40"
+                        className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-50"
                         style={{ background: "linear-gradient(to top, var(--color-primary-ref), transparent)" }}
                     />
                 </div>
