@@ -4,6 +4,18 @@ import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
 /** Keep pre-rendered HTML / ISR payload under Vercel's 19 MB cap (FALLBACK_BODY_TOO_LARGE). */
 const MAX_CONTENT_CHARS = 600_000;
+/** `unstable_cache` hard limit is ~2 MB per entry. Stay well under to survive overhead. */
+const MAX_LIST_BYTES = 1_500_000;
+const MAX_TITLE_CHARS = 500;
+const MAX_EXCERPT_CHARS = 600;
+
+/** Remove every `data:` URI from a string (base64 images, data:text, etc.). */
+function stripDataUris(input: string): string {
+  if (!input) return input;
+  let out = input;
+  out = out.replace(/data:[^\s"')<>]+/gi, "");
+  return out;
+}
 
 /**
  * Strip `data:` URIs (base64-embedded images) from CMS markdown so they never land in
@@ -24,7 +36,7 @@ function stripBase64Images(markdown: string): string {
     "",
   );
 
-  return out;
+  return stripDataUris(out);
 }
 
 function sanitizeArticleContent(
@@ -40,6 +52,42 @@ function sanitizeArticleContent(
     next = `${next.slice(0, MAX_CONTENT_CHARS)}\n\n*[content truncated]*`;
   }
   return next;
+}
+
+/** Cap any free-text DB column: strip data: URIs, trim to `maxLen`. */
+function sanitizeText(
+  value: string | null | undefined,
+  maxLen: number,
+): string {
+  if (value == null) return "";
+  const cleaned = stripDataUris(value).trim();
+  return cleaned.length > maxLen ? `${cleaned.slice(0, maxLen)}…` : cleaned;
+}
+
+/**
+ * `next/image` cannot use `data:` URIs; base64 in `image_url` also blows past the ~2 MB
+ * `unstable_cache` entry limit when listing many articles.
+ */
+function sanitizeImageUrl(
+  url: string | null | undefined,
+  slug: string,
+): string | null {
+  if (!url) return null;
+  const t = url.trim();
+  if (!t) return null;
+  if (/^data:/i.test(t)) {
+    console.warn(
+      `[newsroom] image_url for "${slug}" is a base64 data: URI (${t.length} chars); ignoring. Upload to R2/Supabase Storage and store the URL instead.`,
+    );
+    return null;
+  }
+  if (t.length > 2048) {
+    console.warn(
+      `[newsroom] image_url for "${slug}" is ${t.length} chars; ignoring (suspiciously long).`,
+    );
+    return null;
+  }
+  return t;
 }
 
 const ARTICLE_COLUMNS =
@@ -69,6 +117,49 @@ export type NewsListRow = {
   published_at: string | null;
 };
 
+type RawListRow = {
+  slug: string;
+  title: string | null;
+  excerpt: string | null;
+  image_url: string | null;
+  is_pinned: boolean | null;
+  published_at: string | null;
+};
+
+function sanitizeListRow(raw: RawListRow): NewsListRow {
+  return {
+    slug: raw.slug,
+    title: sanitizeText(raw.title, MAX_TITLE_CHARS),
+    excerpt: sanitizeText(raw.excerpt, MAX_EXCERPT_CHARS),
+    image_url: sanitizeImageUrl(raw.image_url, raw.slug),
+    is_pinned: Boolean(raw.is_pinned),
+    published_at: raw.published_at,
+  };
+}
+
+/** Cap total payload under the `unstable_cache` 2 MB limit, logging any trimming. */
+function capListByByteSize(rows: NewsListRow[]): NewsListRow[] {
+  const capped: NewsListRow[] = [];
+  let total = 0;
+  for (const row of rows) {
+    const size = JSON.stringify(row).length;
+    if (total + size > MAX_LIST_BYTES) {
+      console.warn(
+        `[newsroom] list payload would exceed ${MAX_LIST_BYTES} bytes at "${row.slug}" (row=${size}B, accumulated=${total}B); stopping at ${capped.length} entries`,
+      );
+      break;
+    }
+    if (size > 16_384) {
+      console.warn(
+        `[newsroom] row "${row.slug}" is ${size} bytes (title=${row.title.length}, excerpt=${row.excerpt.length}, image_url=${row.image_url?.length ?? 0}); consider auditing the DB record`,
+      );
+    }
+    total += size;
+    capped.push(row);
+  }
+  return capped;
+}
+
 export const getPublishedArticlesList = unstable_cache(
   async (): Promise<NewsListRow[]> => {
     const supabase = getSupabasePublicSiteClient();
@@ -81,9 +172,10 @@ export const getPublishedArticlesList = unstable_cache(
       .order("published_at", { ascending: false })
       .limit(100);
     if (error) return [];
-    return (data ?? []) as NewsListRow[];
+    const rows = ((data ?? []) as RawListRow[]).map(sanitizeListRow);
+    return capListByByteSize(rows);
   },
-  ["newsroom:list"],
+  ["newsroom:list:v2"],
   { tags: ["news:list"], revalidate: 3600 },
 );
 
@@ -100,7 +192,13 @@ async function fetchArticleBySlugFromDb(
     .single();
   if (error || !data) return null;
   const row = data as NewsArticleRow;
-  return { ...row, content: sanitizeArticleContent(row.content, slug) };
+  return {
+    ...row,
+    title: sanitizeText(row.title, MAX_TITLE_CHARS),
+    excerpt: sanitizeText(row.excerpt, MAX_EXCERPT_CHARS),
+    content: sanitizeArticleContent(row.content, slug),
+    image_url: sanitizeImageUrl(row.image_url, slug),
+  };
 }
 
 /**
@@ -110,7 +208,7 @@ async function fetchArticleBySlugFromDb(
 export const getArticleBySlug = cache(async (slug: string) => {
   return unstable_cache(
     async () => fetchArticleBySlugFromDb(slug),
-    ["newsroom-article", slug],
+    ["newsroom-article:v2", slug],
     { tags: ["news:list", `news:article:${slug}`], revalidate: 3600 },
   )();
 });
