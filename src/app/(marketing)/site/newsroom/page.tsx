@@ -11,8 +11,8 @@ import {
   webPageSchema,
 } from "@/lib/json-ld";
 import { pageMeta } from "@/lib/page-meta";
+import { getPublishedArticlesList } from "@/lib/newsroom-data";
 import { absoluteUrl, BRAND_NAME } from "@/lib/site";
-import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = pageMeta({
   title: "Newsroom",
@@ -21,36 +21,19 @@ export const metadata: Metadata = pageMeta({
   path: "/site/newsroom",
 });
 
-export const dynamic = "force-dynamic";
+/** Fallback refresh if tag revalidation is missed; list also uses tag `news:list`. */
+export const revalidate = 3600;
 
 export default async function NewsroomPage() {
-  const supabase = getSupabasePublicSiteClient();
-  let articles: {
-    slug: string;
-    title: string;
-    date: string;
-    excerpt: string;
-    imageUrl?: string;
-    pinned?: boolean;
-  }[] = [];
-
-  if (supabase) {
-    const { data } = await supabase
-      .from("news_articles")
-      .select("slug, title, excerpt, image_url, is_pinned, published_at")
-      .eq("is_published", true)
-      .order("is_pinned", { ascending: false })
-      .order("published_at", { ascending: false });
-
-    articles = (data || []).map((item) => ({
-      slug: item.slug,
-      title: item.title,
-      excerpt: item.excerpt,
-      date: item.published_at || "",
-      imageUrl: item.image_url || undefined,
-      pinned: item.is_pinned,
-    }));
-  }
+  const rows = await getPublishedArticlesList();
+  const articles = rows.map((item) => ({
+    slug: item.slug,
+    title: item.title,
+    excerpt: item.excerpt,
+    date: item.published_at || "",
+    imageUrl: item.image_url || undefined,
+    pinned: item.is_pinned,
+  }));
 
   const reviewed = new Date().toISOString().slice(0, 10);
 

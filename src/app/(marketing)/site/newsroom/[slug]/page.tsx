@@ -12,12 +12,12 @@ import {
   faqPageSchema,
   jsonLdScript,
 } from "@/lib/json-ld";
+import { getArticleBySlug, getPublishedArticlesList } from "@/lib/newsroom-data";
 import { pageMeta } from "@/lib/page-meta";
 import { absoluteUrl } from "@/lib/site";
-import { getSupabasePublicSiteClient } from "@/lib/supabase/server";
 
-/** Always read fresh `image_url` from Supabase (R2 / CMS updates); ISR stale snapshot hid hero images. */
-export const dynamic = "force-dynamic";
+/** Cached article HTML; use `revalidateTag('news:list')` + `revalidateTag('news:article:<slug>')` on publish. */
+export const revalidate = 3600;
 
 /** Normalize DB `image_url` for next/image (trim, protocol-relative, root-relative). */
 function normalizeNewsImageSrc(url: string | null | undefined): string {
@@ -30,15 +30,8 @@ function normalizeNewsImageSrc(url: string | null | undefined): string {
 }
 
 export async function generateStaticParams() {
-  const supabase = getSupabasePublicSiteClient();
-  if (!supabase) return [];
-  const { data } = await supabase
-    .from("news_articles")
-    .select("slug")
-    .eq("is_published", true)
-    .order("published_at", { ascending: false })
-    .limit(50);
-  return (data ?? []).map((row: { slug: string }) => ({ slug: row.slug }));
+  const rows = await getPublishedArticlesList();
+  return rows.slice(0, 50).map((row) => ({ slug: row.slug }));
 }
 
 interface PageProps {
@@ -49,16 +42,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = getSupabasePublicSiteClient();
-  if (!supabase) return {};
-  const { data: item } = await supabase
-    .from("news_articles")
-    .select(
-      "title, excerpt, image_url, published_at, updated_at, content",
-    )
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .single();
+  const item = await getArticleBySlug(slug);
   if (!item) return {};
 
   const rawImg = item.image_url?.trim();
@@ -85,16 +69,7 @@ export async function generateMetadata({
 
 export default async function NewsroomArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const supabase = getSupabasePublicSiteClient();
-  if (!supabase) notFound();
-
-  const { data: item } = await supabase
-    .from("news_articles")
-    .select("*")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .single();
-
+  const item = await getArticleBySlug(slug);
   if (!item) notFound();
 
   const formattedDate = item.published_at
@@ -178,7 +153,7 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
         </Link>
         {formattedDate && (
           <time
-            dateTime={item.published_at}
+            dateTime={item.published_at ?? undefined}
             className="block text-sm font-medium"
             style={{ color: "var(--color-primary-ref)" }}
           >
@@ -187,7 +162,7 @@ export default async function NewsroomArticlePage({ params }: PageProps) {
         )}
         {item.updated_at && formattedUpdated && (
           <time
-            dateTime={item.updated_at}
+            dateTime={item.updated_at ?? undefined}
             className="block text-sm text-neutral-500"
           >
             Last updated {formattedUpdated}

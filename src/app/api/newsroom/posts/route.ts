@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
+
+function revalidateNewsroomAfterPublish(slug: string) {
+  revalidateTag('news:list');
+  revalidateTag(`news:article:${slug}`);
+  revalidatePath('/site/newsroom');
+  revalidatePath(`/site/newsroom/${slug}`);
+}
 
 /**
  * POST /api/newsroom/posts
@@ -94,6 +102,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: retryError.message }, { status: 500 });
       }
 
+      revalidateNewsroomAfterPublish(retryData.slug);
+
       return NextResponse.json({
         ok: true,
         id: retryData.id,
@@ -104,6 +114,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  revalidateNewsroomAfterPublish(data.slug);
 
   return NextResponse.json({
     ok: true,
