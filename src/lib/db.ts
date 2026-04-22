@@ -1655,6 +1655,46 @@ function mapProformaRow(row: any): ProformaInvoice {
   } as ProformaInvoice;
 }
 
+/** One selectable charge line from a quotation (used by proforma import picker). */
+export interface QuotationLineOption {
+  key: string;
+  description: string;
+  amount: number;
+}
+
+export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
+  const out: QuotationLineOption[] = [];
+  if (q.total_freight_cost) {
+    out.push({
+      key: 'freight',
+      description: 'Freight Cost',
+      amount: Number(q.total_freight_cost),
+    });
+  }
+  if (q.clearance_cost) {
+    out.push({
+      key: 'clearance',
+      description: 'Clearance Cost',
+      amount: Number(q.clearance_cost),
+    });
+  }
+  if (q.delivery_service_required && q.delivery_cost) {
+    out.push({
+      key: 'delivery',
+      description: `Delivery Service (${q.delivery_vehicle_type || ''})`,
+      amount: Number(q.delivery_cost),
+    });
+  }
+  (q.additional_charges ?? []).forEach((c, index) => {
+    out.push({
+      key: `additional:${index}`,
+      description: c.description,
+      amount: Number(c.amount) || 0,
+    });
+  });
+  return out;
+}
+
 export function buildProformaDefaultsFromQuote(q: Quotation): Pick<
   ProformaInvoice,
   | 'customer_name'
@@ -1664,22 +1704,10 @@ export function buildProformaDefaultsFromQuote(q: Quotation): Pick<
   | 'est_net_weight'
   | 'line_items'
 > {
-  const items: ProformaLineItem[] = [];
-  if (q.total_freight_cost) {
-    items.push({ description: 'Freight Cost', amount: Number(q.total_freight_cost) });
-  }
-  if (q.clearance_cost) {
-    items.push({ description: 'Clearance Cost', amount: Number(q.clearance_cost) });
-  }
-  if (q.delivery_service_required && q.delivery_cost) {
-    items.push({
-      description: `Delivery Service (${q.delivery_vehicle_type || ''})`,
-      amount: Number(q.delivery_cost),
-    });
-  }
-  (q.additional_charges ?? []).forEach((c) =>
-    items.push({ description: c.description, amount: Number(c.amount) || 0 })
-  );
+  const line_items: ProformaLineItem[] = getQuotationLineOptions(q).map(({ description, amount }) => ({
+    description,
+    amount,
+  }));
 
   return {
     customer_name: q.company_name ?? null,
@@ -1687,7 +1715,7 @@ export function buildProformaDefaultsFromQuote(q: Quotation): Pick<
     chargeable_weight: q.chargeable_weight ?? null,
     airport_destination: q.destination ?? null,
     est_net_weight: q.total_actual_weight ?? null,
-    line_items: items,
+    line_items,
   };
 }
 
@@ -1787,7 +1815,7 @@ export async function createProformaInvoice(
 
     const fromQuote = buildProformaDefaultsFromQuote(q);
     const { line_items: ovLineItems, ...restOverrides } = overrides ?? {};
-    const line_items = ovLineItems ?? fromQuote.line_items;
+    const line_items = ovLineItems ?? [];
     const { subtotal, vat, grand_total } = computeProformaTotals(line_items);
 
     const row = {

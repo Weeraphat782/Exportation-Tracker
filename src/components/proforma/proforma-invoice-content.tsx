@@ -186,7 +186,7 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
                 {(proforma.line_items ?? []).map((row, index) => (
                   <tr key={index} className="border-b">
                     <td className="py-2 align-top">{index + 1}</td>
-                    <td className="py-2">{row.description || '—'}</td>
+                    <td className="py-2 whitespace-pre-wrap">{row.description || '—'}</td>
                     <td className="py-2 text-right align-top">{formatNumber(row.amount)}</td>
                   </tr>
                 ))}

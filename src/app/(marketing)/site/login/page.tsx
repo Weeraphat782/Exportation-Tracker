@@ -65,52 +65,8 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-80px)]">
-      {/* Left branding panel */}
-      <div
-        className="hidden lg:flex lg:w-5/12 xl:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ backgroundColor: "var(--color-primary-ref)" }}
-      >
-        {/* Background decorative circles */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-10" style={{ backgroundColor: "var(--color-accent-ref)" }} />
-        <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full opacity-10" style={{ backgroundColor: "var(--color-accent-ref)" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full opacity-5 border-2" style={{ borderColor: "var(--color-accent-ref)" }} />
-
-        <div className="relative z-10">
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest mb-8"
-            style={{ backgroundColor: "rgba(91,191,33,0.15)", color: "var(--color-accent-ref)" }}
-          >
-            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: "var(--color-accent-ref)" }} />
-            Customer Portal
-          </div>
-          <h2 className="text-3xl xl:text-4xl font-bold text-white leading-snug">
-            Your shipments,<br />
-            <span style={{ color: "var(--color-accent-ref)" }}>always in sight.</span>
-          </h2>
-          <p className="mt-5 text-white/60 text-sm leading-relaxed max-w-xs">
-            Track your freight, access documents, and stay updated on every step of your logistics journey.
-          </p>
-        </div>
-
-        <div className="relative z-10 space-y-3">
-          {[
-            { icon: "📦", text: "Real-time shipment tracking" },
-            { icon: "📄", text: "Document access & downloads" },
-            { icon: "🔔", text: "Status notifications" },
-          ].map((item) => (
-            <div key={item.text} className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg text-sm" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
-                {item.icon}
-              </div>
-              <span className="text-sm text-white/70">{item.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-neutral-50">
+    <div className="flex min-h-[calc(100vh-80px)] items-center justify-center">
+      <div className="flex w-full flex-col items-center justify-center px-6 py-12 bg-neutral-50">
         <div className="w-full max-w-md">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-neutral-900">Welcome back</h1>

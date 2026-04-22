@@ -3,12 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, ListPlus, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -20,6 +28,7 @@ import {
   computeProformaTotals,
   getProformaInvoiceById,
   getQuotationById,
+  getQuotationLineOptions,
   type ProformaInvoice,
   type ProformaLineItem,
   type Quotation,
@@ -34,6 +43,17 @@ function toDateInput(v: string | null | undefined): string {
   const d = new Date(v);
   if (isNaN(d.getTime())) return '';
   return d.toISOString().slice(0, 10);
+}
+
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function isBlankPlaceholderRow(row: ProformaLineItem): boolean {
+  return (
+    (row.description ?? '').trim() === '' &&
+    (Number(row.amount) || 0) === 0
+  );
 }
 
 export default function EditProformaPage() {
@@ -62,6 +82,17 @@ export default function EditProformaPage() {
   const [chargeableWeight, setChargeableWeight] = useState('');
   const [airportDestination, setAirportDestination] = useState('');
   const [lineItems, setLineItems] = useState<ProformaLineItem[]>([{ description: '', amount: 0 }]);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSelected, setImportSelected] = useState<Record<string, boolean>>({});
+  const [importMergeLines, setImportMergeLines] = useState(false);
+  const [importMergedDescription, setImportMergedDescription] = useState('');
+  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+
+  const quoteOptions = useMemo(
+    () => (quote ? getQuotationLineOptions(quote) : []),
+    [quote]
+  );
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -109,6 +140,70 @@ export default function EditProformaPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!importOpen || !importMergeLines) return;
+    const picked = quoteOptions.filter((o) => importSelected[o.key]);
+    setImportMergedDescription(picked.map((o) => o.description).join(' + '));
+  }, [importOpen, importMergeLines, importSelected, quoteOptions]);
+
+  const openImportFromQuotation = () => {
+    if (!quoteOptions.length) {
+      toast.error('No quotation lines to import', {
+        description: 'This quotation has no freight, clearance, delivery, or additional charges.',
+      });
+      return;
+    }
+    const all: Record<string, boolean> = {};
+    quoteOptions.forEach((o) => {
+      all[o.key] = true;
+    });
+    setImportSelected(all);
+    setImportMergeLines(false);
+    setImportMergedDescription('');
+    setImportMode('append');
+    setImportOpen(true);
+  };
+
+  const handleImportConfirm = () => {
+    const picked = quoteOptions.filter((o) => importSelected[o.key]);
+    if (!picked.length) {
+      toast.error('Select at least one line');
+      return;
+    }
+
+    let newRows: ProformaLineItem[];
+    if (importMergeLines) {
+      const sum = roundMoney(picked.reduce((s, o) => s + o.amount, 0));
+      const desc =
+        importMergedDescription.trim() ||
+        picked.map((o) => o.description).join(' + ');
+      newRows = [{ description: desc, amount: sum, taxable: true }];
+    } else {
+      newRows = picked.map((o) => ({
+        description: o.description,
+        amount: o.amount,
+        taxable: true,
+      }));
+    }
+
+    if (importMode === 'replace') {
+      setLineItems(
+        newRows.length ? newRows : [{ description: '', amount: 0, taxable: true }]
+      );
+    } else {
+      setLineItems((prev) => {
+        let base = prev;
+        if (base.length === 1 && isBlankPlaceholderRow(base[0])) {
+          base = [];
+        }
+        return [...base, ...newRows];
+      });
+    }
+
+    setImportOpen(false);
+    toast.success('Line items imported');
+  };
 
   const liveTotals = useMemo(() => computeProformaTotals(lineItems), [lineItems]);
 
@@ -375,13 +470,128 @@ export default function EditProformaPage() {
       </div>
 
       <div className="border rounded-lg p-4 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold">Line items</h2>
-          <Button type="button" variant="outline" size="sm" onClick={addRow}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add row
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openImportFromQuotation}
+              disabled={!quote || quoteOptions.length === 0}
+              title={
+                !quote
+                  ? 'Quotation not loaded'
+                  : quoteOptions.length === 0
+                    ? 'No charges on this quotation'
+                    : 'Pick lines from the linked quotation'
+              }
+            >
+              <ListPlus className="h-4 w-4 mr-1" />
+              Import from quotation
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addRow}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add row
+            </Button>
+          </div>
         </div>
+
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Import from quotation</DialogTitle>
+              <DialogDescription>
+                Choose which quotation charges to add. You can merge them into one line with a custom
+                description, or append without replacing existing rows.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-2 max-h-[40vh] overflow-y-auto rounded-md border p-3">
+                {quoteOptions.map((opt) => (
+                  <label
+                    key={opt.key}
+                    className="flex cursor-pointer items-start gap-3 rounded-md py-1.5 hover:bg-muted/50"
+                  >
+                    <Checkbox
+                      checked={importSelected[opt.key] === true}
+                      onCheckedChange={(v) =>
+                        setImportSelected((prev) => ({
+                          ...prev,
+                          [opt.key]: v === true,
+                        }))
+                      }
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1 text-sm">
+                      <div className="font-medium leading-snug">{opt.description}</div>
+                      <div className="text-muted-foreground">
+                        {opt.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} THB
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <Checkbox
+                  id="import-merge"
+                  checked={importMergeLines}
+                  onCheckedChange={(v) => setImportMergeLines(v === true)}
+                />
+                <label htmlFor="import-merge" className="cursor-pointer text-sm font-medium">
+                  Merge selected into one line
+                </label>
+              </div>
+
+              {importMergeLines && (
+                <div className="space-y-2">
+                  <Label htmlFor="import-merged-desc">Merged description</Label>
+                  <Textarea
+                    id="import-merged-desc"
+                    rows={2}
+                    className="min-h-[64px] resize-y"
+                    value={importMergedDescription}
+                    onChange={(e) => setImportMergedDescription(e.target.value)}
+                    placeholder="e.g. Freight + clearance"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">How to apply</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={importMode === 'append' ? 'default' : 'outline'}
+                    onClick={() => setImportMode('append')}
+                  >
+                    Append to current lines
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={importMode === 'replace' ? 'default' : 'outline'}
+                    onClick={() => setImportMode('replace')}
+                  >
+                    Replace all lines
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleImportConfirm}>
+                Import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <div className="space-y-3">
           {lineItems.map((row, index) => {
             const isTaxable = row.taxable !== false;
@@ -389,7 +599,9 @@ export default function EditProformaPage() {
               <div key={index} className="flex flex-col sm:flex-row gap-2 items-start">
                 <div className="flex-1 w-full space-y-1">
                   <Label className="text-xs text-muted-foreground">Description</Label>
-                  <Input
+                  <Textarea
+                    rows={2}
+                    className="min-h-[64px] resize-y"
                     value={row.description}
                     onChange={(e) => handleLineChange(index, 'description', e.target.value)}
                   />
