@@ -4,6 +4,30 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, Building2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { signInCustomerWithGoogle } from '@/lib/customer-oauth';
+
+function GoogleMark() {
+  return (
+    <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48" aria-hidden>
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6C44.98 37.98 48 31.8 48 24c0-.45-.02-.9-.02-1.45z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.62 13.22c-1.4 3.43-2.02 7.06-2.02 10.78s.62 7.34 2.03 10.76l8.06-6.06c-.8-2.54-.8-5.62 0-8.2l-7.07-5.48z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  );
+}
 
 export default function CustomerRegisterPage() {
   const [fullName, setFullName] = useState('');
@@ -15,6 +39,22 @@ export default function CustomerRegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setOauthLoading(true);
+    try {
+      const { error: oauthError } = await signInCustomerWithGoogle(window.location.origin);
+      if (oauthError) {
+        setError(oauthError);
+        setOauthLoading(false);
+      }
+    } catch {
+      setError('Unable to start Google sign-in.');
+      setOauthLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +140,25 @@ export default function CustomerRegisterPage() {
 
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading || oauthLoading}
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-900 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            <GoogleMark />
+            {oauthLoading ? 'Redirecting…' : 'Continue with Google'}
+          </button>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs uppercase tracking-wide text-gray-400">
+                or register with email
+              </span>
+            </div>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -194,7 +253,7 @@ export default function CustomerRegisterPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || oauthLoading}
               className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-emerald-600 transition-all shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
