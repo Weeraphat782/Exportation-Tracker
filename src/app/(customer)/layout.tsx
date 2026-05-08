@@ -156,22 +156,27 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
 // ============ AUTH REDIRECT (handles redirect only, no loading spinner) ============
 function AuthRedirect() {
   const { isLoading, user, profile } = useCustomerAuth();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (isLoading) return; // ยังโหลดอยู่ รอก่อน
+    if (isLoading) return;
 
-    // ไม่มี session → ไป login
     if (!user) {
       window.location.href = '/site/login';
       return;
     }
 
-    // login แล้วแต่ไม่ใช่ customer → ไป internal
     if (profile && profile.role !== 'customer') {
       window.location.href = '/shipping-calculator';
       return;
     }
-  }, [isLoading, user, profile]);
+
+    // First-time Gmail users land with no company — send them to setup
+    if (profile && !profile.company && pathname !== '/portal/setup') {
+      window.location.href = '/portal/setup';
+      return;
+    }
+  }, [isLoading, user, profile, pathname]);
 
   return null;
 }

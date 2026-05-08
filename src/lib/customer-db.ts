@@ -540,3 +540,24 @@ export async function getFreightRatesByDestination(destinationId: string): Promi
     return [];
   }
 }
+
+export async function updateCustomerProfile(
+  fullName: string,
+  company: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const { error } = await queryClient
+      .from('profiles')
+      .update({ full_name: fullName.trim(), company: company.trim() })
+      .eq('id', user.id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}

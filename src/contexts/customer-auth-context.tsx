@@ -43,6 +43,7 @@ type CustomerAuthContextType = {
     success: boolean;
   }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(undefined);
@@ -243,6 +244,13 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshProfile = async () => {
+    const currentUser = (await queryClient.auth.getUser()).data.user;
+    if (!currentUser) return;
+    const prof = await fetchProfile(currentUser.id);
+    if (prof) setProfile(prof);
+  };
+
   // Customer sign out
   const signOut = async () => {
     setIsLoading(true);
@@ -262,6 +270,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     signOut,
+    refreshProfile,
   };
 
   return (
