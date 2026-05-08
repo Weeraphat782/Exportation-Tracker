@@ -1,0 +1,14 @@
+{
+  "description": "LINE compact rich menu payload (2500x843). Mirrors scripts/line-phase1/create-rich-menu-default.mjs areas; base is https://cargo.omgexp.com unless LINE_SITE_BASE overrides.",
+  "size": { "width": 2500, "height": 843 },
+  "uriTargets": [
+    { "column": 1, "label": "Login", "uri": "https://cargo.omgexp.com/site/login" },
+    { "column": 2, "label": "Website", "uri": "https://cargo.omgexp.com/site" },
+    { "column": 3, "label": "Quote", "uri": "https://cargo.omgexp.com/shipping-calculator" }
+  ],
+  "bounds": [
+    { "x": 0, "y": 0, "width": 833, "height": 843 },
+    { "x": 833, "y": 0, "width": 833, "height": 843 },
+    { "x": 1666, "y": 0, "width": 834, "height": 843 }
+  ]
+}

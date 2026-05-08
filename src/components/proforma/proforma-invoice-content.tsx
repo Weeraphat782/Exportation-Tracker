@@ -226,14 +226,17 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
             <p className="font-semibold text-slate-900 uppercase tracking-wide text-xs mb-2 sm:mb-3">
               Bank transfer
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1.5">
-              <p className="sm:col-span-1">
+            <div className="space-y-1.5">
+              <p>
                 <strong>Bank:</strong> KASIKORN BANK
               </p>
-              <p className="sm:col-span-2">
-                <strong>Account Name:</strong> บจก. โอ เอ็ม จี เอ็กซ์พีเรียนซ์ สาขาจักรวรรดิ
+              <p className="flex min-w-0 flex-nowrap items-baseline gap-x-1">
+                <strong className="shrink-0">Account Name:</strong>
+                <span className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden print:overflow-visible">
+                  OMG Experience Co., Ltd. (บจก. โอ เอ็ม จี เอ็กซ์พีเรียนซ์ สาขาจักรวรรดิ)
+                </span>
               </p>
-              <p className="sm:col-span-3">
+              <p>
                 <strong>Account Number:</strong> {BANK_ACCOUNT}
               </p>
             </div>

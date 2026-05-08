@@ -283,7 +283,11 @@ export function QuotationPreviewContent({
               <strong>Bank:</strong> KASIKORN BANK
             </p>
             <p>
-              <strong>Account Name:</strong> บจก. โอ เอ็ม จี เอ็กซ์พีเรียนซ์ สาขาจักรวรรดิ
+              <strong>Account Name:</strong>{' '}
+              <span className="block sm:inline">
+                OMG Experience Co., Ltd.{' '}
+                <span className="text-slate-700">(บจก. โอ เอ็ม จี เอ็กซ์พีเรียนซ์ สาขาจักรวรรดิ)</span>
+              </span>
             </p>
             <p>
               <strong>Account Number:</strong> 051-2-51692-0
