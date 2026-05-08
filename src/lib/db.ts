@@ -41,6 +41,7 @@ export interface Company {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+  customer_user_id?: string;
   is_approved?: boolean;
   onboarding_token?: string;
   registration_docs?: string[] | null;
@@ -346,6 +347,26 @@ export async function getCompanies() {
   } catch (error) {
     console.error('Error in getCompanies:', error);
     return null;
+  }
+}
+
+// Returns staff-owned companies + customer-linked companies (for quotation dropdowns)
+export async function getCompaniesForDropdown(): Promise<Company[]> {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching companies for dropdown:', error);
+      return [];
+    }
+
+    return (data || []) as Company[];
+  } catch (error) {
+    console.error('Error in getCompaniesForDropdown:', error);
+    return [];
   }
 }
 

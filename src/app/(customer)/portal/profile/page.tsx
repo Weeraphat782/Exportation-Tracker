@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Building2, User, Mail, Bell, Loader2, Save, Pencil, X
+  Building2, User, Mail, Bell, Loader2, Save, Pencil, X,
+  MapPin, Hash, Phone
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import { getCustomerSetting, saveCustomerSetting, updateCustomerProfile } from '@/lib/customer-db';
+import {
+  getCustomerSetting, saveCustomerSetting, updateCustomerProfile,
+  getCustomerCompany, updateCustomerCompany,
+} from '@/lib/customer-db';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
@@ -20,55 +24,86 @@ export default function ProfilePage() {
   const [isSavingNotif, setIsSavingNotif] = useState<string | null>(null);
   const [isLoadingNotif, setIsLoadingNotif] = useState(true);
 
-  // Profile editing
+  // Company record
+  const [companyRecord, setCompanyRecord] = useState<{
+    id: string; name: string; address?: string; tax_id?: string;
+    contact_person?: string; contact_email?: string; contact_phone?: string;
+  } | null>(null);
+
+  // Edit state
   const [editing, setEditing] = useState(false);
   const [editFullName, setEditFullName] = useState('');
-  const [editCompany, setEditCompany] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editTaxId, setEditTaxId] = useState('');
+  const [editContactPerson, setEditContactPerson] = useState('');
+  const [editContactEmail, setEditContactEmail] = useState('');
+  const [editContactPhone, setEditContactPhone] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
-      const loadSettings = async () => {
-        setIsLoadingNotif(true);
-        const saved = await getCustomerSetting('notification', 'preferences', {
-          quotation_updates: true,
-          document_review: true,
-          shipment_tracking: true,
-        });
+      getCustomerSetting('notification', 'preferences', {
+        quotation_updates: true,
+        document_review: true,
+        shipment_tracking: true,
+      }).then(saved => {
         setNotifSettings(saved);
         setIsLoadingNotif(false);
-      };
-      loadSettings();
+      });
+
+      getCustomerCompany().then(c => setCompanyRecord(c));
     }
   }, [user?.id]);
 
   const startEdit = () => {
     setEditFullName(profile?.full_name || '');
-    setEditCompany(profile?.company || '');
+    setEditName(companyRecord?.name || profile?.company || '');
+    setEditAddress(companyRecord?.address || '');
+    setEditTaxId(companyRecord?.tax_id || '');
+    setEditContactPerson(companyRecord?.contact_person || '');
+    setEditContactEmail(companyRecord?.contact_email || '');
+    setEditContactPhone(companyRecord?.contact_phone || '');
     setEditing(true);
   };
 
-  const cancelEdit = () => {
-    setEditing(false);
-  };
+  const cancelEdit = () => setEditing(false);
 
   const saveProfile = async () => {
-    if (!editCompany.trim()) {
-      toast.error('Company name is required');
-      return;
-    }
-    if (!editFullName.trim()) {
-      toast.error('Full name is required');
-      return;
-    }
+    if (!editFullName.trim()) { toast.error('Full name is required'); return; }
+    if (!editName.trim()) { toast.error('Company name is required'); return; }
+
     setIsSavingProfile(true);
-    const result = await updateCustomerProfile(editFullName, editCompany);
-    if (!result.success) {
-      toast.error(result.error || 'Failed to save profile');
-      setIsSavingProfile(false);
-      return;
+
+    if (companyRecord) {
+      const r = await updateCustomerCompany(companyRecord.id, {
+        name: editName,
+        address: editAddress,
+        tax_id: editTaxId,
+        contact_person: editContactPerson,
+        contact_email: editContactEmail,
+        contact_phone: editContactPhone,
+      });
+      if (!r.success) {
+        toast.error(r.error || 'Failed to save company');
+        setIsSavingProfile(false);
+        return;
+      }
+      setCompanyRecord({
+        ...companyRecord,
+        name: editName,
+        address: editAddress,
+        tax_id: editTaxId,
+        contact_person: editContactPerson,
+        contact_email: editContactEmail,
+        contact_phone: editContactPhone,
+      });
     }
+
+    // Sync profile name + company text field
+    await updateCustomerProfile(editFullName, editName);
     await refreshProfile();
+
     toast.success('Profile updated');
     setIsSavingProfile(false);
     setEditing(false);
@@ -90,7 +125,7 @@ export default function ProfilePage() {
   };
 
   const displayName = profile?.full_name || 'Customer';
-  const companyName = profile?.company || '-';
+  const companyName = companyRecord?.name || profile?.company || '-';
   const email = profile?.email || user?.email || '-';
   const initials = displayName
     .split(' ')
@@ -98,6 +133,13 @@ export default function ProfilePage() {
     .join('')
     .toUpperCase()
     .slice(0, 2) || 'C';
+
+  const Field = ({ label, value }: { label: string; value?: string }) => (
+    <div>
+      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <div className="text-sm text-gray-900 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">{value || '-'}</div>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
@@ -145,50 +187,104 @@ export default function ProfilePage() {
       {/* Info Grid */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Company Information */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md">
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md md:col-span-2">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
               <Building2 className="w-5 h-5" />
             </div>
             Company Information
           </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Company Name</label>
-              {editing ? (
-                <input
-                  type="text"
-                  value={editCompany}
-                  onChange={e => setEditCompany(e.target.value)}
-                  placeholder="Your company name"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
-              ) : (
-                <div className="text-sm text-gray-900 font-bold bg-slate-50 p-3 rounded-lg border border-slate-100">{companyName}</div>
-              )}
+
+          {editing ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Company Name */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Company Name <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+                </div>
+              </div>
+              {/* Tax ID */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Tax ID / VAT</label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={editTaxId} onChange={e => setEditTaxId(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              {/* Address */}
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Address</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <textarea value={editAddress} onChange={e => setEditAddress(e.target.value)} rows={2}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                </div>
+              </div>
+              {/* Contact Person */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Contact Person</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={editContactPerson} onChange={e => setEditContactPerson(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              {/* Contact Phone */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Phone</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="tel" value={editContactPhone} onChange={e => setEditContactPhone(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              {/* Contact Email */}
+              <div className="md:col-span-2">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Contact Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="email" value={editContactEmail} onChange={e => setEditContactEmail(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              <Field label="Company Name" value={companyRecord?.name || profile?.company || undefined} />
+              <Field label="Tax ID / VAT" value={companyRecord?.tax_id} />
+              <div className="md:col-span-2">
+                <Field label="Address" value={companyRecord?.address} />
+              </div>
+              <Field label="Contact Person" value={companyRecord?.contact_person} />
+              <Field label="Phone" value={companyRecord?.contact_phone} />
+              <div className="md:col-span-2">
+                <Field label="Contact Email" value={companyRecord?.contact_email} />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Contact Information */}
+        {/* Contact / Personal Information */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
               <User className="w-5 h-5" />
             </div>
-            Contact Information
+            Personal Information
           </h3>
           <div className="space-y-4">
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Full Name</label>
               {editing ? (
-                <input
-                  type="text"
-                  value={editFullName}
-                  onChange={e => setEditFullName(e.target.value)}
-                  placeholder="Your full name"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={editFullName} onChange={e => setEditFullName(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
               ) : (
                 <div className="text-sm text-gray-900 font-bold bg-slate-50 p-3 rounded-lg border border-slate-100">{displayName}</div>
               )}
@@ -202,27 +298,17 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Save / Cancel row — only shown while editing */}
+        {/* Save / Cancel row */}
         {editing && (
-          <div className="md:col-span-2 flex items-center justify-end gap-3">
-            <button
-              onClick={cancelEdit}
-              disabled={isSavingProfile}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-            >
+          <div className="flex items-center justify-end gap-3">
+            <button onClick={cancelEdit} disabled={isSavingProfile}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">
               <X className="w-4 h-4" />
               Cancel
             </button>
-            <button
-              onClick={saveProfile}
-              disabled={isSavingProfile}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSavingProfile ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+            <button onClick={saveProfile} disabled={isSavingProfile}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+              {isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
             </button>
           </div>

@@ -382,15 +382,15 @@ export async function createCustomerQuoteRequest(
     const { data: { user } } = await queryClient.auth.getUser();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    // Get customer profile for name
-    const { data: profile } = await queryClient
-      .from('profiles')
-      .select('full_name, company, email')
-      .eq('id', user.id)
-      .single();
+    // Get customer profile + company record
+    const [{ data: profile }, { data: customerCompany }] = await Promise.all([
+      queryClient.from('profiles').select('full_name, company, email').eq('id', user.id).single(),
+      queryClient.from('companies').select('id, name').eq('customer_user_id', user.id).single(),
+    ]);
 
     const customerName = profile?.full_name || profile?.email || 'Customer';
-    const companyName = profile?.company || '';
+    const companyName = customerCompany?.name || profile?.company || '';
+    const companyId = customerCompany?.id || null;
 
     // Explode pallets: if any row has quantity > 1, convert it to multiple rows with quantity 1
     const explodedPallets = pallets.flatMap(p => {
@@ -412,9 +412,10 @@ export async function createCustomerQuoteRequest(
         pallets: explodedPallets,
         requested_destination: requestedDestination,
         notes: notes || null,
+        // Pre-fill company from customer's registered company (staff can change at approval)
+        company_id: companyId,
         // Fields that staff will fill in later
         user_id: null,
-        company_id: null,
         destination_id: null,
         destination: null,
         additional_charges: [],
@@ -538,6 +539,94 @@ export async function getFreightRatesByDestination(destinationId: string): Promi
   } catch (err) {
     console.error('getFreightRatesByDestination exception:', err);
     return [];
+  }
+}
+
+export interface CustomerCompanyInput {
+  name: string;
+  address?: string;
+  tax_id?: string;
+  contact_person?: string;
+  contact_email?: string;
+  contact_phone?: string;
+}
+
+export async function getCustomerCompany(): Promise<{ id: string; name: string; address?: string; tax_id?: string; contact_person?: string; contact_email?: string; contact_phone?: string } | null> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await queryClient
+      .from('companies')
+      .select('id, name, address, tax_id, contact_person, contact_email, contact_phone')
+      .eq('customer_user_id', user.id)
+      .single();
+
+    if (error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function createCustomerCompany(
+  input: CustomerCompanyInput
+): Promise<{ success: boolean; companyId?: string; error?: string }> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const { data, error } = await queryClient
+      .from('companies')
+      .insert({
+        name: input.name.trim(),
+        address: input.address?.trim() || null,
+        tax_id: input.tax_id?.trim() || null,
+        contact_person: input.contact_person?.trim() || null,
+        contact_email: input.contact_email?.trim() || null,
+        contact_phone: input.contact_phone?.trim() || null,
+        customer_user_id: user.id,
+        user_id: null,
+        is_approved: false,
+      })
+      .select('id')
+      .single();
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, companyId: data.id };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+export async function updateCustomerCompany(
+  companyId: string,
+  input: CustomerCompanyInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const { error } = await queryClient
+      .from('companies')
+      .update({
+        name: input.name.trim(),
+        address: input.address?.trim() || null,
+        tax_id: input.tax_id?.trim() || null,
+        contact_person: input.contact_person?.trim() || null,
+        contact_email: input.contact_email?.trim() || null,
+        contact_phone: input.contact_phone?.trim() || null,
+      })
+      .eq('id', companyId)
+      .eq('customer_user_id', user.id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
   }
 }
 

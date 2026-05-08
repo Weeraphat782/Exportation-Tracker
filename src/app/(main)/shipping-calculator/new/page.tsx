@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import {
     getDestinations,
     getFreightRates,
-    getCompanies,
+    getCompaniesForDropdown,
     saveQuotation as dbSaveQuotation,
     updateQuotation as dbUpdateQuotation,
     getQuotationById as dbGetQuotationById,
@@ -791,7 +791,7 @@ function ShippingCalculatorPageContent() {
                 const [destinationsData, freightRatesData, companiesData, productsData] = await Promise.all([
                     getDestinations(true),
                     getFreightRates(),
-                    getCompanies(),
+                    getCompaniesForDropdown(),
                     getProducts()
                 ]);
 
