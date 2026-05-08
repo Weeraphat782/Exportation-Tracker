@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft, Plus, Trash2, Package, Send,
-    Loader2, CheckCircle2, AlertCircle
+    Loader2, CheckCircle2, AlertCircle, Upload
 } from 'lucide-react';
 import { createCustomerQuoteRequest } from '@/lib/customer-db';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ export default function NewQuoteRequestPage() {
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [submittedQuotationId, setSubmittedQuotationId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const addPallet = () => {
@@ -106,6 +107,7 @@ export default function NewQuoteRequestPage() {
             const result = await createCustomerQuoteRequest(palletData, requestedDestination, notes || undefined);
 
             if (result.success) {
+                setSubmittedQuotationId(result.quotationId ?? null);
                 setSubmitted(true);
                 toast.success('Quote request submitted successfully!');
             } else {
@@ -127,24 +129,34 @@ export default function NewQuoteRequestPage() {
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">Request Submitted!</h2>
-                    <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-                        Your quote request has been submitted successfully. Our team will review your pallet dimensions,
-                        select the appropriate destination & rate, and get back to you shortly.
+                    <p className="text-sm text-gray-500 max-w-md mx-auto mb-2">
+                        Your quote request has been submitted. Our team will set the official destination and rate — you don&apos;t have to wait: you can upload export documents whenever you&apos;re ready.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                        {submittedQuotationId ? (
+                            <Link
+                                href={`/portal/shipments/${submittedQuotationId}`}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm w-full sm:w-auto justify-center"
+                            >
+                                <Upload className="w-4 h-4" /> Upload documents now
+                            </Link>
+                        ) : null}
                         <Link
                             href="/portal"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 bg-white text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto justify-center"
                         >
                             Back to My Shipments
                         </Link>
                         <button
+                            type="button"
                             onClick={() => {
                                 setSubmitted(false);
+                                setSubmittedQuotationId(null);
                                 setPallets([createEmptyPallet()]);
+                                setRequestedDestination('');
                                 setNotes('');
                             }}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto justify-center"
                         >
                             <Plus className="w-4 h-4" /> Submit Another
                         </button>
@@ -174,8 +186,7 @@ export default function NewQuoteRequestPage() {
                 <div className="text-sm text-blue-700">
                     <p className="font-semibold">How it works</p>
                     <p className="mt-1 text-blue-600">
-                        Enter your pallet dimensions below. Our team will select the destination, calculate the rate,
-                        and send you an approved quotation. You&apos;ll see it in &quot;My Shipments&quot; once approved.
+                        Enter your pallet dimensions below. After you submit, you can attach export documents immediately from your shipment page. Our team will confirm destination and pricing shortly.
                     </p>
                 </div>
             </div>

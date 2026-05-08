@@ -833,7 +833,7 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
       .single();
 
     if (error) {
-      console.error('Error fetching quotation by ID:', error);
+      console.error('Error fetching quotation by ID:', error.message, error.code, 'ID:', id);
       return null;
     }
     if (!data) return null;
@@ -1206,6 +1206,26 @@ export async function getDocumentSubmissions(quotationId?: string) {
     return data as DocumentSubmission[];
   } catch (error) {
     console.error('Error in getDocumentSubmissions:', error);
+    return [];
+  }
+}
+
+export async function getDocumentSubmissionsByOpp(opportunityId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('document_submissions')
+      .select('*')
+      .eq('opportunity_id', opportunityId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching document submissions by Opp:', error);
+      return [];
+    }
+
+    return data as DocumentSubmission[];
+  } catch (error) {
+    console.error('Error in getDocumentSubmissionsByOpp:', error);
     return [];
   }
 }

@@ -97,7 +97,8 @@ const TRACKING_STEPS = [
 
 // ============ HELPERS ============
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, hasMounted: boolean) {
+    if (!hasMounted) return ""; // Prevent hydration mismatch
     try {
         return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch { return dateStr; }
@@ -105,6 +106,24 @@ function formatDate(dateStr: string) {
 
 function formatAmount(amount: number) {
     return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function groupPallets(pallets: Pallet[]) {
+    if (!pallets || pallets.length === 0) return [];
+    const groups: Record<string, Pallet> = {};
+    pallets.forEach(p => {
+        // Group by dimensions and weight
+        const key = `${p.length}-${p.width}-${p.height}-${p.weight}`;
+        if (groups[key]) {
+            groups[key] = {
+                ...groups[key],
+                quantity: (Number(groups[key].quantity) || 1) + (Number(p.quantity) || 1)
+            };
+        } else {
+            groups[key] = { ...p, quantity: Number(p.quantity) || 1 };
+        }
+    });
+    return Object.values(groups);
 }
 
 function getStageDisplay(stage?: string, status?: string) {
@@ -130,6 +149,7 @@ function StatusBadge({ status }: { status: string }) {
         accepted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         rejected: 'bg-red-50 text-red-700 border-red-200',
         completed: 'bg-violet-50 text-violet-700 border-violet-200',
+        pending_approval: 'bg-amber-50 text-amber-800 border-amber-200',
         docs_uploaded: 'bg-cyan-50 text-cyan-700 border-cyan-200',
         Shipped: 'bg-blue-50 text-blue-700 border-blue-200',
     };
@@ -349,20 +369,27 @@ function mapPalletsForCustomerSave(
         return row.cost;
     });
 
-    return rows.map((row, i) => {
+    return rows.flatMap((row, i) => {
         const freightForLine = lineFreights[i];
         const customerFreightCost = row.quantity > 0 ? freightForLine / row.quantity : 0;
-        return {
-            ...row.pallet,
-            length: row.length,
-            width: row.width,
-            height: row.height,
-            weight: row.weight,
-            quantity: row.quantity,
-            volumeWeight: row.volWt,
-            chargeableWeight: row.chargeableWeight,
-            customerFreightCost,
-        };
+        
+        // Explode pallets: if quantity > 1, create multiple rows with quantity 1
+        const exploded = [];
+        const qty = Math.max(1, Math.floor(row.quantity));
+        for (let q = 0; q < qty; q++) {
+            exploded.push({
+                ...row.pallet,
+                length: row.length,
+                width: row.width,
+                height: row.height,
+                weight: row.weight,
+                quantity: 1, // Set each unit's quantity to 1
+                volumeWeight: row.volWt,
+                chargeableWeight: row.chargeableWeight,
+                customerFreightCost,
+            });
+        }
+        return exploded;
     });
 }
 
@@ -397,6 +424,12 @@ export default function ShipmentDetailPage() {
         'shipping-docs': true, 'additional': true, 'gacp-certification': true
     });
     const [dragOverType, setDragOverType] = useState<string | null>(null);
+    const [isPalletsExpanded, setIsPalletsExpanded] = useState(false);
+    const [hasMounted, setHasMounted] = useState(false);
+
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
 
     // ---- Data loading ----
     const loadData = async () => {
@@ -412,7 +445,7 @@ export default function ShipmentDetailPage() {
                 return;
             }
             setQuotation(qData);
-            setPallets(qData.pallets || []);
+            setPallets(groupPallets(qData.pallets || []));
             if (qData.destination_id) {
                 const rates = await getFreightRatesByDestination(qData.destination_id);
                 setFreightRates(rates);
@@ -656,12 +689,22 @@ export default function ShipmentDetailPage() {
     const sc = getStageDisplay(q.opportunities?.stage, q.status);
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6" suppressHydrationWarning>
             {/* Back Button */}
             <Link href="/portal" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors group">
                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
                 Back to My Shipments
             </Link>
+
+            {q.status === 'pending_approval' && (
+                <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-900">
+                    <Info className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+                    <p>
+                        <span className="font-semibold">Quote request pending team review.</span>{' '}
+                        Our team will set the official destination and pricing. You can still upload your export documents below — no need to wait for approval first.
+                    </p>
+                </div>
+            )}
 
             {/* ===== HEADER CARD ===== */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -681,9 +724,9 @@ export default function ShipmentDetailPage() {
                                     <StatusBadge status={q.status} />
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-                                    <span className="flex items-center gap-1.5 text-blue-600 font-bold"><MapPin className="w-4 h-4" /> {q.destination || 'N/A'}</span>
+                                    <span className="flex items-center gap-1.5 text-blue-600 font-bold"><MapPin className="w-4 h-4" /> {q.destination || q.requested_destination || 'N/A'}</span>
                                     <span className="flex items-center gap-1.5"><Package className="w-4 h-4 text-gray-400" /> {q.pallets?.length || 0} pallets</span>
-                                    <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-gray-400" /> {formatDate(q.created_at)}</span>
+                                    <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-gray-400" /> {formatDate(q.created_at, hasMounted)}</span>
                                 </div>
                             </div>
                         </div>
@@ -730,7 +773,7 @@ export default function ShipmentDetailPage() {
                         <div className="bg-gray-50 p-3 rounded-lg">
                             <div className="text-[10px] font-bold text-gray-400 uppercase">Shipping Date</div>
                             <div className="text-sm font-semibold text-gray-900">
-                                {q.shipping_date ? new Date(q.shipping_date).toLocaleDateString('en-GB') : 'TBC'}
+                                {q.shipping_date ? (hasMounted ? new Date(q.shipping_date).toLocaleDateString('en-GB') : "...") : 'TBC'}
                             </div>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-lg">
@@ -781,6 +824,14 @@ export default function ShipmentDetailPage() {
                     <span className="ml-auto text-[10px] text-gray-400 italic">Updates in real-time</span>
                 </div>
                 <div className="divide-y divide-gray-50">
+                    {q.status === 'pending_approval' && (
+                        <div className="px-5 py-2.5 bg-amber-50/60 border-b border-amber-100/80 flex gap-2 text-xs text-amber-900">
+                            <Info className="w-4 h-4 shrink-0 text-amber-600" />
+                            <span>
+                                Amounts below are not final yet: freight uses your team&apos;s rate once the shipment is configured. Upload documents anytime while we prepare your quote.
+                            </span>
+                        </div>
+                    )}
                     <div className="px-5 py-3 flex justify-between items-center">
                         <div>
                             <span className="text-sm text-gray-600">Freight Cost</span>
@@ -856,72 +907,96 @@ export default function ShipmentDetailPage() {
                 </div>
             )}
 
-            {/* ===== PALLET MANAGEMENT ===== */}
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
-                {q.price_confirmed ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3 mb-5">
-                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-800 font-medium">Price has been confirmed. Pallet dimensions are locked.</p>
-                    </div>
-                ) : (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-3 mb-5">
-                        <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                        <p className="text-xs text-blue-700">Verify pallet dimensions. Changes will recalculate the quote in real-time.</p>
-                    </div>
-                )}
-                <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallets ({pallets.length})</span>
-                    {!q.price_confirmed && (
-                        <button onClick={addPallet}
-                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 transition-colors border border-emerald-100">
-                            <Plus className="w-3.5 h-3.5" /> Add Pallet
-                        </button>
-                    )}
-                </div>
-                <div className="space-y-3">
-                    {pallets.map((pallet, idx) => (
-                        <div key={idx} className="relative bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-emerald-200 transition-all">
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-[10px] font-bold text-gray-500">#{idx + 1}</div>
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pallet Unit</span>
-                            </div>
-                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                                {(['length', 'width', 'height', 'weight'] as const).map(field => (
-                                    <div key={field} className="space-y-1">
-                                        <label className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">
-                                            {field === 'weight' ? 'Weight (kg)' : `${field.charAt(0).toUpperCase() + field.slice(1)} (cm)`}
-                                        </label>
-                                        <input type="number" value={pallet[field]}
-                                            onChange={(e) => handlePalletChange(idx, field, e.target.value)}
-                                            disabled={q.price_confirmed}
-                                            className={`w-full border rounded-lg px-3 py-2 text-sm outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
-                                    </div>
-                                ))}
-                                <div className="space-y-1">
-                                    <label className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Qty</label>
-                                    <input type="number" value={pallet.quantity}
-                                        onChange={(e) => handlePalletChange(idx, 'quantity', e.target.value)}
-                                        disabled={q.price_confirmed}
-                                        className={`w-full border rounded-lg px-3 py-2 text-sm font-bold outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed text-emerald-600' : 'bg-white border-emerald-100 text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
-                                </div>
-                            </div>
-                            {pallets.length > 1 && !q.price_confirmed && (
-                                <button onClick={() => removePallet(idx)}
-                                    className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-red-100 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-sm transition-all">
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                            )}
+            {/* ===== PALLET MANAGEMENT (Collapsible) ===== */}
+            <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${isPalletsExpanded ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-50 text-gray-500'}`}>
+                            <Package className="w-5 h-5" />
                         </div>
-                    ))}
-                </div>
-                {!q.price_confirmed && (
-                    <div className="flex justify-end mt-4">
-                        <button onClick={handleSave} disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50">
-                            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
+                        <div className="text-left">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallet Details</span>
+                            <div className="text-sm font-bold text-gray-900">
+                                {pallets.length} Pallets &bull; Total {totals.totalActualWeight} kg
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {!q.price_confirmed && (
+                            <button onClick={(e) => { e.stopPropagation(); addPallet(); }}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 transition-colors border border-emerald-100">
+                                <Plus className="w-3.5 h-3.5" /> Add Pallet
+                            </button>
+                        )}
+                        <button 
+                            type="button"
+                            onClick={() => setIsPalletsExpanded(!isPalletsExpanded)}
+                            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            {isPalletsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                         </button>
                     </div>
-                )}
+                </div>
+
+                <CollapsibleContent isOpen={isPalletsExpanded} className="space-y-4 pt-6 mt-4 border-t border-gray-50">
+                    {q.price_confirmed ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-3">
+                            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-800 font-medium">Price has been confirmed. Pallet dimensions are locked.</p>
+                        </div>
+                    ) : (
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex gap-3">
+                            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                            <p className="text-xs text-blue-700">Verify pallet dimensions. Changes will recalculate the quote in real-time.</p>
+                        </div>
+                    )}
+                    
+                    <div className="space-y-3">
+                        {pallets.map((pallet, idx) => (
+                            <div key={idx} className="relative bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-emerald-200 transition-all">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center text-[10px] font-bold text-gray-500">#{idx + 1}</div>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pallet Unit</span>
+                                </div>
+                                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                                    {(['length', 'width', 'height', 'weight'] as const).map(field => (
+                                        <div key={field} className="space-y-1">
+                                            <label className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">
+                                                {field === 'weight' ? 'Weight (kg)' : `${field.charAt(0).toUpperCase() + field.slice(1)} (cm)`}
+                                            </label>
+                                            <input type="number" value={pallet[field]}
+                                                onChange={(e) => handlePalletChange(idx, field, e.target.value)}
+                                                disabled={q.price_confirmed}
+                                                className={`w-full border rounded-lg px-3 py-2 text-sm outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-white border-gray-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
+                                        </div>
+                                    ))}
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Qty</label>
+                                        <input type="number" value={pallet.quantity}
+                                            onChange={(e) => handlePalletChange(idx, 'quantity', e.target.value)}
+                                            disabled={q.price_confirmed}
+                                            className={`w-full border rounded-lg px-3 py-2 text-sm font-bold outline-none ${q.price_confirmed ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed text-emerald-600' : 'bg-white border-emerald-100 text-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'}`} />
+                                    </div>
+                                </div>
+                                {pallets.length > 1 && !q.price_confirmed && (
+                                    <button onClick={() => removePallet(idx)}
+                                        className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-red-100 text-red-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-sm transition-all">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {!q.price_confirmed && (
+                        <div className="flex justify-end mt-4">
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50">
+                                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
+                            </button>
+                        </div>
+                    )}
+                </CollapsibleContent>
             </div>
 
             {/* ===== DOCUMENT CHECKLIST ===== */}
@@ -1239,7 +1314,7 @@ export default function ShipmentDetailPage() {
 
             {/* Footer */}
             <div className="text-center pb-8">
-                <span className="text-[10px] text-gray-400">Last updated: {formatDate(q.updated_at || q.created_at)}</span>
+                <span className="text-[10px] text-gray-400">Last updated: {formatDate(q.updated_at || q.created_at, hasMounted)}</span>
             </div>
         </div>
     );

@@ -127,7 +127,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="overflow-x-hidden">
+    <html lang="en" className="overflow-x-hidden" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href={supabaseOrigin} />
         <link rel="dns-prefetch" href={supabaseOrigin} />

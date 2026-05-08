@@ -65,17 +65,28 @@ export async function POST(request: NextRequest) {
     // ---> START: Update Quotation Status
     // Optionally, update the related quotation status after successful submission
     // (Check if this should happen on every submission or only the first/last one based on your logic)
-    if (dbData?.id) { // Check if DB insert was successful
-      const { error: updateError } = await supabase
-        .from('quotations') // Replace with your actual quotations table name
-        .update({ status: 'docs_uploaded' }) // Replace with your desired status
-        .eq('id', quotationId); // Match the quotation ID
+    if (dbData?.id) {
+      const { data: quoteStatusRow } = await supabase
+        .from('quotations')
+        .select('status')
+        .eq('id', quotationId)
+        .maybeSingle()
 
-      if (updateError) {
-        // Log the error, but don't fail the whole request as the doc submission was saved
-        console.error(`Failed to update quotation ${quotationId} status:`, updateError);
-      } else {
-        console.log(`Successfully updated quotation ${quotationId} status to docs_uploaded`);
+      const currentStatus = quoteStatusRow?.status as string | undefined
+      // Keep pending_approval so staff approve flow (approveQuoteRequest) still matches status
+      if (currentStatus && currentStatus !== 'pending_approval') {
+        const { error: updateError } = await supabase
+          .from('quotations')
+          .update({ status: 'docs_uploaded' })
+          .eq('id', quotationId)
+
+        if (updateError) {
+          console.error(`Failed to update quotation ${quotationId} status:`, updateError)
+        } else {
+          console.log(`Successfully updated quotation ${quotationId} status to docs_uploaded`)
+        }
+      } else if (currentStatus === 'pending_approval') {
+        console.log(`Skipping quotation status update (${quotationId}): still pending_approval`)
       }
     }
     // ---> END: Update Quotation Status

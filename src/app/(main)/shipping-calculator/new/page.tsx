@@ -29,6 +29,8 @@ import {
     getQuotationById as dbGetQuotationById,
     getProducts,
     getProductWithCharges,
+    getDocumentSubmissions,
+    getDocumentSubmissionsByOpp,
     Destination,
     FreightRate,
     Company,
@@ -575,6 +577,7 @@ function ShippingCalculatorPageContent() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [hasDocuments, setHasDocuments] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
     const [existingQuotation, setExistingQuotation] = useState<Quotation | null>(null);
@@ -855,7 +858,7 @@ function ShippingCalculatorPageContent() {
                     console.log(`Effect 2: Fetching existing quotation ${quotationId}`);
                     const fetchedQuotation = await dbGetQuotationById(quotationId);
 
-                    if (fetchedQuotation && fetchedQuotation.user_id === userId) {
+                    if (fetchedQuotation) {
                         console.log("Effect 2: Existing quotation found, resetting form.");
                         // Store existing quotation for status preservation
                         setExistingQuotation(fetchedQuotation);
@@ -957,8 +960,10 @@ function ShippingCalculatorPageContent() {
                             destinationId: typedExistingQuotation.destination_id
                         };
                     } else {
-                        console.log("Effect 2: Quotation not found or access denied, redirecting.");
-                        toast.error("Quotation not found or access denied.");
+                        console.error(`Effect 2: Quotation ${quotationId} NOT FOUND or RLS blocked access. Current User: ${userId}`);
+                        toast.error("Quotation not found or access denied.", {
+                            description: "If this is a customer request, please ensure database RLS policies allow staff access."
+                        });
                         router.push('/shipping-calculator');
                     }
                 } else if (cloneFromId && userId) {
@@ -1110,6 +1115,21 @@ function ShippingCalculatorPageContent() {
                             description: `Review pallet dimensions from ${typedQ.customer_name || 'customer'}. Select destination & rate, then approve.`,
                             duration: 6000
                         });
+                        // Check if this quotation has any documents uploaded (by Quotation ID or Opportunity ID)
+                        try {
+                            const [docsByQ, docsByOpp] = await Promise.all([
+                                getDocumentSubmissions(approveFromId),
+                                typedQ.opportunity_id ? getDocumentSubmissionsByOpp(typedQ.opportunity_id) : Promise.resolve([])
+                            ]);
+                            
+                            const totalDocs = (docsByQ?.length || 0) + (docsByOpp?.length || 0);
+                            if (totalDocs > 0) {
+                                console.log(`Effect 2: Found ${totalDocs} documents (${docsByQ?.length || 0} by Q, ${docsByOpp?.length || 0} by Opp).`);
+                                setHasDocuments(true);
+                            }
+                        } catch (docErr) {
+                            console.error("Error checking documents for approval:", docErr);
+                        }
                     } else {
                         toast.error("Quote request not found or already processed.");
                         router.push('/shipping-calculator');
@@ -1225,7 +1245,7 @@ function ShippingCalculatorPageContent() {
     // --- Generate Data for DB --- 
     // This function now creates the full data object required for insertion
     // based on the updated NewQuotationData type (which matches the Quotation interface minus id/created_at)
-    const generateQuotationDataForDB = (formData: QuotationFormValues, calcResult: CalculationResult): NewQuotationData | null => {
+    const generateQuotationDataForDB = (formData: QuotationFormValues, calcResult: CalculationResult, finalHasDocs?: boolean): NewQuotationData | null => {
         if (!userId || !calcResult) {
             console.error("Cannot generate quotation data: missing user ID or calculation results");
             return null;
@@ -1235,13 +1255,23 @@ function ShippingCalculatorPageContent() {
         const selectedCompany = companies.find(c => c.id === formData.companyId);
         const selectedDestination = destinations.find(d => d.id === formData.destinationId);
 
+        // Explode pallets: if any row has quantity > 1, convert it to multiple rows with quantity 1
+        // This ensures the backend data is always distributed for tracking.
+        const explodedPallets = formData.pallets.flatMap(p => {
+            const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+            return Array(qty).fill(null).map(() => ({
+                ...p,
+                quantity: 1
+            }));
+        });
+
         // Map pallets to ensure field names match Quotation interface (snake_case)
-        const convertedPallets = formData.pallets.map(p => ({
+        const convertedPallets = explodedPallets.map(p => ({
             length: p.length,
             width: p.width,
             height: p.height,
             weight: p.weight,
-            quantity: p.quantity,
+            quantity: 1, // Already 1 from explosion, but explicit is better
             overridden_rate: p.overriddenRate
         }));
         // Filter out empty additional charges (where name and description are empty)
@@ -1276,8 +1306,11 @@ function ShippingCalculatorPageContent() {
             manual_chargeable_weight: formData.manualChargeableWeight || null,
             is_manual_rate: formData.isManualRate || false,
             manual_rate: formData.manualRate || null,
-            // Preserve existing status if in edit mode; for approve mode set to 'draft'; otherwise 'draft'
-            status: isApproveMode ? 'draft' : (isEditMode && existingQuotation ? existingQuotation.status : 'draft'),
+            // Preserve existing status if in edit mode; for approve mode set to 'docs_uploaded' if has documents, otherwise 'draft'
+            // Determine status for Approve mode: use finalHasDocs if provided, otherwise fallback to state
+            status: isApproveMode 
+                ? ((finalHasDocs ?? hasDocuments) ? 'docs_uploaded' : 'draft') 
+                : (isEditMode && existingQuotation ? existingQuotation.status : 'draft'),
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
@@ -1338,8 +1371,22 @@ function ShippingCalculatorPageContent() {
             console.log("Form values being saved:", formData);
             console.log("Fresh Calculation results:", freshCalculationResult);
 
+            // If in Approve mode, do one final check for documents to be absolutely sure
+            let finalHasDocs = hasDocuments;
+            if (isApproveMode && approveFromId) {
+                console.log("Final check for documents before approval (Q & Opp)...");
+                const oppId = existingQuotation?.opportunity_id;
+                const [docsByQ, docsByOpp] = await Promise.all([
+                    getDocumentSubmissions(approveFromId),
+                    oppId ? getDocumentSubmissionsByOpp(oppId) : Promise.resolve([])
+                ]);
+                
+                finalHasDocs = (docsByQ && docsByQ.length > 0) || (docsByOpp && docsByOpp.length > 0);
+                console.log(`Final check result: ${finalHasDocs ? 'Documents found' : 'No documents'}`);
+            }
+
             // Use the updated function to get the full data object, passing the FRESH result
-            const quotationDataForDB = generateQuotationDataForDB(formData, freshCalculationResult);
+            const quotationDataForDB = generateQuotationDataForDB(formData, freshCalculationResult, finalHasDocs);
 
             if (!quotationDataForDB) {
                 toast.error("Data Preparation Error", {

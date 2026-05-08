@@ -192,9 +192,22 @@ export async function updateCustomerQuotation(id: string, updates: Partial<Quota
       return false;
     }
 
+    // Explode pallets if they are being updated
+    const finalUpdates = { ...updates };
+    if (updates.pallets && Array.isArray(updates.pallets)) {
+      const explodedPallets = updates.pallets.flatMap(p => {
+        const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+        return Array(qty).fill(null).map(() => ({
+          ...p,
+          quantity: 1
+        }));
+      });
+      finalUpdates.pallets = explodedPallets;
+    }
+
     const { error } = await queryClient
       .from('quotations')
-      .update(updates)
+      .update(finalUpdates)
       .eq('id', id)
       .eq('customer_user_id', user.id);
 
@@ -379,6 +392,15 @@ export async function createCustomerQuoteRequest(
     const customerName = profile?.full_name || profile?.email || 'Customer';
     const companyName = profile?.company || '';
 
+    // Explode pallets: if any row has quantity > 1, convert it to multiple rows with quantity 1
+    const explodedPallets = pallets.flatMap(p => {
+      const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));
+      return Array(qty).fill(null).map(() => ({
+        ...p,
+        quantity: 1
+      }));
+    });
+
     const { data, error } = await queryClient
       .from('quotations')
       .insert({
@@ -387,7 +409,7 @@ export async function createCustomerQuoteRequest(
         company_name: companyName,
         contact_person: customerName,
         status: 'pending_approval',
-        pallets: pallets,
+        pallets: explodedPallets,
         requested_destination: requestedDestination,
         notes: notes || null,
         // Fields that staff will fill in later

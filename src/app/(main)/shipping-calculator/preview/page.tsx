@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, Edit, Upload, Link2 } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Upload, Link2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Quotation, getQuotationById, generateShareToken } from '@/lib/db';
@@ -167,10 +167,20 @@ function QuotationPreviewPageInner() {
             <Upload className="h-4 w-4 mr-2" />
             Upload Documents
           </Button>
-          <Button onClick={editQuotation} variant="outline" className="h-9">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+          {quotationData?.status === 'pending_approval' ? (
+            <Button 
+              onClick={() => router.push(`/shipping-calculator/new?approve_from=${quotationData.id}`)} 
+              className="h-9 bg-orange-600 hover:bg-orange-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Review & Approve
+            </Button>
+          ) : (
+            <Button onClick={editQuotation} variant="outline" className="h-9">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
         </div>
       </div>
     </div>
