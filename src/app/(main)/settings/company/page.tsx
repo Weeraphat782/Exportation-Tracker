@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash, Link2, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getCompanies, deleteCompany as dbDeleteCompany, Company as CompanyType } from '@/lib/db';
+import { getCompaniesForDropdown, deleteCompany as dbDeleteCompany, Company as CompanyType } from '@/lib/db';
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function CompanySettingsPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getCompanies();
+        const data = await getCompaniesForDropdown();
         if (data !== null) {
           setCompanies(data);
         } else {
@@ -116,7 +116,16 @@ export default function CompanySettingsPage() {
                 ) : (
                   companies.map((company) => (
                     <TableRow key={company.id}>
-                      <TableCell className="font-medium">{company.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {company.name}
+                          {company.customer_user_id && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100">
+                              Customer
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{company.address || '-'}</TableCell>
                       <TableCell>{company.contact_person || '-'}</TableCell>
                       <TableCell>{company.contact_email || '-'}</TableCell>
