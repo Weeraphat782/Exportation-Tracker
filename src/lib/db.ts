@@ -1856,7 +1856,7 @@ export async function createProformaInvoice(
 
     const fromQuote = buildProformaDefaultsFromQuote(q);
     const { line_items: ovLineItems, ...restOverrides } = overrides ?? {};
-    const line_items = ovLineItems ?? [];
+    const line_items = ovLineItems ?? fromQuote.line_items;
     const { subtotal, vat, grand_total } = computeProformaTotals(line_items);
 
     const row = {
