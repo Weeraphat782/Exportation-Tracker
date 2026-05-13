@@ -18,10 +18,11 @@ import {
     submitCustomerDocument,
     getFreightRatesByDestination,
     generateCustomerShareToken,
+    getCompanyDocuments,
 } from '@/lib/customer-db';
 import { calculateVolumeWeight } from '@/lib/calculators';
 import type { Quotation, DocumentSubmission, AdditionalCharge, Pallet } from '@/lib/db';
-import type { FreightRate } from '@/lib/customer-db';
+import type { FreightRate, CompanyDocument } from '@/lib/customer-db';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'react-hot-toast';
 import { getDocumentTemplate } from '@/lib/db';
@@ -406,6 +407,7 @@ export default function ShipmentDetailPage() {
     const [quotation, setQuotation] = useState<Quotation | null>(null);
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
+    const [companyDocs, setCompanyDocs] = useState<CompanyDocument[]>([]);
     const [freightRates, setFreightRates] = useState<FreightRate[]>([]);
     const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
     const [isThaiGacp, setIsThaiGacp] = useState(false);
@@ -431,14 +433,26 @@ export default function ShipmentDetailPage() {
         setHasMounted(true);
     }, []);
 
+    // Scroll to upload section after page finishes loading (hash-based navigation)
+    useEffect(() => {
+        if (loading) return;
+        if (window.location.hash !== '#documents') return;
+        setDocsOpen(true);
+        setTimeout(() => {
+            document.getElementById('documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
+    }, [loading]);
+
     // ---- Data loading ----
     const loadData = async () => {
         if (!user?.id || !id) return;
         try {
-            const [qData, docsData] = await Promise.all([
+            const [qData, docsData, profileDocs] = await Promise.all([
                 getCustomerQuotationById(id, user.id),
                 getCustomerDocuments(user.id),
+                getCompanyDocuments(),
             ]);
+            setCompanyDocs(profileDocs);
             if (!qData) {
                 toast.error('Shipment not found');
                 router.push('/portal');
@@ -1001,7 +1015,11 @@ export default function ShipmentDetailPage() {
 
             {/* ===== DOCUMENT CHECKLIST ===== */}
             {(() => {
-                const uploadedTypeSet = new Set(documents.map(d => d.document_type).filter(Boolean));
+                // Include both quotation docs AND profile company docs in the checked set
+                const uploadedTypeSet = new Set([
+                    ...documents.map(d => d.document_type).filter(Boolean),
+                    ...companyDocs.map(d => d.document_type),
+                ] as string[]);
                 const allCategories = [
                     ...DOCUMENT_CATEGORIES,
                     ...(isThaiGacp ? [{
@@ -1095,6 +1113,7 @@ export default function ShipmentDetailPage() {
             })()}
 
             {/* ===== DOCUMENTS UPLOAD (Collapsed) ===== */}
+            <div id="documents">
             <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full p-5 bg-white rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors shadow-sm">
                     <div className="flex items-center gap-3">
@@ -1258,6 +1277,7 @@ export default function ShipmentDetailPage() {
                     </div>
                 </CollapsibleContent>
             </Collapsible>
+            </div>
 
             {/* ===== SUBMITTED DOCUMENTS (Collapsed) ===== */}
             {documents.length > 0 && (

@@ -435,7 +435,45 @@ export async function createCustomerQuoteRequest(
       return { success: false, error: error.message || error.code || 'Database error (check RLS policies & NOT NULL constraints)' };
     }
 
-    return { success: true, quotationId: data?.id };
+    const quotationId = data?.id;
+
+    // Auto-link company-level documents to the new quotation
+    if (quotationId) {
+      try {
+        const { data: companyDocs } = await queryClient
+          .from('company_documents')
+          .select('document_type, document_type_name, file_path, file_name, storage_provider')
+          .eq('user_id', user.id);
+
+        if (companyDocs && companyDocs.length > 0) {
+          const rows = companyDocs.map(doc => ({
+            quotation_id: quotationId,
+            document_type: doc.document_type,
+            document_type_name: doc.document_type_name,
+            file_name: doc.file_name,
+            original_file_name: doc.file_name,
+            file_path: doc.file_path,
+            file_url: '',
+            notes: null,
+            company_name: companyName,
+            storage_provider: doc.storage_provider || 'r2',
+            source: 'company_profile',
+          }));
+
+          const { error: insertErr } = await queryClient
+            .from('document_submissions')
+            .insert(rows);
+
+          if (insertErr) {
+            console.error('Auto-link company docs error:', insertErr.message);
+          }
+        }
+      } catch (linkErr) {
+        console.error('Auto-link company docs exception:', linkErr);
+      }
+    }
+
+    return { success: true, quotationId };
   } catch (err) {
     console.error('createCustomerQuoteRequest exception:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
@@ -646,6 +684,96 @@ export async function updateCustomerProfile(
 
     if (error) return { success: false, error: error.message };
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+// ============================================================
+// Company Documents — persistent, reusable documents stored at
+// the company level (TK11, TK10, ID Card, Thai GACP).
+// They auto-link to new quotations on creation.
+// ============================================================
+
+export interface CompanyDocument {
+  id: string;
+  user_id: string;
+  document_type: string;
+  document_type_name: string;
+  file_path: string;
+  file_name: string;
+  storage_provider: string;
+  uploaded_at: string;
+}
+
+export async function getCompanyDocuments(): Promise<CompanyDocument[]> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await queryClient
+      .from('company_documents')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('uploaded_at', { ascending: false });
+
+    if (error) {
+      console.error('getCompanyDocuments error:', error.message);
+      return [];
+    }
+    return (data || []) as CompanyDocument[];
+  } catch (err) {
+    console.error('getCompanyDocuments exception:', err);
+    return [];
+  }
+}
+
+export async function cancelCustomerQuoteRequest(
+  quotationId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const res = await fetch('/api/cancel-quote-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quotationId, userId: user.id }),
+    });
+
+    const json = await res.json();
+    if (!res.ok) return { success: false, error: json.error || 'Failed to cancel' };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+export async function deleteCompanyDocument(
+  documentType: string
+): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  try {
+    await loadSession();
+    const { data: { user } } = await queryClient.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const { data: existing } = await queryClient
+      .from('company_documents')
+      .select('file_path')
+      .eq('user_id', user.id)
+      .eq('document_type', documentType)
+      .single();
+
+    const { error } = await queryClient
+      .from('company_documents')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('document_type', documentType);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, filePath: existing?.file_path };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
   }

@@ -175,6 +175,7 @@ export interface DocumentSubmission {
   reviewed_by?: string;
   description?: string; // AI-generated document summary
   storage_provider?: 'supabase' | 'r2';
+  source?: string; // 'company_profile' for auto-linked documents
 }
 
 export interface ProformaLineItem {

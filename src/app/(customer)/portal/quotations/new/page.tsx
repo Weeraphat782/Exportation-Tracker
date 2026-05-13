@@ -80,7 +80,6 @@ export default function NewQuoteRequestPage() {
             if (!p.length || parseFloat(p.length) <= 0) newErrors[`${p.id}-length`] = `Pallet ${num}: Length required`;
             if (!p.width || parseFloat(p.width) <= 0) newErrors[`${p.id}-width`] = `Pallet ${num}: Width required`;
             if (!p.height || parseFloat(p.height) <= 0) newErrors[`${p.id}-height`] = `Pallet ${num}: Height required`;
-            if (!p.weight || parseFloat(p.weight) <= 0) newErrors[`${p.id}-weight`] = `Pallet ${num}: Weight required`;
             if (!p.quantity || parseInt(p.quantity) < 1) newErrors[`${p.id}-quantity`] = `Pallet ${num}: Qty must be >= 1`;
         });
 
@@ -100,7 +99,7 @@ export default function NewQuoteRequestPage() {
                 length: parseFloat(p.length),
                 width: parseFloat(p.width),
                 height: parseFloat(p.height),
-                weight: parseFloat(p.weight),
+                weight: p.weight ? parseFloat(p.weight) : 0,
                 quantity: parseInt(p.quantity),
             }));
 
@@ -135,7 +134,7 @@ export default function NewQuoteRequestPage() {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                         {submittedQuotationId ? (
                             <Link
-                                href={`/portal/shipments/${submittedQuotationId}`}
+                                href={`/portal/shipments/${submittedQuotationId}#documents`}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm w-full sm:w-auto justify-center"
                             >
                                 <Upload className="w-4 h-4" /> Upload documents now
@@ -291,7 +290,7 @@ export default function NewQuoteRequestPage() {
                             {/* Weight */}
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                                    Weight (kg)
+                                    Weight (kg) <span className="normal-case font-normal text-gray-400">optional</span>
                                 </label>
                                 <input
                                     type="number"

@@ -1,16 +1,236 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Building2, User, Mail, Bell, Loader2, Save, Pencil, X,
-  MapPin, Hash, Phone
+  MapPin, Hash, Phone, FileText, Upload, Trash2, Eye, CheckCircle2,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import {
   getCustomerSetting, saveCustomerSetting, updateCustomerProfile,
   getCustomerCompany, updateCustomerCompany,
+  getCompanyDocuments, deleteCompanyDocument,
+  type CompanyDocument,
 } from '@/lib/customer-db';
+import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
+
+// Document slots available for company-level persistent storage
+// IDs must match exactly the type IDs used in the shipment checklist (DOCUMENT_CATEGORIES)
+const COMPANY_DOC_TYPES = [
+  { id: 'tk-11', label: 'TK11 (Thai)', shortLabel: 'TK11 TH' },
+  { id: 'tk-11-eng', label: 'TK11 (English)', shortLabel: 'TK11 EN' },
+  { id: 'tk-10', label: 'TK10 (Thai)', shortLabel: 'TK10 TH' },
+  { id: 'tk-10-eng', label: 'TK10 (English)', shortLabel: 'TK10 EN' },
+  { id: 'id-card-copy', label: 'ID Card Copy', shortLabel: 'ID Card' },
+  { id: 'thai-gacp-certificate-standard', label: 'Thai GACP Certificate', shortLabel: 'GACP' },
+] as const;
+
+type DocTypeId = typeof COMPANY_DOC_TYPES[number]['id'];
+
+async function uploadCompanyDoc(
+  file: File,
+  userId: string,
+  documentType: string,
+  documentTypeName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Get signed upload URL
+    const urlRes = await fetch('/api/generate-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+        userId,
+        documentType,
+        isCompanyDoc: true,
+      }),
+    });
+
+    if (!urlRes.ok) {
+      const err = await urlRes.json().catch(() => ({}));
+      return { success: false, error: err.error || 'Failed to get upload URL' };
+    }
+
+    const { signedUrl, path, originalFileName, provider } = await urlRes.json();
+
+    // 2. Upload to R2
+    const uploadRes = await fetch(signedUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+
+    if (!uploadRes.ok) return { success: false, error: 'Upload to storage failed' };
+
+    // 3. Confirm in DB
+    const confirmRes = await fetch('/api/confirm-company-document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filePath: path,
+        userId,
+        documentType,
+        documentTypeName,
+        originalFileName: originalFileName || file.name,
+        provider: provider || 'r2',
+      }),
+    });
+
+    if (!confirmRes.ok) {
+      const err = await confirmRes.json().catch(() => ({}));
+      return { success: false, error: err.error || 'Failed to save record' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
+  }
+}
+
+function CompanyDocSlot({
+  docType,
+  existing,
+  userId,
+  onUploaded,
+  onDeleted,
+}: {
+  docType: typeof COMPANY_DOC_TYPES[number];
+  existing?: CompanyDocument;
+  userId: string;
+  onUploaded: () => void;
+  onDeleted: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [loadingView, setLoadingView] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setUploading(true);
+    const res = await uploadCompanyDoc(file, userId, docType.id, docType.label);
+    setUploading(false);
+
+    if (res.success) {
+      toast.success(`${docType.shortLabel} uploaded`);
+      onUploaded();
+    } else {
+      toast.error(res.error || 'Upload failed');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!existing) return;
+    setDeleting(true);
+    const res = await deleteCompanyDocument(docType.id);
+    setDeleting(false);
+    if (res.success) {
+      toast.success(`${docType.shortLabel} removed`);
+      onDeleted();
+    } else {
+      toast.error(res.error || 'Delete failed');
+    }
+  };
+
+  const handleView = async () => {
+    if (!existing) return;
+    setLoadingView(true);
+    try {
+      const url = await getFileUrl(existing.file_path, existing.storage_provider as 'r2' | 'supabase');
+      setViewUrl(url);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('Could not generate view link');
+    } finally {
+      setLoadingView(false);
+    }
+  };
+
+  const hasFile = !!existing;
+
+  return (
+    <div className={`rounded-xl border p-4 transition-all ${hasFile ? 'border-emerald-200 bg-emerald-50/30' : 'border-dashed border-gray-200 bg-gray-50/50'}`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          {hasFile ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+          ) : (
+            <FileText className="w-4 h-4 text-gray-300 shrink-0" />
+          )}
+          <span className="text-sm font-semibold text-gray-700">{docType.label}</span>
+        </div>
+        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${hasFile ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+          {hasFile ? 'Uploaded' : 'Optional'}
+        </span>
+      </div>
+
+      {hasFile ? (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 truncate" title={existing.file_name}>{existing.file_name}</p>
+          <p className="text-[10px] text-gray-400">
+            {new Date(existing.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleView}
+              disabled={loadingView}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loadingView ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+              View
+            </button>
+            <button
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              Replace
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="w-full flex flex-col items-center justify-center gap-2 py-4 text-gray-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors disabled:opacity-50"
+        >
+          {uploading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+          ) : (
+            <Upload className="w-5 h-5" />
+          )}
+          <span className="text-xs font-medium">{uploading ? 'Uploading…' : 'Click to upload'}</span>
+          <span className="text-[10px] text-gray-300">PDF, JPG, PNG · max 100MB</span>
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        onChange={handleFileChange}
+      />
+      {/* suppress unused viewUrl lint warning */}
+      {viewUrl && null}
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { profile, user, refreshProfile } = useCustomerAuth();
@@ -29,6 +249,10 @@ export default function ProfilePage() {
     id: string; name: string; address?: string; tax_id?: string;
     contact_person?: string; contact_email?: string; contact_phone?: string;
   } | null>(null);
+
+  // Company documents
+  const [companyDocs, setCompanyDocs] = useState<CompanyDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -53,8 +277,18 @@ export default function ProfilePage() {
       });
 
       getCustomerCompany().then(c => setCompanyRecord(c));
+      loadDocs();
     }
   }, [user?.id]);
+
+  const loadDocs = async () => {
+    setLoadingDocs(true);
+    const docs = await getCompanyDocuments();
+    setCompanyDocs(docs);
+    setLoadingDocs(false);
+  };
+
+  const refreshDocs = () => loadDocs();
 
   const startEdit = () => {
     setEditFullName(profile?.full_name || '');
@@ -139,6 +373,10 @@ export default function ProfilePage() {
       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
       <div className="text-sm text-gray-900 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">{value || '-'}</div>
     </div>
+  );
+
+  const docMap = new Map<DocTypeId, CompanyDocument>(
+    companyDocs.map(d => [d.document_type as DocTypeId, d])
   );
 
   return (
@@ -313,6 +551,39 @@ export default function ProfilePage() {
             </button>
           </div>
         )}
+
+        {/* Company Documents */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
+                <FileText className="w-5 h-5" />
+              </div>
+              Company Documents
+            </h3>
+            {loadingDocs && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
+          </div>
+          <p className="text-xs text-gray-400 mb-5">
+            Upload once — these documents auto-attach to every new shipment request so you don&apos;t have to re-upload each time.
+          </p>
+
+          {user ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {COMPANY_DOC_TYPES.map(docType => (
+                <CompanyDocSlot
+                  key={docType.id}
+                  docType={docType}
+                  existing={docMap.get(docType.id)}
+                  userId={user.id}
+                  onUploaded={refreshDocs}
+                  onDeleted={refreshDocs}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-emerald-500" /></div>
+          )}
+        </div>
 
         {/* Notification Preferences */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">

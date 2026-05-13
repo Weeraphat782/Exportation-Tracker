@@ -34,7 +34,7 @@ function createSafeFileName(originalFileName: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileName, contentType, quotationId, companyId, documentType, docTypeId } = body;
+    const { fileName, contentType, quotationId, companyId, userId, documentType, docTypeId, isCompanyDoc } = body;
 
     if (!fileName || !contentType || !documentType) {
       return NextResponse.json(
@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
     if (documentType === 'template') {
       // For templates, we use a different structure: templates/docTypeId/safeFileName
       filePath = `templates/${docTypeId || 'misc'}/${safeFileName}`;
+    } else if (isCompanyDoc) {
+      // Company-level documents: keyed by userId so no company record is required
+      const ownerId = userId || companyId;
+      if (!ownerId) {
+        return NextResponse.json(
+          { error: 'Missing userId for company document upload.' },
+          { status: 400 }
+        )
+      }
+      filePath = `company-documents/${ownerId}/${documentType}/${safeFileName}`;
     } else {
       const parentId = quotationId || companyId;
       if (!parentId) {

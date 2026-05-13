@@ -5,11 +5,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Inbox, Loader2, FileText,
-    Search, ArrowRight, Eye, Clock, PlusCircle
+    Search, ArrowRight, Eye, Clock, PlusCircle, X
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import { getCustomerQuotations, getCustomerPendingRequests } from '@/lib/customer-db';
+import { getCustomerQuotations, getCustomerPendingRequests, cancelCustomerQuoteRequest } from '@/lib/customer-db';
 import type { Quotation } from '@/lib/db';
+import { toast } from 'sonner';
 
 // ============ HELPERS ============
 
@@ -136,6 +137,7 @@ export default function MyShipmentsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pendingRequests, setPendingRequests] = useState<Quotation[]>([]);
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!user?.id) return;
@@ -160,6 +162,19 @@ export default function MyShipmentsPage() {
         if (!user?.id) { setLoading(false); return; }
         loadData();
     }, [user?.id, authLoading, loadData]);
+
+    const handleCancel = async (quotationId: string) => {
+        if (!confirm('Cancel this quote request? This cannot be undone.')) return;
+        setCancellingId(quotationId);
+        const res = await cancelCustomerQuoteRequest(quotationId);
+        setCancellingId(null);
+        if (res.success) {
+            toast.success('Quote request cancelled');
+            setPendingRequests(prev => prev.filter(q => q.id !== quotationId));
+        } else {
+            toast.error(res.error || 'Failed to cancel');
+        }
+    };
 
     const filtered = quotations.filter(q => {
         if (!searchQuery) return true;
@@ -300,13 +315,23 @@ export default function MyShipmentsPage() {
                                             Destination &amp; pricing will be set by our team — you can still upload documents anytime.
                                         </div>
                                     </div>
-                                    <Link
-                                        href={`/portal/shipments/${q.id}`}
-                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors w-full sm:w-auto"
-                                    >
-                                        <FileText className="w-3.5 h-3.5" /> Open &amp; upload documents
-                                        <ArrowRight className="w-3.5 h-3.5" />
-                                    </Link>
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                                        <button
+                                            onClick={() => handleCancel(q.id)}
+                                            disabled={cancellingId === q.id}
+                                            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                                        >
+                                            {cancellingId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                                            Cancel
+                                        </button>
+                                        <Link
+                                            href={`/portal/shipments/${q.id}#documents`}
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors flex-1 sm:flex-none"
+                                        >
+                                            <FileText className="w-3.5 h-3.5" /> Open &amp; upload documents
+                                            <ArrowRight className="w-3.5 h-3.5" />
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
                         </div>
