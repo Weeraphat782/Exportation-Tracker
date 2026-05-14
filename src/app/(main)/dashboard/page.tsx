@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCompanies, Company } from '@/lib/db';
+import { getCompanies, Company, getQuotationPayableTotalThb } from '@/lib/db';
 
 // Define colors for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -195,6 +195,7 @@ interface ExportQuotation {
   completed_at: string | null;
   customer_name: string | null;
   total_cost: number | null;
+  vat_amount: number | null;
   total_freight_cost: number | null;
   clearance_cost: number | null;
   delivery_cost: number | null;
@@ -387,7 +388,7 @@ export default function DashboardPage() {
 
         try {
           // Get top companies by export volume - with error handling
-          let companiesQuery = supabase.from('quotations').select('company_name, total_cost');
+          let companiesQuery = supabase.from('quotations').select('company_name, total_cost, vat_amount');
           if (userId) {
             companiesQuery = companiesQuery.eq('user_id', userId);
           }
@@ -401,7 +402,11 @@ export default function DashboardPage() {
 
             companiesData.forEach(quotation => {
               const company_name = quotation.company_name || 'Unknown';
-              const total_value = quotation.total_cost || 0;
+              const total_value = getQuotationPayableTotalThb({
+                total_cost: quotation.total_cost ?? 0,
+                vat_amount: quotation.vat_amount ?? null,
+                grand_total_with_vat: null,
+              });
 
               if (!companyStats[company_name]) {
                 companyStats[company_name] = {
@@ -543,7 +548,7 @@ export default function DashboardPage() {
 
         // NEW: Financial Metrics by Month
         try {
-          let financialQuery = supabase.from('quotations').select('created_at, total_cost');
+          let financialQuery = supabase.from('quotations').select('created_at, total_cost, vat_amount');
           if (userId) {
             financialQuery = financialQuery.eq('user_id', userId);
           }
@@ -560,7 +565,11 @@ export default function DashboardPage() {
 
               const date = new Date(item.created_at);
               const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-              const value = item.total_cost || 0;
+              const value = getQuotationPayableTotalThb({
+                total_cost: item.total_cost ?? 0,
+                vat_amount: item.vat_amount ?? null,
+                grand_total_with_vat: null,
+              });
 
               if (!monthlyMetrics[monthYear]) {
                 monthlyMetrics[monthYear] = { total: 0, count: 0 };
@@ -689,6 +698,7 @@ export default function DashboardPage() {
           completed_at,
           customer_name,
           total_cost,
+          vat_amount,
           total_freight_cost,
           clearance_cost,
           delivery_cost,
@@ -766,7 +776,11 @@ export default function DashboardPage() {
           'Clearance & Handling': q.clearance_cost || 0,
           'Delivery Service': q.delivery_cost || 0,
           'Additional Charges': additionalChargesSum,
-          'Total Amount (THB)': q.total_cost || 0,
+          'Total Amount (THB)': getQuotationPayableTotalThb({
+            total_cost: q.total_cost ?? 0,
+            vat_amount: q.vat_amount ?? null,
+            grand_total_with_vat: null,
+          }),
           'Quotation ID': q.id
         };
       });

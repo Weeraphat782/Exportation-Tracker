@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Opportunity, STAGE_LABELS, OpportunityStage } from '@/types/opportunity';
 import { KanbanCard } from './kanban-card';
+import { getQuotationPayableTotalThb } from '@/lib/db';
 import { cn } from '@/lib/utils';
 
 interface KanbanColumnProps {
@@ -29,7 +30,25 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
     });
 
     const totalAmount = opportunities.reduce((sum, opp) => {
-        const quotationTotal = opp.quotationDetails?.filter(q => q.total_cost && q.total_cost > 0).reduce((s, q) => s + (q.total_cost || 0), 0) || 0;
+        const quotationTotal =
+            (opp.quotationDetails ?? [])
+                .filter((q) =>
+                    getQuotationPayableTotalThb({
+                        total_cost: q.total_cost ?? 0,
+                        vat_amount: q.vat_amount ?? null,
+                        grand_total_with_vat: null,
+                    }) > 0
+                )
+                .reduce(
+                    (s, q) =>
+                        s +
+                        getQuotationPayableTotalThb({
+                            total_cost: q.total_cost ?? 0,
+                            vat_amount: q.vat_amount ?? null,
+                            grand_total_with_vat: null,
+                        }),
+                    0
+                );
         return sum + (quotationTotal > 0 ? quotationTotal : opp.amount);
     }, 0);
 

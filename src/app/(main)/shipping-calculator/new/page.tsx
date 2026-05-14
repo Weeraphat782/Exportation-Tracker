@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Checkbox } from "@/components/ui/checkbox";
-import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler } from 'react-hook-form';
+import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check } from 'lucide-react';
@@ -36,7 +36,12 @@ import {
     Company,
     Product,
     Quotation,
-    NewQuotationData
+    NewQuotationData,
+    parseQuotationTaxableLinesToForm,
+    buildQuotationTaxableLinesFromForm,
+    computeQuotationVatBreakdown,
+    getQuotationVatDisplayRows,
+    type QuotationTaxableLinesForm,
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -95,6 +100,12 @@ const quotationFormSchema = z.object({
     manualChargeableWeight: z.number().min(0).optional(),
     isManualRate: z.boolean().optional(),
     manualRate: z.number().min(0).optional(),
+    taxableLines: z.object({
+        freight: z.boolean(),
+        clearance: z.boolean(),
+        delivery: z.boolean(),
+        additional: z.array(z.boolean()),
+    }),
 });
 
 // Define the type based on the schema
@@ -378,20 +389,20 @@ const PalletItem = ({
 // --- Additional Charge Item ---
 const AdditionalChargeItem = ({
     index,
-    removeCharge
+    removeChargeRow
 }: {
     index: number;
-    removeCharge: (index: number) => void;
+    removeChargeRow: (index: number) => void;
 }) => {
     const { control } = useFormContext<QuotationFormValues>();
 
     return (
-        <div className="flex items-end gap-2 mb-2">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-2 mb-2">
             <FormField
                 control={control}
                 name={`additionalCharges.${index}.name`}
                 render={({ field }) => (
-                    <FormItem className="flex-grow">
+                    <FormItem className="flex-grow min-w-[120px]">
                         <FormLabel className="text-xs">Name</FormLabel>
                         <FormControl>
                             <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
@@ -403,7 +414,7 @@ const AdditionalChargeItem = ({
                 control={control}
                 name={`additionalCharges.${index}.description`}
                 render={({ field }) => (
-                    <FormItem className="flex-grow">
+                    <FormItem className="flex-grow min-w-[120px]">
                         <FormLabel className="text-xs">Description</FormLabel>
                         <FormControl>
                             <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
@@ -432,12 +443,32 @@ const AdditionalChargeItem = ({
                     </FormItem>
                 )}
             />
+            <FormField
+                control={control}
+                name={`taxableLines.additional.${index}`}
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-xs text-muted-foreground">VAT 7%</FormLabel>
+                        <label
+                            className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background cursor-pointer select-none whitespace-nowrap"
+                            htmlFor={`add-taxable-${index}`}
+                        >
+                            <Checkbox
+                                id={`add-taxable-${index}`}
+                                checked={field.value !== false}
+                                onCheckedChange={(v) => field.onChange(v === true)}
+                            />
+                            <span className="text-sm">Taxable</span>
+                        </label>
+                    </FormItem>
+                )}
+            />
             <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => removeCharge(index)}
-                className="text-red-600 hover:bg-red-100 h-9 w-9"
+                onClick={() => removeChargeRow(index)}
+                className="text-red-600 hover:bg-red-100 h-9 w-9 shrink-0"
             >
                 <Minus className="h-4 w-4" />
             </Button>
@@ -621,6 +652,12 @@ function ShippingCalculatorPageContent() {
             notes: paramNotes || '',
             opportunityId: paramOpportunityId || '',
             productId: paramProductId || '',
+            taxableLines: {
+                freight: true,
+                clearance: true,
+                delivery: true,
+                additional: [true],
+            },
         },
         mode: 'onChange',
     });
@@ -682,6 +719,7 @@ function ShippingCalculatorPageContent() {
         control,
         handleSubmit,
         getValues,
+        setValue,
         watch,
         reset,
         formState: { errors /*, isValid, isDirty*/ }
@@ -698,11 +736,99 @@ function ShippingCalculatorPageContent() {
         name: "additionalCharges",
     });
 
+    const appendChargeRow = React.useCallback(
+        (row: { name: string; description: string; amount: number; productId?: string }) => {
+            appendCharge(row);
+            const t = getValues('taxableLines');
+            setValue(
+                'taxableLines',
+                {
+                    freight: t?.freight ?? true,
+                    clearance: t?.clearance ?? true,
+                    delivery: t?.delivery ?? true,
+                    additional: [...(t?.additional ?? []), true],
+                },
+                { shouldDirty: true }
+            );
+        },
+        [appendCharge, getValues, setValue]
+    );
+
+    const removeChargeRow = React.useCallback(
+        (index: number) => {
+            removeCharge(index);
+            const t = getValues('taxableLines');
+            if (t?.additional && t.additional.length > index) {
+                const next = [...t.additional];
+                next.splice(index, 1);
+                setValue(
+                    'taxableLines',
+                    { ...t, additional: next },
+                    { shouldDirty: true }
+                );
+            }
+        },
+        [removeCharge, getValues, setValue]
+    );
+
     // Watch relevant fields for recalculation
     const watchedDestinationId = watch('destinationId');
     const watchedDeliveryRequired = watch('deliveryServiceRequired');
     const watchedDeliveryVehicle = watch('deliveryVehicleType');
     const watchedProductId = watch('productId');
+    const watchedTaxableLines = useWatch({ control, name: 'taxableLines' });
+    const watchedClearanceCost = useWatch({ control, name: 'clearanceCost' });
+    const watchedAdditionalCharges = useWatch({ control, name: 'additionalCharges' });
+
+    const quotationVatBreakdown = React.useMemo(() => {
+        if (!calculationResult) return null;
+        const tlForm = (watchedTaxableLines ?? {
+            freight: true,
+            clearance: true,
+            delivery: true,
+            additional: [],
+        }) as QuotationTaxableLinesForm;
+        const ac = watchedAdditionalCharges ?? [];
+        const taxable_map = buildQuotationTaxableLinesFromForm(tlForm, ac);
+        const filtered = ac.filter(
+            (c) => (c.name ?? '').trim() !== '' || (c.description ?? '').trim() !== '' || (Number(c.amount) || 0) > 0
+        );
+        return computeQuotationVatBreakdown({
+            total_freight_cost: calculationResult.totalFreightCost,
+            clearance_cost: Number(watchedClearanceCost) || 0,
+            delivery_amount: watchedDeliveryRequired ? calculationResult.deliveryCost : 0,
+            additional_amounts: filtered.map((c) => Number(c.amount) || 0),
+            taxable_lines: taxable_map,
+        });
+    }, [
+        calculationResult,
+        watchedTaxableLines,
+        watchedClearanceCost,
+        watchedAdditionalCharges,
+        watchedDeliveryRequired,
+    ]);
+
+    const vatDisplayRows = React.useMemo(() => {
+        if (!calculationResult) return [];
+        const tl = (watchedTaxableLines ?? {
+            freight: true,
+            clearance: true,
+            delivery: true,
+            additional: [],
+        }) as QuotationTaxableLinesForm;
+        return getQuotationVatDisplayRows(calculationResult, {
+            clearanceCost: Number(watchedClearanceCost) || 0,
+            deliveryServiceRequired: watchedDeliveryRequired,
+            additionalCharges: watchedAdditionalCharges ?? [],
+            taxableLines: tl,
+        });
+    }, [
+        calculationResult,
+        watchedTaxableLines,
+        watchedClearanceCost,
+        watchedAdditionalCharges,
+        watchedDeliveryRequired,
+    ]);
 
     // --- Product Master Auto-fill Effect ---
     useEffect(() => {
@@ -717,49 +843,49 @@ function ShippingCalculatorPageContent() {
             if (addedIds.length === 0 && removedIds.length === 0) return;
 
             // 1. Remove charges for products that were unselected
-            if (removedIds.length > 0) {
-                // We need to iterate backwards to avoid index shifting issues
-                const currentCharges = getValues('additionalCharges');
-                for (let i = currentCharges.length - 1; i >= 0; i--) {
-                    if (currentCharges[i].productId && removedIds.includes(currentCharges[i].productId!)) {
-                        removeCharge(i);
+                    if (removedIds.length > 0) {
+                        // We need to iterate backwards to avoid index shifting issues
+                        const currentCharges = getValues('additionalCharges');
+                        for (let i = currentCharges.length - 1; i >= 0; i--) {
+                            if (currentCharges[i].productId && removedIds.includes(currentCharges[i].productId!)) {
+                                removeChargeRow(i);
+                            }
+                        }
                     }
-                }
-            }
 
-            // 2. Add charges for new products
-            if (addedIds.length > 0) {
-                try {
-                    const productsWithCharges = await Promise.all(
-                        addedIds.map(id => getProductWithCharges(id))
-                    );
+                    // 2. Add charges for new products
+                    if (addedIds.length > 0) {
+                        try {
+                            const productsWithCharges = await Promise.all(
+                                addedIds.map(id => getProductWithCharges(id))
+                            );
 
-                    let appliedCount = 0;
-                    productsWithCharges.forEach(product => {
-                        if (product && product.product_charges && product.product_charges.length > 0) {
-                            appliedCount++;
-                            product.product_charges.forEach(pc => {
-                                appendCharge({
-                                    name: pc.name,
-                                    description: pc.description || '',
-                                    amount: pc.amount,
-                                    productId: product.id // Tag it
-                                });
+                            let appliedCount = 0;
+                            productsWithCharges.forEach(product => {
+                                if (product && product.product_charges && product.product_charges.length > 0) {
+                                    appliedCount++;
+                                    product.product_charges.forEach(pc => {
+                                        appendChargeRow({
+                                            name: pc.name,
+                                            description: pc.description || '',
+                                            amount: pc.amount,
+                                            productId: product.id // Tag it
+                                        });
+                                    });
+                                }
                             });
-                        }
-                    });
 
-                    // Handle empty first row if we just added something
-                    if (appliedCount > 0) {
-                        const chargesAfterAdd = getValues('additionalCharges');
-                        // If the first row is empty and it's not the only row (meaning we just added more)
-                        if (chargesAfterAdd.length > 1 &&
-                            chargesAfterAdd[0].name === '' &&
-                            chargesAfterAdd[0].amount === 0 &&
-                            !chargesAfterAdd[0].productId) {
-                            removeCharge(0);
-                        }
-                    }
+                            // Handle empty first row if we just added something
+                            if (appliedCount > 0) {
+                                const chargesAfterAdd = getValues('additionalCharges');
+                                // If the first row is empty and it's not the only row (meaning we just added more)
+                                if (chargesAfterAdd.length > 1 &&
+                                    chargesAfterAdd[0].name === '' &&
+                                    chargesAfterAdd[0].amount === 0 &&
+                                    !chargesAfterAdd[0].productId) {
+                                    removeChargeRow(0);
+                                }
+                            }
                 } catch (error) {
                     console.error('Error syncing product charges:', error);
                     toast.error("Failed to sync product charges");
@@ -770,7 +896,7 @@ function ShippingCalculatorPageContent() {
         };
 
         syncProductCharges();
-    }, [watchedProductId, getValues, removeCharge, appendCharge]);
+    }, [watchedProductId, getValues, removeChargeRow, appendChargeRow]);
 
     // --- Fetch Initial Data (Runs once on mount) ---
     useEffect(() => {
@@ -866,6 +992,14 @@ function ShippingCalculatorPageContent() {
                         // Use more specific type if possible, otherwise suppress error
                         // Assuming dbGetQuotationById returns Quotation | null
                         const typedExistingQuotation = fetchedQuotation as Quotation;
+                        const loadedAdditionalCharges = Array.isArray(typedExistingQuotation.additional_charges)
+                            ? typedExistingQuotation.additional_charges.map((c) => ({
+                                name: c.name || '',
+                                description: c.description || '',
+                                amount: Number(c.amount) || 0,
+                                productId: (c as { productId?: string }).productId || undefined,
+                            }))
+                            : [{ name: '', description: '', amount: 0 }];
                         reset({
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
@@ -885,14 +1019,11 @@ function ShippingCalculatorPageContent() {
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
                             clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0, // Load clearance cost from DB
-                            additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
-                                ? typedExistingQuotation.additional_charges.map(c => ({
-                                    name: c.name || '',
-                                    description: c.description || '',
-                                    amount: Number(c.amount) || 0,
-                                    productId: (c as { productId?: string }).productId || undefined
-                                }))
-                                : [{ name: '', description: '', amount: 0 }],
+                            additionalCharges: loadedAdditionalCharges,
+                            taxableLines: parseQuotationTaxableLinesToForm(
+                                typedExistingQuotation.taxable_lines,
+                                loadedAdditionalCharges.length
+                            ),
                             notes: typedExistingQuotation.notes || '',
                             productId: typedExistingQuotation.product_id || '',
                             opportunityId: typedExistingQuotation.opportunity_id || '', // IMPORTANT: Preserve opportunity link
@@ -900,6 +1031,7 @@ function ShippingCalculatorPageContent() {
                             manualChargeableWeight: Number(typedExistingQuotation.manual_chargeable_weight) || 0,
                             isManualRate: typedExistingQuotation.is_manual_rate ?? false,
                             manualRate: Number(typedExistingQuotation.manual_rate) || 0,
+                            internalRemark: typedExistingQuotation.internal_remark || '',
                         });
 
                         // Set the ref to prevent initial sync if products are already loaded
@@ -979,6 +1111,15 @@ function ShippingCalculatorPageContent() {
 
                         const typedExistingQuotation = fetchedQuotation as Quotation;
 
+                        const cloneAdditionalCharges = Array.isArray(typedExistingQuotation.additional_charges)
+                            ? typedExistingQuotation.additional_charges.map((c) => ({
+                                name: c.name || '',
+                                description: c.description || '',
+                                amount: Number(c.amount) || 0,
+                                productId: (c as { productId?: string }).productId || undefined,
+                            }))
+                            : [{ name: '', description: '', amount: 0 }];
+
                         // Reset form with fetched data
                         reset({
                             companyId: typedExistingQuotation.company_id || '',
@@ -999,14 +1140,11 @@ function ShippingCalculatorPageContent() {
                             deliveryServiceRequired: typedExistingQuotation.delivery_service_required ?? false,
                             deliveryVehicleType: typedExistingQuotation.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
                             clearanceCost: Number(typedExistingQuotation.clearance_cost) || 0,
-                            additionalCharges: Array.isArray(typedExistingQuotation.additional_charges)
-                                ? typedExistingQuotation.additional_charges.map(c => ({
-                                    name: c.name || '',
-                                    description: c.description || '',
-                                    amount: Number(c.amount) || 0,
-                                    productId: (c as { productId?: string }).productId || undefined
-                                }))
-                                : [{ name: '', description: '', amount: 0 }],
+                            additionalCharges: cloneAdditionalCharges,
+                            taxableLines: parseQuotationTaxableLinesToForm(
+                                typedExistingQuotation.taxable_lines,
+                                cloneAdditionalCharges.length
+                            ),
                             notes: typedExistingQuotation.notes || '',
                             opportunityId: typedExistingQuotation.opportunity_id || '', // Clone also gets the opportunity link (optional)
                         });
@@ -1080,6 +1218,15 @@ function ShippingCalculatorPageContent() {
                         // Set existing quotation so it updates (not creates new)
                         setExistingQuotation(typedQ);
 
+                        const approveAdditionalCharges = Array.isArray(typedQ.additional_charges) && typedQ.additional_charges.length > 0
+                            ? typedQ.additional_charges.map(c => ({
+                                name: c.name || '',
+                                description: c.description || '',
+                                amount: Number(c.amount) || 0,
+                                productId: (c as { productId?: string }).productId || undefined
+                            }))
+                            : [{ name: '', description: '', amount: 0 }];
+
                         reset({
                             companyId: typedQ.company_id || '',
                             customerName: typedQ.customer_name || '',
@@ -1099,14 +1246,11 @@ function ShippingCalculatorPageContent() {
                             deliveryServiceRequired: typedQ.delivery_service_required ?? false,
                             deliveryVehicleType: typedQ.delivery_vehicle_type as '4wheel' | '6wheel' | undefined,
                             clearanceCost: Number(typedQ.clearance_cost) || 0,
-                            additionalCharges: Array.isArray(typedQ.additional_charges) && typedQ.additional_charges.length > 0
-                                ? typedQ.additional_charges.map(c => ({
-                                    name: c.name || '',
-                                    description: c.description || '',
-                                    amount: Number(c.amount) || 0,
-                                    productId: (c as { productId?: string }).productId || undefined
-                                }))
-                                : [{ name: '', description: '', amount: 0 }],
+                            additionalCharges: approveAdditionalCharges,
+                            taxableLines: parseQuotationTaxableLinesToForm(
+                                typedQ.taxable_lines,
+                                approveAdditionalCharges.length
+                            ),
                             notes: typedQ.notes || '',
                             opportunityId: typedQ.opportunity_id || '',
                         });
@@ -1152,6 +1296,12 @@ function ShippingCalculatorPageContent() {
                         additionalCharges: [{ name: '', description: '', amount: 0 }],
                         notes: paramNotes || '',
                         opportunityId: paramOpportunityId || '',
+                        taxableLines: {
+                            freight: true,
+                            clearance: true,
+                            delivery: true,
+                            additional: [true],
+                        },
                     });
                 }
             } catch (error: unknown) {
@@ -1279,6 +1429,31 @@ function ShippingCalculatorPageContent() {
             charge => charge.name !== '' || charge.description !== '' || charge.amount > 0
         );
 
+        const tlForm = (formData.taxableLines ?? {
+            freight: true,
+            clearance: true,
+            delivery: true,
+            additional: [],
+        }) as QuotationTaxableLinesForm;
+        const acForm = formData.additionalCharges ?? [];
+        const paddedAdditional = [...(tlForm.additional ?? [])];
+        while (paddedAdditional.length < acForm.length) paddedAdditional.push(true);
+        const tlSafe: QuotationTaxableLinesForm = {
+            freight: tlForm.freight !== false,
+            clearance: tlForm.clearance !== false,
+            delivery: tlForm.delivery !== false,
+            additional: paddedAdditional.slice(0, acForm.length),
+        };
+        const taxable_lines = buildQuotationTaxableLinesFromForm(tlSafe, acForm);
+        const additional_amounts = convertedAdditionalCharges.map((c) => Number(c.amount) || 0);
+        const vatComputed = computeQuotationVatBreakdown({
+            total_freight_cost: calcResult.totalFreightCost,
+            clearance_cost: Number(formData.clearanceCost) || 0,
+            delivery_amount: formData.deliveryServiceRequired ? calcResult.deliveryCost : 0,
+            additional_amounts,
+            taxable_lines,
+        });
+
         // Construct the full data object matching NewQuotationData with snake_case field names
         const dataForDB: NewQuotationData = {
             user_id: userId,
@@ -1314,7 +1489,10 @@ function ShippingCalculatorPageContent() {
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
-                : formData.destinationId
+                : formData.destinationId,
+            taxable_lines,
+            vat_amount: vatComputed.vat_amount,
+            grand_total_with_vat: vatComputed.grand_total_with_vat,
         };
         return dataForDB;
     };
@@ -2009,7 +2187,7 @@ function ShippingCalculatorPageContent() {
                                                 if (currentValue && currentValue > 0) {
                                                     reset({ ...getValues(), clearanceCost: 0 });
                                                 } else {
-                                                    reset({ ...getValues(), clearanceCost: 5350 });
+                                                    reset({ ...getValues(), clearanceCost: 5000 });
                                                 }
                                             }}
                                         >
@@ -2043,19 +2221,37 @@ function ShippingCalculatorPageContent() {
                                             </FormItem>
                                         )}
                                     />
+                                    <FormField
+                                        control={control}
+                                        name="taxableLines.clearance"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-white">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value !== false}
+                                                        onCheckedChange={(v) => field.onChange(v === true)}
+                                                        id="clearanceTaxable"
+                                                    />
+                                                </FormControl>
+                                                <label htmlFor="clearanceTaxable" className="text-sm font-medium leading-none">
+                                                    VAT 7% on clearance
+                                                </label>
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="space-y-2 pt-4">
                                     <h3 className="font-medium mb-1">Additional Charges</h3>
                                     {chargeFields.map((field, index) => (
-                                        <AdditionalChargeItem key={field.id} index={index} removeCharge={removeCharge} />
+                                        <AdditionalChargeItem key={field.id} index={index} removeChargeRow={removeChargeRow} />
                                     ))}
                                     {chargeFields.length === 0 && <p className="text-xs text-gray-500 italic">No additional charges added.</p>}
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => appendCharge({ name: '', description: '', amount: 0 })}
+                                        onClick={() => appendChargeRow({ name: '', description: '', amount: 0 })}
                                         className="mt-2 w-full flex items-center justify-center gap-1 text-xs"
                                     >
                                         <Plus className="h-3 w-3" /> Add Charge
@@ -2103,33 +2299,161 @@ function ShippingCalculatorPageContent() {
                                 </h3>
                                 {calculationResult ? (
                                     <div className="space-y-3 relative z-10">
-                                        <div className="flex justify-between text-sm text-slate-600">
-                                            <span>Freight Cost:</span>
-                                            <span className="font-bold text-slate-900">{calculationResult.totalFreightCost.toLocaleString()} THB</span>
+                                        <div className="flex justify-between text-sm text-slate-600 items-center gap-2 flex-wrap">
+                                            <span>Freight Cost</span>
+                                            <div className="flex items-center gap-2">
+                                                <FormField
+                                                    control={control}
+                                                    name="taxableLines.freight"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-1.5 space-y-0 m-0">
+                                                            <FormLabel className="text-[10px] text-slate-500 m-0">Taxable</FormLabel>
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    className="h-4 w-4"
+                                                                    checked={field.value !== false}
+                                                                    onCheckedChange={(v) => field.onChange(v === true)}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <span className="font-bold text-slate-900 tabular-nums">
+                                                    {calculationResult.totalFreightCost.toLocaleString()} THB
+                                                </span>
+                                            </div>
                                         </div>
                                         {calculationResult.clearanceCost > 0 && (
                                             <div className="flex justify-between text-sm text-slate-600">
                                                 <span>Clearance Cost:</span>
-                                                <span className="font-bold text-slate-900">{calculationResult.clearanceCost.toLocaleString()} THB</span>
+                                                <span className="font-bold text-slate-900 tabular-nums">
+                                                    {calculationResult.clearanceCost.toLocaleString()} THB
+                                                </span>
                                             </div>
                                         )}
+                                        <div className="flex justify-between text-sm text-slate-600 items-center gap-2 flex-wrap">
+                                            <span>Delivery Fee</span>
+                                            <div className="flex items-center gap-2">
+                                                <FormField
+                                                    control={control}
+                                                    name="taxableLines.delivery"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-1.5 space-y-0 m-0">
+                                                            <FormLabel className="text-[10px] text-slate-500 m-0">Taxable</FormLabel>
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    className="h-4 w-4"
+                                                                    checked={field.value !== false}
+                                                                    onCheckedChange={(v) => field.onChange(v === true)}
+                                                                    disabled={!watchedDeliveryRequired}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <span className="font-bold text-slate-900 tabular-nums">
+                                                    {watchedDeliveryRequired
+                                                        ? calculationResult.deliveryCost.toLocaleString()
+                                                        : '0'}{' '}
+                                                    THB
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div className="flex justify-between text-sm text-slate-600">
-                                            <span>Delivery Fee:</span>
-                                            <span className="font-bold text-slate-900">
-                                                {watchedDeliveryRequired ? calculationResult.deliveryCost.toLocaleString() : '0.00'} THB
+                                            <span>Additional Charges (sum):</span>
+                                            <span className="font-bold text-slate-900 tabular-nums">
+                                                {calculationResult.totalAdditionalCharges.toLocaleString()} THB
                                             </span>
                                         </div>
-                                        <div className="flex justify-between text-sm text-slate-600">
-                                            <span>Additional Charges:</span>
-                                            <span className="font-bold text-slate-900">{calculationResult.totalAdditionalCharges.toLocaleString()} THB</span>
-                                        </div>
+
+                                        {vatDisplayRows.length > 0 && quotationVatBreakdown && (
+                                            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-xs">
+                                                <p className="font-semibold text-slate-700 mb-1.5">VAT split (by line)</p>
+                                                <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 gap-y-0.5 text-[11px]">
+                                                    <span className="text-slate-500 font-medium">Charge</span>
+                                                    <span className="text-right text-emerald-700 font-medium">VAT base</span>
+                                                    <span className="text-right text-amber-800 font-medium">Non-VAT</span>
+                                                    {vatDisplayRows.map((row, ri) => (
+                                                        <React.Fragment key={`${row.label}-${ri}`}>
+                                                            <span className="text-slate-600 truncate" title={row.label}>
+                                                                {row.label}
+                                                            </span>
+                                                            <span className="text-right tabular-nums">
+                                                                {row.vatPart > 0 ? row.vatPart.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                                                            </span>
+                                                            <span className="text-right tabular-nums">
+                                                                {row.nonVatPart > 0 ? row.nonVatPart.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                                                            </span>
+                                                        </React.Fragment>
+                                                    ))}
+                                                </div>
+                                                <Separator className="my-2" />
+                                                <div className="flex justify-between text-slate-700">
+                                                    <span>VAT 7% (on VAT base)</span>
+                                                    <span className="font-bold tabular-nums">
+                                                        {quotationVatBreakdown.vat_amount.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}{' '}
+                                                        THB
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-slate-800 font-semibold mt-1">
+                                                    <span>Grand total (incl. VAT)</span>
+                                                    <span className="tabular-nums">
+                                                        {quotationVatBreakdown.grand_total_with_vat.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}{' '}
+                                                        THB
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <Separator className="my-4 bg-blue-200/50" />
                                         <div className="bg-blue-600 rounded-xl p-4 text-white shadow-lg space-y-1 transform transition-all duration-300 hover:scale-[1.02]">
-                                            <p className="text-xs text-blue-100 font-medium uppercase tracking-wider">Final Total (Excl. VAT)</p>
-                                            <div className="flex justify-between items-baseline">
-                                                <span className="text-3xl font-black">{calculationResult.finalTotalCost.toLocaleString()}</span>
-                                                <span className="text-sm font-bold text-blue-200 ml-1">THB</span>
-                                            </div>
+                                            {quotationVatBreakdown ? (
+                                                <>
+                                                    <p className="text-[11px] text-blue-100/90 leading-snug">
+                                                        Subtotal{' '}
+                                                        {calculationResult.finalTotalCost.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}{' '}
+                                                        THB · VAT 7%{' '}
+                                                        {quotationVatBreakdown.vat_amount.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}{' '}
+                                                        THB
+                                                    </p>
+                                                    <p className="text-xs text-blue-100 font-medium uppercase tracking-wider">
+                                                        GRAND TOTAL (incl. VAT)
+                                                    </p>
+                                                    <div className="flex justify-between items-baseline">
+                                                        <span className="text-3xl font-black tabular-nums">
+                                                            {(quotationVatBreakdown.grand_total_with_vat ?? calculationResult.finalTotalCost).toLocaleString(undefined, {
+                                                                minimumFractionDigits: 2,
+                                                                maximumFractionDigits: 2,
+                                                            })}
+                                                        </span>
+                                                        <span className="text-sm font-bold text-blue-200 ml-1">THB</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-xs text-blue-100 font-medium uppercase tracking-wider">
+                                                        Final Total (Excl. VAT)
+                                                    </p>
+                                                    <div className="flex justify-between items-baseline">
+                                                        <span className="text-3xl font-black">
+                                                            {calculationResult.finalTotalCost.toLocaleString()}
+                                                        </span>
+                                                        <span className="text-sm font-bold text-blue-200 ml-1">THB</span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 ) : (

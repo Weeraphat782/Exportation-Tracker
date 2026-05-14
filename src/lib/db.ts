@@ -86,6 +86,220 @@ export interface AdditionalCharge {
   amount: number | string; // Allow string as well for form input
 }
 
+/** Keys: freight, clearance, delivery, additional:<n> (n = index among saved additional_charges). Missing = VAT applies. */
+export type QuotationTaxableLines = Partial<Record<string, boolean>>;
+
+/** Staff form shape; `additional` parallels form `additionalCharges` field array (incl. empty rows). */
+export interface QuotationTaxableLinesForm {
+  freight: boolean;
+  clearance: boolean;
+  delivery: boolean;
+  additional: boolean[];
+}
+
+export const QUOTATION_VAT_RATE = 0.07;
+
+function quotationRoundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function quotationLineIsTaxable(taxable_lines: QuotationTaxableLines | null | undefined, key: string): boolean {
+  return taxable_lines?.[key] !== false;
+}
+
+/** Load DB `taxable_lines` into staff form defaults; `additionalChargeCount` = length of form additionalCharges array. */
+export function parseQuotationTaxableLinesToForm(
+  taxable_lines: QuotationTaxableLines | null | undefined,
+  additionalChargeCount: number
+): QuotationTaxableLinesForm {
+  const additional = Array.from({ length: additionalChargeCount }, (_, i) =>
+    quotationLineIsTaxable(taxable_lines, `additional:${i}`)
+  );
+  return {
+    freight: quotationLineIsTaxable(taxable_lines, 'freight'),
+    clearance: quotationLineIsTaxable(taxable_lines, 'clearance'),
+    delivery: quotationLineIsTaxable(taxable_lines, 'delivery'),
+    additional,
+  };
+}
+
+/**
+ * Build persisted map from form. Only non-empty additional rows (same filter as save) get keys additional:0..
+ */
+export function buildQuotationTaxableLinesFromForm(
+  form: QuotationTaxableLinesForm,
+  additionalCharges: { name?: string; description?: string; amount?: number | string }[]
+): QuotationTaxableLines {
+  const out: QuotationTaxableLines = {};
+  out.freight = form.freight !== false;
+  out.clearance = form.clearance !== false;
+  out.delivery = form.delivery !== false;
+  let dbIdx = 0;
+  additionalCharges.forEach((charge, formIdx) => {
+    const included =
+      (charge.name ?? '').trim() !== '' ||
+      (charge.description ?? '').trim() !== '' ||
+      (Number(charge.amount) || 0) > 0;
+    if (included) {
+      out[`additional:${dbIdx}`] = form.additional?.[formIdx] !== false;
+      dbIdx++;
+    }
+  });
+  return out;
+}
+
+export function computeQuotationVatBreakdown(params: {
+  total_freight_cost: number;
+  clearance_cost: number;
+  delivery_amount: number;
+  additional_amounts: number[];
+  taxable_lines: QuotationTaxableLines | null | undefined;
+}): {
+  vat_base: number;
+  non_vat_base: number;
+  subtotal_pre_vat: number;
+  vat_amount: number;
+  grand_total_with_vat: number;
+} {
+  const tl = params.taxable_lines ?? {};
+  let vatBase = 0;
+  let nonVatBase = 0;
+  const push = (amount: number, taxable: boolean) => {
+    const a = Number(amount) || 0;
+    if (taxable) vatBase += a;
+    else nonVatBase += a;
+  };
+  push(params.total_freight_cost, tl.freight !== false);
+  push(params.clearance_cost, tl.clearance !== false);
+  push(params.delivery_amount, tl.delivery !== false);
+  params.additional_amounts.forEach((amt, i) => {
+    push(amt, tl[`additional:${i}`] !== false);
+  });
+  const vat_base = quotationRoundMoney(vatBase);
+  const non_vat_base = quotationRoundMoney(nonVatBase);
+  const subtotal_pre_vat = quotationRoundMoney(vat_base + non_vat_base);
+  const vat_amount = quotationRoundMoney(vat_base * QUOTATION_VAT_RATE);
+  const grand_total_with_vat = quotationRoundMoney(subtotal_pre_vat + vat_amount);
+  return { vat_base, non_vat_base, subtotal_pre_vat, vat_amount, grand_total_with_vat };
+}
+
+/** Rows for staff UI: split each charge into VAT vs non-VAT portions. */
+export function getQuotationVatDisplayRows(
+  calcResult: { totalFreightCost: number; deliveryCost: number },
+  form: {
+    clearanceCost: number;
+    deliveryServiceRequired: boolean;
+    additionalCharges: { name?: string; description?: string; amount?: number | string }[];
+    taxableLines: QuotationTaxableLinesForm;
+  }
+): { label: string; vatPart: number; nonVatPart: number }[] {
+  const map = buildQuotationTaxableLinesFromForm(form.taxableLines, form.additionalCharges);
+  const rows: { label: string; vatPart: number; nonVatPart: number }[] = [];
+  const split = (amt: number, taxable: boolean) =>
+    taxable ? { vatPart: amt, nonVatPart: 0 } : { vatPart: 0, nonVatPart: amt };
+
+  rows.push({ label: 'Freight Cost', ...split(calcResult.totalFreightCost, map.freight !== false) });
+  rows.push({ label: 'Clearance', ...split(Number(form.clearanceCost) || 0, map.clearance !== false) });
+  if (form.deliveryServiceRequired) {
+    rows.push({ label: 'Delivery', ...split(calcResult.deliveryCost, map.delivery !== false) });
+  }
+  let dbIdx = 0;
+  form.additionalCharges.forEach((ch) => {
+    const included =
+      (ch.name ?? '').trim() !== '' ||
+      (ch.description ?? '').trim() !== '' ||
+      (Number(ch.amount) || 0) > 0;
+    if (!included) return;
+    const amt = Number(ch.amount) || 0;
+    const taxable = map[`additional:${dbIdx}`] !== false;
+    rows.push({
+      label: `Additional: ${ch.description || ch.name || 'Charge'}`,
+      ...split(amt, taxable),
+    });
+    dbIdx++;
+  });
+  return rows;
+}
+
+/** VAT / non-VAT line split for preview/print from a persisted `Quotation` row (snake_case amounts). */
+export function getQuotationVatRowsFromQuote(
+  q: Pick<
+    Quotation,
+    | 'total_freight_cost'
+    | 'clearance_cost'
+    | 'delivery_service_required'
+    | 'delivery_cost'
+    | 'additional_charges'
+    | 'taxable_lines'
+  >
+): { label: string; vatPart: number; nonVatPart: number }[] {
+  const charges = Array.isArray(q.additional_charges) ? q.additional_charges : [];
+  const additionalForForm = charges.map((c) => ({
+    name: c.name ?? '',
+    description: c.description ?? '',
+    amount: Number(c.amount) || 0,
+  }));
+  const tlForm = parseQuotationTaxableLinesToForm(q.taxable_lines, additionalForForm.length);
+  return getQuotationVatDisplayRows(
+    {
+      totalFreightCost: Number(q.total_freight_cost) || 0,
+      deliveryCost: Number(q.delivery_cost) || 0,
+    },
+    {
+      clearanceCost: Number(q.clearance_cost) || 0,
+      deliveryServiceRequired: Boolean(q.delivery_service_required),
+      additionalCharges: additionalForForm,
+      taxableLines: tlForm,
+    }
+  );
+}
+
+/** Same VAT math as save path, for preview totals. */
+export function getQuotationVatBreakdownFromQuote(
+  q: Pick<
+    Quotation,
+    | 'total_freight_cost'
+    | 'clearance_cost'
+    | 'delivery_service_required'
+    | 'delivery_cost'
+    | 'additional_charges'
+    | 'taxable_lines'
+  >
+): ReturnType<typeof computeQuotationVatBreakdown> {
+  const charges = Array.isArray(q.additional_charges) ? q.additional_charges : [];
+  const additionalForForm = charges.map((c) => ({
+    name: c.name ?? '',
+    description: c.description ?? '',
+    amount: Number(c.amount) || 0,
+  }));
+  const tlForm = parseQuotationTaxableLinesToForm(q.taxable_lines, additionalForForm.length);
+  const taxable_lines = buildQuotationTaxableLinesFromForm(tlForm, additionalForForm);
+  const filteredAmounts = additionalForForm
+    .filter(
+      (charge) =>
+        (charge.name ?? '').trim() !== '' ||
+        (charge.description ?? '').trim() !== '' ||
+        (Number(charge.amount) || 0) > 0
+    )
+    .map((c) => Number(c.amount) || 0);
+  return computeQuotationVatBreakdown({
+    total_freight_cost: Number(q.total_freight_cost) || 0,
+    clearance_cost: Number(q.clearance_cost) || 0,
+    delivery_amount: q.delivery_service_required ? Number(q.delivery_cost) || 0 : 0,
+    additional_amounts: filteredAmounts,
+    taxable_lines,
+  });
+}
+
+/** Total amount payable (pre-VAT subtotal + VAT), same accounting relation as Proforma `grand_total`. */
+export function getQuotationPayableTotalThb(
+  q: Pick<Quotation, 'total_cost' | 'vat_amount' | 'grand_total_with_vat'>
+): number {
+  const tc = Number(q.total_cost) || 0;
+  const va = q.vat_amount != null && !Number.isNaN(Number(q.vat_amount)) ? Number(q.vat_amount) : 0;
+  return quotationRoundMoney(tc + va);
+}
+
 export interface Quotation {
   id: string;
   created_at: string;
@@ -152,6 +366,13 @@ export interface Quotation {
     stage: string;
     closure_status?: string | null;
   } | null;
+
+  /** Per-line VAT flags for freight, clearance, delivery, additional (see QuotationTaxableLines). */
+  taxable_lines?: QuotationTaxableLines | null;
+  /** VAT 7% on VAT-eligible portions; total_cost remains pre-VAT. */
+  vat_amount?: number | null;
+  /** total_cost + vat_amount */
+  grand_total_with_vat?: number | null;
 }
 
 export interface DocumentSubmission {
@@ -916,7 +1137,10 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       is_chargeable_weight_manual: quotationData.is_chargeable_weight_manual || false,
       manual_chargeable_weight: quotationData.manual_chargeable_weight || null,
       is_manual_rate: quotationData.is_manual_rate || false,
-      manual_rate: quotationData.manual_rate || null
+      manual_rate: quotationData.manual_rate || null,
+      taxable_lines: quotationData.taxable_lines ?? null,
+      vat_amount: quotationData.vat_amount ?? null,
+      grand_total_with_vat: quotationData.grand_total_with_vat ?? null
     };
 
     const { data, error } = await supabase

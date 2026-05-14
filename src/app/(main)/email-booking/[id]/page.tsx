@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Copy, Mail, Send, Download, Printer } from 'lucide-react';
 import { toast } from 'sonner';
-import { getQuotationById, Quotation } from '@/lib/db';
+import { getQuotationById, Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { generateBookingEmailFromQuotation, formatBookingEmail, generateEmailSubject, EmailBookingData } from '@/lib/email-templates';
 
 
@@ -429,12 +429,12 @@ export default function EmailBookingPage() {
               <p className="font-medium">{quotation.company_name || 'N/A'}</p>
             </div>
             <div>
-              <Label>Total Cost</Label>
+              <Label>Total Cost (incl. VAT)</Label>
               <p className="font-medium">
                 {new Intl.NumberFormat('th-TH', {
                   style: 'currency',
                   currency: 'THB'
-                }).format(quotation.total_cost)}
+                }).format(getQuotationPayableTotalThb(quotation))}
               </p>
             </div>
             <div>

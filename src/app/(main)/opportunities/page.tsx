@@ -38,7 +38,7 @@ export default function OpportunitiesPage() {
     let query = supabase
       .from('opportunities')
       // Select opportunity fields AND linked quotations(id)
-      .select('*, quotations(id, price_confirmed, total_cost, quotation_no), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
+      .select('*, quotations(id, price_confirmed, total_cost, vat_amount, quotation_no), destination:destination_id(country, port), opportunity_products(product:products(id, name))');
 
     // Filter by owner_id if user is logged in
     if (userId) {
@@ -76,7 +76,7 @@ export default function OpportunitiesPage() {
         destination_id?: string;
         destination?: { country: string; port: string | null };
         product_id?: string | null;
-        quotations?: { id: string; price_confirmed?: boolean; total_cost?: number; quotation_no?: string }[];
+        quotations?: { id: string; price_confirmed?: boolean; total_cost?: number; vat_amount?: number | null; quotation_no?: string }[];
         opportunity_products?: { product: { id: string; name: string } }[];
         closure_status?: 'won' | 'lost' | null;
         phyto_done?: boolean | null;
@@ -92,7 +92,7 @@ export default function OpportunitiesPage() {
           ? item.quotations.map(q => q.id)
           : [];
         const quotationDetails = item.quotations && item.quotations.length > 0
-          ? item.quotations.map(q => ({ id: q.id, price_confirmed: q.price_confirmed ?? false, total_cost: q.total_cost, quotation_no: q.quotation_no }))
+          ? item.quotations.map(q => ({ id: q.id, price_confirmed: q.price_confirmed ?? false, total_cost: q.total_cost, vat_amount: q.vat_amount, quotation_no: q.quotation_no }))
           : [];
 
         // Extract destination name

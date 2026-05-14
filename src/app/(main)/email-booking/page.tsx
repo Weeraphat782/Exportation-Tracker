@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Mail, Search, Plus, FileText } from 'lucide-react';
-import { getQuotations, Quotation } from '@/lib/db';
+import { getQuotations, Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { toast } from 'sonner';
 
 export default function EmailBookingListPage() {
@@ -176,7 +176,7 @@ export default function EmailBookingListPage() {
                     <TableHead>Destination</TableHead>
                     <TableHead>Weight (KG)</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Total Cost</TableHead>
+                    <TableHead>Total Cost (incl. VAT)</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -198,7 +198,7 @@ export default function EmailBookingListPage() {
                           {getStatusText(quotation.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(quotation.total_cost)}</TableCell>
+                      <TableCell>{formatCurrency(getQuotationPayableTotalThb(quotation))}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button

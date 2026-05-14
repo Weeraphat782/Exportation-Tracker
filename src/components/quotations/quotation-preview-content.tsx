@@ -1,8 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import type { Quotation } from '@/lib/db';
+import {
+  getQuotationVatBreakdownFromQuote,
+  getQuotationVatRowsFromQuote,
+  type Quotation,
+} from '@/lib/db';
 
 /** Quotation plus optional camelCase overrides from session/enhanced flow */
 export type QuotationPreviewData = Quotation & {
@@ -20,12 +25,6 @@ interface PalletWithQuantity {
   height: number | string;
   weight: number | string;
   quantity?: number | string;
-}
-
-interface ChargeItem {
-  name: string;
-  description: string;
-  amount: number | string;
 }
 
 function formatNumber(num: number | string | undefined | null) {
@@ -102,6 +101,37 @@ export function QuotationPreviewContent({
         ? quotationData.delivery_cost
         : 3500
     : 0;
+
+  const quoteLike = useMemo(
+    (): Pick<
+      Quotation,
+      | 'total_freight_cost'
+      | 'clearance_cost'
+      | 'delivery_service_required'
+      | 'delivery_cost'
+      | 'additional_charges'
+      | 'taxable_lines'
+    > => ({
+      total_freight_cost: Number(totalFreightCost) || 0,
+      clearance_cost: Number(clearanceCost) || 0,
+      delivery_service_required: Boolean(quotationData.delivery_service_required),
+      delivery_cost: Number(deliveryCost) || 0,
+      additional_charges: quotationData.additional_charges ?? [],
+      taxable_lines: quotationData.taxable_lines,
+    }),
+    [
+      totalFreightCost,
+      clearanceCost,
+      deliveryCost,
+      quotationData.delivery_service_required,
+      quotationData.additional_charges,
+      quotationData.taxable_lines,
+    ]
+  );
+
+  const vatRows = useMemo(() => getQuotationVatRowsFromQuote(quoteLike), [quoteLike]);
+
+  const vatBreakdown = useMemo(() => getQuotationVatBreakdownFromQuote(quoteLike), [quoteLike]);
 
   const displayCompanyName =
     quotationData.signed_company_name?.trim() ||
@@ -224,45 +254,58 @@ export function QuotationPreviewContent({
         <div className="mb-6 sm:mb-8">
           <h3 className="font-semibold bg-gray-100 px-2 py-1 mb-3 uppercase text-sm">SERVICES & CHARGES</h3>
           <div className="overflow-x-auto -mx-1 sm:mx-0">
-          <table className="w-full text-xs sm:text-sm border-collapse min-w-[320px]">
-            <thead>
-              <tr className="border-b">
-                <th className="py-2 text-left">Description</th>
-                <th className="py-2 text-right">Amount (THB)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b">
-                <td className="py-2">Freight Cost</td>
-                <td className="py-2 text-right">{formatNumber(totalFreightCost)}</td>
-              </tr>
-              {(clearanceCost || 0) > 0 && (
+            <table className="w-full text-xs sm:text-sm border-collapse min-w-[420px]">
+              <thead>
                 <tr className="border-b">
-                  <td className="py-2">Clearance Cost</td>
-                  <td className="py-2 text-right">{formatNumber(clearanceCost)}</td>
+                  <th className="py-2 text-left">Description</th>
+                  <th className="py-2 text-right w-[28%]">NON VAT</th>
+                  <th className="py-2 text-right w-[28%]">VAT</th>
                 </tr>
-              )}
-              {quotationData?.delivery_service_required && (
-                <tr className="border-b">
-                  <td className="py-2">
-                    Delivery Service ({quotationData?.delivery_vehicle_type || 'N/A'})
-                  </td>
-                  <td className="py-2 text-right">{formatNumber(deliveryCost)}</td>
-                </tr>
-              )}
-              {quotationData?.additional_charges &&
-                quotationData.additional_charges.map((charge: ChargeItem, index: number) => (
+              </thead>
+              <tbody>
+                {vatRows.map((row, index) => (
                   <tr key={index} className="border-b">
-                    <td className="py-2">Additional: {charge.description}</td>
-                    <td className="py-2 text-right">{formatNumber(charge.amount)}</td>
+                    <td className="py-2">{row.label}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {row.nonVatPart > 0 ? formatNumber(row.nonVatPart) : '—'}
+                    </td>
+                    <td className="py-2 text-right tabular-nums">
+                      {row.vatPart > 0 ? formatNumber(row.vatPart) : '—'}
+                    </td>
                   </tr>
                 ))}
-              <tr className="font-bold">
-                <td className="py-2">Total Cost</td>
-                <td className="py-2 text-right">{formatNumber(quotationData?.total_cost || 0)} THB</td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end mt-4 print:mt-4">
+            <div className="text-xs sm:text-sm w-full sm:max-w-md">
+              <table className="w-full border-collapse">
+                <tbody>
+                  <tr className="border-b text-[10px] sm:text-xs text-slate-600">
+                    <td className="py-1 pr-3 sm:pr-4" />
+                    <td className="py-1 text-right font-semibold uppercase tracking-wide">NON VAT</td>
+                    <td className="py-1 text-right font-semibold uppercase tracking-wide">VAT</td>
+                  </tr>
+                  <tr className="border-b font-semibold">
+                    <td className="py-2 text-left text-slate-900 pr-3 sm:pr-4">TOTAL</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(vatBreakdown.non_vat_base)}</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(vatBreakdown.vat_base)}</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 text-left text-slate-600 pr-3 sm:pr-4">VAT 7.00%</td>
+                    <td className="py-2 text-right tabular-nums">—</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(vatBreakdown.vat_amount)}</td>
+                  </tr>
+                  <tr className="font-bold text-base border-t border-slate-300">
+                    <td className="py-2 text-left pr-3 sm:pr-4">GRAND TOTAL (incl. VAT)</td>
+                    <td className="py-2 text-right tabular-nums" colSpan={2}>
+                      {formatNumber(vatBreakdown.grand_total_with_vat)} THB
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { getCustomerQuotations, getCustomerPendingRequests, cancelCustomerQuoteRequest } from '@/lib/customer-db';
-import type { Quotation } from '@/lib/db';
+import { getQuotationPayableTotalThb, type Quotation } from '@/lib/db';
 import { toast } from 'sonner';
 
 // ============ HELPERS ============
@@ -22,6 +22,11 @@ function formatDate(dateStr: string) {
 
 function formatAmount(amount: number) {
     return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+/** List card: payable incl. VAT (matches Proforma / quotation DB). */
+function formatPayableThb(amount: number) {
+    return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function getStageDisplay(stage?: string, status?: string) {
@@ -106,7 +111,7 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                             <div className={`text-[10px] font-bold uppercase tracking-widest ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
                                 {q.price_confirmed ? 'Confirmed' : '⚠ Pending'}
                             </div>
-                            <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatAmount(q.total_cost)}</div>
+                            <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatPayableThb(getQuotationPayableTotalThb(q))}</div>
                         </div>
                         <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />

@@ -20,6 +20,7 @@ import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus,
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { getQuotationPayableTotalThb } from '@/lib/db';
 
 interface KanbanCardProps {
   opportunity: Opportunity;
@@ -333,10 +334,27 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
           {/* Amount - Auto-populate from linked quotations */}
           {(() => {
-            const quotationPrices = opportunity.quotationDetails?.filter(q => q.total_cost && q.total_cost > 0) || [];
+            const quotationPrices =
+              opportunity.quotationDetails?.filter((q) => {
+                const linePayable = getQuotationPayableTotalThb({
+                  total_cost: q.total_cost ?? 0,
+                  vat_amount: q.vat_amount ?? null,
+                  grand_total_with_vat: null,
+                });
+                return linePayable > 0;
+              }) || [];
             const hasQuotationPrices = quotationPrices.length > 0;
             const totalFromQuotations = hasQuotationPrices
-              ? quotationPrices.reduce((sum, q) => sum + (q.total_cost || 0), 0)
+              ? quotationPrices.reduce(
+                  (sum, q) =>
+                    sum +
+                    getQuotationPayableTotalThb({
+                      total_cost: q.total_cost ?? 0,
+                      vat_amount: q.vat_amount ?? null,
+                      grand_total_with_vat: null,
+                    }),
+                  0
+                )
               : 0;
             const displayAmount = hasQuotationPrices ? totalFromQuotations : opportunity.amount;
             const showMultiBreakdown = quotationPrices.length > 1;
@@ -358,7 +376,14 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     {quotationPrices.map((q, i) => (
                       <div key={q.id} className="flex justify-between text-[11px] py-0.5 border-b border-slate-50 last:border-none">
                         <span className="text-slate-600">{q.quotation_no || `Quote #${i + 1}`}</span>
-                        <span className="font-semibold text-slate-800">{(q.total_cost || 0).toLocaleString()} THB</span>
+                        <span className="font-semibold text-slate-800">
+                          {getQuotationPayableTotalThb({
+                            total_cost: q.total_cost ?? 0,
+                            vat_amount: q.vat_amount ?? null,
+                            grand_total_with_vat: null,
+                          }).toLocaleString()}{' '}
+                          THB
+                        </span>
                       </div>
                     ))}
                     <div className="flex justify-between text-[11px] pt-1 mt-1 border-t border-slate-200 font-bold">

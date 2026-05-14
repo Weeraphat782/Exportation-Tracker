@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Edit2, Save, X, Plus, Eye, StickyNote, FileText } from 'lucide-react';
-import { Quotation } from '@/lib/db';
+import { Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
@@ -626,9 +626,9 @@ export default function CalendarPage() {
               </div>
               
               <div>
-                <Label className="text-sm font-medium">Total Cost</Label>
+                <Label className="text-sm font-medium">Total Cost (incl. VAT)</Label>
                 <p className="text-sm text-gray-600">
-                  {selectedQuotation.total_cost.toLocaleString()} THB
+                  {getQuotationPayableTotalThb(selectedQuotation).toLocaleString()} THB
                 </p>
               </div>
               
@@ -826,7 +826,7 @@ export default function CalendarPage() {
                           </span>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {quotation.destination} • {quotation.total_cost.toLocaleString()} THB • Created: {formatDate(quotation.created_at)}
+                          {quotation.destination} • {getQuotationPayableTotalThb(quotation).toLocaleString()} THB • Created: {formatDate(quotation.created_at)}
                         </span>
                       </div>
                     </SelectItem>

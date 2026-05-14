@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Link2, Package, Calendar, Loader2, Inbox, Clock } from 'lucide-react';
-import { getUnlinkedQuotations, linkQuotationToOpportunity, Quotation } from '@/lib/db';
+import { getUnlinkedQuotations, linkQuotationToOpportunity, Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { toast } from 'sonner';
 
 interface LinkQuotationDialogProps {
@@ -156,6 +156,7 @@ export function LinkQuotationDialog({
                                 const qty = typeof p.quantity === 'number' ? p.quantity : parseInt(String(p.quantity)) || 1;
                                 return sum + (w * qty);
                             }, 0) || 0;
+                            const payableForRow = getQuotationPayableTotalThb(q);
 
                             return (
                                 <div
@@ -195,9 +196,9 @@ export function LinkQuotationDialog({
                                                 <span className="flex items-center gap-1">
                                                     <Calendar className="w-3 h-3" /> {formatDate(q.created_at)}
                                                 </span>
-                                                {q.total_cost > 0 && (
+                                                {payableForRow > 0 && (
                                                     <span className="font-semibold text-gray-600">
-                                                        ฿{q.total_cost.toLocaleString()}
+                                                        ฿{payableForRow.toLocaleString()}
                                                     </span>
                                                 )}
                                             </div>

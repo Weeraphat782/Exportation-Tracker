@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Opportunity, OpportunityStage } from '@/types/opportunity';
-import { Quotation } from '@/lib/db';
+import { Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt, ShieldCheck, CheckCircle } from 'lucide-react';
@@ -291,9 +291,9 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                         </div>
                                                         <div className="text-right">
                                                             <div className="text-xl font-black text-emerald-700">
-                                                                {quote.total_cost.toLocaleString()} <span className="text-xs font-normal text-gray-400">THB</span>
+                                                                {getQuotationPayableTotalThb(quote).toLocaleString()} <span className="text-xs font-normal text-gray-400">THB</span>
                                                             </div>
-                                                            <div className="text-[10px] text-gray-400 uppercase font-black tracking-tight">Net Total</div>
+                                                            <div className="text-[10px] text-gray-400 uppercase font-black tracking-tight">Total (incl. VAT)</div>
                                                         </div>
                                                     </div>
 

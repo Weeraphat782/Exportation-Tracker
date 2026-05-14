@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { ProformaInvoice, Quotation } from '@/lib/db';
 
@@ -40,6 +41,21 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
   const displayCompanyName =
     quote.signed_company_name?.trim() || quote.company_name?.trim() || 'N/A';
   const hasSignature = Boolean(quote.customer_signature?.trim());
+
+  const { nonVatSubtotal, vatColSubtotal } = useMemo(() => {
+    const items = proforma.line_items ?? [];
+    let nonVat = 0;
+    let vatCol = 0;
+    for (const row of items) {
+      const amt = Number(row.amount) || 0;
+      if (row.taxable === false) nonVat += amt;
+      else vatCol += amt;
+    }
+    return {
+      nonVatSubtotal: Math.round(nonVat * 100) / 100,
+      vatColSubtotal: Math.round(vatCol * 100) / 100,
+    };
+  }, [proforma.line_items]);
 
   return (
     <Card
@@ -174,25 +190,35 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
           </div>
 
           <div className="overflow-x-auto -mx-1 sm:mx-0">
-            <table className="w-full text-xs sm:text-sm border-collapse min-w-[320px]">
+            <table className="w-full text-xs sm:text-sm border-collapse min-w-[420px]">
               <thead>
                 <tr className="border-b">
                   <th className="py-2 text-left w-12">ลำดับ</th>
                   <th className="py-2 text-left">รายการ</th>
-                  <th className="py-2 text-right">จำนวนเงิน (THB)</th>
+                  <th className="py-2 text-right w-[26%]">NON VAT</th>
+                  <th className="py-2 text-right w-[26%]">VAT</th>
                 </tr>
               </thead>
               <tbody>
-                {(proforma.line_items ?? []).map((row, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-2 align-top">{index + 1}</td>
-                    <td className="py-2 whitespace-pre-wrap">{row.description || '—'}</td>
-                    <td className="py-2 text-right align-top">{formatNumber(row.amount)}</td>
-                  </tr>
-                ))}
+                {(proforma.line_items ?? []).map((row, index) => {
+                  const amt = Number(row.amount) || 0;
+                  const taxable = row.taxable !== false;
+                  return (
+                    <tr key={index} className="border-b">
+                      <td className="py-2 align-top">{index + 1}</td>
+                      <td className="py-2 whitespace-pre-wrap">{row.description || '—'}</td>
+                      <td className="py-2 text-right align-top tabular-nums">
+                        {!taxable && amt > 0 ? formatNumber(amt) : '—'}
+                      </td>
+                      <td className="py-2 text-right align-top tabular-nums">
+                        {taxable && amt > 0 ? formatNumber(amt) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {(!proforma.line_items || proforma.line_items.length === 0) && (
                   <tr>
-                    <td colSpan={3} className="py-4 text-center text-slate-400 italic">
+                    <td colSpan={4} className="py-4 text-center text-slate-400 italic">
                       No line items
                     </td>
                   </tr>
@@ -202,20 +228,29 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
           </div>
 
           <div className="flex justify-end mt-6">
-            <div className="text-sm w-full sm:max-w-[320px]">
-              <table className="w-full">
+            <div className="text-sm w-full sm:max-w-md">
+              <table className="w-full border-collapse">
                 <tbody>
-                  <tr>
-                    <td className="py-1 text-left sm:text-right pr-4 text-slate-600">Sub Total</td>
-                    <td className="py-1 text-right font-medium">{formatNumber(proforma.subtotal)} THB</td>
+                  <tr className="border-b text-xs text-slate-600">
+                    <td className="py-1 pr-4" />
+                    <td className="py-1 text-right font-semibold uppercase tracking-wide">NON VAT</td>
+                    <td className="py-1 text-right font-semibold uppercase tracking-wide">VAT</td>
                   </tr>
-                  <tr>
-                    <td className="py-1 text-left sm:text-right pr-4 text-slate-600">VAT 7%</td>
-                    <td className="py-1 text-right font-medium">{formatNumber(proforma.vat)} THB</td>
+                  <tr className="border-b font-semibold">
+                    <td className="py-2 text-left text-slate-900 pr-4">TOTAL</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(nonVatSubtotal)}</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(vatColSubtotal)}</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 text-left text-slate-600 pr-4">VAT 7.00%</td>
+                    <td className="py-2 text-right tabular-nums">—</td>
+                    <td className="py-2 text-right tabular-nums">{formatNumber(proforma.vat)}</td>
                   </tr>
                   <tr className="font-bold text-base border-t border-slate-300">
-                    <td className="py-2 text-left sm:text-right pr-4">Grand Total</td>
-                    <td className="py-2 text-right">{formatNumber(proforma.grand_total)} THB</td>
+                    <td className="py-2 text-left pr-4">GRAND TOTAL (incl. VAT)</td>
+                    <td className="py-2 text-right tabular-nums" colSpan={2}>
+                      {formatNumber(proforma.grand_total)} THB
+                    </td>
                   </tr>
                 </tbody>
               </table>

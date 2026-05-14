@@ -11,7 +11,17 @@ import { Label } from "@/components/ui/label";
 import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, ScrollText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { getQuotations, deleteQuotation as dbDeleteQuotation, updateQuotation, Quotation, getCustomerUsers, assignCustomerToQuotation, getPendingApprovalQuotations, generateShareToken } from '@/lib/db';
+import {
+  getQuotations,
+  deleteQuotation as dbDeleteQuotation,
+  updateQuotation,
+  Quotation,
+  getCustomerUsers,
+  assignCustomerToQuotation,
+  getPendingApprovalQuotations,
+  generateShareToken,
+  getQuotationPayableTotalThb,
+} from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -31,7 +41,7 @@ const ALL_COLUMNS = [
   { id: 'status', label: 'Status', default: true },
   { id: 'net_weight', label: 'Net Weight', default: true },
   { id: 'shipping_date', label: 'Shipping Date', default: true },
-  { id: 'total_cost', label: 'Total Cost', default: true },
+  { id: 'total_cost', label: 'Total Cost (incl. VAT)', default: true },
 ] as const;
 
 type ColumnId = typeof ALL_COLUMNS[number]['id'];
@@ -776,7 +786,7 @@ export default function ShippingCalculatorPage() {
               {isColumnVisible('status') && <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>}
               {isColumnVisible('net_weight') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Net Weight</TableHead>}
               {isColumnVisible('shipping_date') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Shipping Date</TableHead>}
-              {isColumnVisible('total_cost') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost</TableHead>}
+              {isColumnVisible('total_cost') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Total Cost (incl. VAT)</TableHead>}
               <TableHead className="min-w-[140px] text-right text-xs sm:text-sm">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -862,7 +872,7 @@ export default function ShippingCalculatorPage() {
                     )}
                   </TableCell>
                 )}
-                {isColumnVisible('total_cost') && <TableCell className="text-xs sm:text-sm">{formatCurrency(quotation.total_cost)}</TableCell>}
+                {isColumnVisible('total_cost') && <TableCell className="text-xs sm:text-sm">{formatCurrency(getQuotationPayableTotalThb(quotation))}</TableCell>}
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1 sm:gap-2">
                     {/* View Quotation Button */}

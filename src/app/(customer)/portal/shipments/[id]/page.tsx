@@ -21,11 +21,18 @@ import {
     getCompanyDocuments,
 } from '@/lib/customer-db';
 import { calculateVolumeWeight } from '@/lib/calculators';
-import type { Quotation, DocumentSubmission, AdditionalCharge, Pallet } from '@/lib/db';
+import {
+    getDocumentTemplate,
+    getQuotationPayableTotalThb,
+    getQuotationVatBreakdownFromQuote,
+    type Quotation,
+    type DocumentSubmission,
+    type AdditionalCharge,
+    type Pallet,
+} from '@/lib/db';
 import type { FreightRate, CompanyDocument } from '@/lib/customer-db';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'react-hot-toast';
-import { getDocumentTemplate } from '@/lib/db';
 import {
     Collapsible,
     CollapsibleContent,
@@ -107,6 +114,11 @@ function formatDate(dateStr: string, hasMounted: boolean) {
 
 function formatAmount(amount: number) {
     return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+/** THB with decimals (payable / VAT lines). */
+function formatMoneyThb(amount: number) {
+    return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function groupPallets(pallets: Pallet[]) {
@@ -505,6 +517,38 @@ export default function ShipmentDetailPage() {
         return computeShipmentTotalsFromPallets(quotation, pallets, freightRates);
     }, [pallets, quotation, freightRates]);
 
+    /** VAT breakdown from live freight/delivery when price is not locked; otherwise use DB. */
+    const liveVatBreakdown = useMemo(() => {
+        if (!quotation || !totals) return null;
+        if (quotation.price_confirmed) return null;
+        return getQuotationVatBreakdownFromQuote({
+            total_freight_cost: totals.totalFreightCost,
+            clearance_cost: Number(quotation.clearance_cost) || 0,
+            delivery_service_required: Boolean(quotation.delivery_service_required),
+            delivery_cost: totals.deliveryCost,
+            additional_charges: quotation.additional_charges ?? [],
+            taxable_lines: quotation.taxable_lines,
+        });
+    }, [quotation, totals]);
+
+    const payableTotalThb = useMemo(() => {
+        if (!quotation || !totals) return 0;
+        if (quotation.price_confirmed) {
+            return getQuotationPayableTotalThb(quotation);
+        }
+        return liveVatBreakdown?.grand_total_with_vat ?? totals.totalCost;
+    }, [quotation, totals, liveVatBreakdown]);
+
+    const subtotalExclVat = totals?.totalCost ?? 0;
+
+    const vatLineAmount = useMemo(() => {
+        if (!quotation || !totals) return 0;
+        if (quotation.price_confirmed) {
+            return quotation.vat_amount != null ? Number(quotation.vat_amount) : 0;
+        }
+        return liveVatBreakdown?.vat_amount ?? 0;
+    }, [quotation, totals, liveVatBreakdown]);
+
     // ---- Pallet handlers ----
     const isPalletLocked = quotation?.price_confirmed === true;
 
@@ -766,7 +810,7 @@ export default function ShipmentDetailPage() {
                                 <div className={`text-[10px] font-black uppercase tracking-widest text-right mb-0.5 ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
                                     {q.price_confirmed ? 'Confirmed Total' : '⚠ Price not confirmed'}
                                 </div>
-                                <div className={`text-2xl font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatAmount(totals.totalCost)}</div>
+                                <div className={`text-2xl font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoneyThb(payableTotalThb)}</div>
                                 {!q.price_confirmed && (
                                     <div className="text-[10px] text-amber-600 font-semibold text-right mt-0.5">might be changed</div>
                                 )}
@@ -876,9 +920,19 @@ export default function ShipmentDetailPage() {
                             <span className="text-sm font-bold text-gray-900">{formatAmount(Number(charge.amount))}</span>
                         </div>
                     ))}
+                    <div className="px-5 py-3 flex justify-between items-center bg-gray-50/90 border-t border-gray-100">
+                        <span className="text-sm text-gray-600">Subtotal (excl. VAT)</span>
+                        <span className="text-sm font-bold text-gray-900">{formatMoneyThb(subtotalExclVat)}</span>
+                    </div>
+                    {vatLineAmount > 0 && (
+                        <div className="px-5 py-3 flex justify-between items-center border-t border-gray-50">
+                            <span className="text-sm text-gray-600">VAT 7%</span>
+                            <span className="text-sm font-bold text-gray-900">{formatMoneyThb(vatLineAmount)}</span>
+                        </div>
+                    )}
                     <div className="px-5 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center">
-                        <span className="text-xs font-black text-emerald-100 uppercase tracking-widest">Total</span>
-                        <span className="text-xl font-black text-white">{formatAmount(totals.totalCost)}</span>
+                        <span className="text-xs font-black text-emerald-100 uppercase tracking-widest">Grand total (incl. VAT)</span>
+                        <span className="text-xl font-black text-white">{formatMoneyThb(payableTotalThb)}</span>
                     </div>
                 </div>
             </div>

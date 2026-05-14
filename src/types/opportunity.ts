@@ -39,7 +39,7 @@ export interface Opportunity {
 
     // Links - Support multiple quotations
     quotationIds?: string[]; // Array of linked quotation IDs
-    quotationDetails?: { id: string; price_confirmed?: boolean; total_cost?: number; quotation_no?: string }[]; // For price display & Confirm Price button
+    quotationDetails?: { id: string; price_confirmed?: boolean; total_cost?: number; vat_amount?: number | null; quotation_no?: string }[]; // For price display & Confirm Price button
 
     // Closure status - separate from stage (card can be won/lost at any stage)
     closureStatus?: 'won' | 'lost' | null;
