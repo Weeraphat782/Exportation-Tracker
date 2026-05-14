@@ -20,10 +20,6 @@ function formatDate(dateStr: string) {
     } catch { return dateStr; }
 }
 
-function formatAmount(amount: number) {
-    return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
 /** List card: payable incl. VAT (matches Proforma / quotation DB). */
 function formatPayableThb(amount: number) {
     return `฿${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
