@@ -275,8 +275,11 @@ export async function getFileUrl(
   provider: 'supabase' | 'r2' = 'supabase',
   bucket: string = 'documents'
 ): Promise<string> {
+  // Guard: empty or missing path — nothing to resolve
+  if (!path) return '';
+
   // If path is already a full URL, return it directly
-  if (path?.startsWith('http')) {
+  if (path.startsWith('http')) {
     return path;
   }
 
@@ -297,7 +300,6 @@ export async function getFileUrl(
         Bucket: R2_BUCKET,
         Key: path,
       });
-      // สร้าง signed URL ที่มีอายุ 1 ชั่วโมง (3600 วินาที)
       return await getSignedUrl(r2Client, command, { expiresIn: 3600 });
     } catch (error) {
       console.error('Error generating R2 signed URL:', error);
@@ -306,6 +308,11 @@ export async function getFileUrl(
   }
 
   // Default to Supabase
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
+  try {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Error generating Supabase public URL:', error);
+    return '';
+  }
 }

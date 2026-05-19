@@ -68,10 +68,13 @@ export function QuotationDocuments({ quotationId, requiredDocTypes }: QuotationD
             const docs = await getDocumentSubmissions(quotationId);
             if (docs && docs.length > 0) {
                 // Resolve URLs for each document based on provider
-                const docsWithUrls = await Promise.all(docs.map(async (doc) => {
-                    const resolvedUrl = await getFileUrl(doc.file_path || '', doc.storage_provider || 'supabase');
+                const results = await Promise.allSettled(docs.map(async (doc) => {
+                    const resolvedUrl = await getFileUrl(doc.file_path || doc.file_url || '', doc.storage_provider || 'supabase');
                     return { ...doc, file_url: resolvedUrl };
                 }));
+                const docsWithUrls = results
+                    .filter((r): r is PromiseFulfilledResult<typeof docs[0]> => r.status === 'fulfilled')
+                    .map(r => r.value);
                 setDocuments(docsWithUrls);
             } else {
                 setDocuments([]);

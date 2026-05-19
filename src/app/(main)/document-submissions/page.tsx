@@ -109,19 +109,24 @@ export default function DocumentSubmissionsPage() {
       const { getFileUrl } = await import('@/lib/storage');
 
       // Resolve URLs for documents
-      const resolvedSubmissions = await Promise.all((submissionsData as DocumentSubmission[]).map(async (sub) => {
+      const submissionResults = await Promise.allSettled((submissionsData as DocumentSubmission[]).map(async (sub) => {
         const url = await getFileUrl(sub.file_path || sub.file_url, sub.storage_provider || 'supabase');
         return { ...sub, file_url: url };
       }));
+      const resolvedSubmissions = submissionResults
+        .filter((r): r is PromiseFulfilledResult<DocumentSubmission> => r.status === 'fulfilled')
+        .map(r => r.value);
 
       // Resolve URLs for shipment photos in quotations
       const resolvedQuotations = await Promise.all((quotationsData || []).map(async (q) => {
         if (q.shipment_photo_url && Array.isArray(q.shipment_photo_url)) {
-          const resolvedPhotos = await Promise.all(q.shipment_photo_url.filter(Boolean).map(async (pathOrUrl: string) => {
-            // If it's already a full URL (supabase), use it. If it's a path (R2), resolve it.
+          const photoResults = await Promise.allSettled(q.shipment_photo_url.filter(Boolean).map(async (pathOrUrl: string) => {
             const isPath = typeof pathOrUrl === 'string' && !pathOrUrl.startsWith('http');
             return await getFileUrl(pathOrUrl, isPath ? 'r2' : 'supabase');
           }));
+          const resolvedPhotos = photoResults
+            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+            .map(r => r.value);
           return { ...q, shipment_photo_url: resolvedPhotos };
         }
         return q;
