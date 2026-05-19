@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { getDocumentSubmissions, deleteDocumentSubmission, DocumentSubmission } from '@/lib/db';
-import { getFileUrl } from '@/lib/storage';
+import { resolveDocumentFileUrl } from '@/lib/storage';
 import {
     getDocumentCategories,
     countPresetTypes,
@@ -30,6 +30,7 @@ export function QuotationDocuments({
     const [documents, setDocuments] = useState<DocumentSubmission[]>([]);
     const [loading, setLoading] = useState(true);
     const [includeMsds, setIncludeMsds] = useState(false);
+    const [openingDocId, setOpeningDocId] = useState<string | null>(null);
 
     const commodityType = normalizeCommodityType(commodityTypeProp ?? undefined);
 
@@ -48,14 +49,7 @@ export function QuotationDocuments({
         try {
             const docs = await getDocumentSubmissions(quotationId);
             if (docs && docs.length > 0) {
-                const results = await Promise.allSettled(docs.map(async (doc) => {
-                    const resolvedUrl = await getFileUrl(doc.file_path || doc.file_url || '', doc.storage_provider || 'supabase');
-                    return { ...doc, file_url: resolvedUrl };
-                }));
-                const docsWithUrls = results
-                    .filter((r): r is PromiseFulfilledResult<typeof docs[0]> => r.status === 'fulfilled')
-                    .map(r => r.value);
-                setDocuments(docsWithUrls);
+                setDocuments(docs);
 
                 const hasMsds = docs.some((d) =>
                     (d.document_type || '').toLowerCase().replace(/[^a-z0-9]/g, '') === 'msds'
@@ -76,6 +70,26 @@ export function QuotationDocuments({
             fetchDocuments();
         }
     }, [quotationId, fetchDocuments]);
+
+    const openDocument = async (doc: DocumentSubmission) => {
+        setOpeningDocId(doc.id);
+        try {
+            const url = await resolveDocumentFileUrl({
+                file_path: doc.file_path,
+                file_url: doc.file_url,
+                storage_provider: doc.storage_provider || 'r2',
+            });
+            if (!url) {
+                toast.error('Could not open document');
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+            toast.error('Failed to open document');
+        } finally {
+            setOpeningDocId(null);
+        }
+    };
 
     const handleDelete = async (docId: string, fileName: string) => {
         if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
@@ -247,11 +261,19 @@ export function QuotationDocuments({
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1 ml-1 shrink-0">
-                                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full border border-transparent hover:border-emerald-100">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full border border-transparent hover:border-emerald-100"
+                                        disabled={openingDocId === doc.id}
+                                        onClick={() => openDocument(doc)}
+                                    >
+                                        {openingDocId === doc.id ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
                                             <ExternalLink className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </a>
+                                        )}
+                                    </Button>
                                     <Button
                                         variant="ghost"
                                         size="icon"

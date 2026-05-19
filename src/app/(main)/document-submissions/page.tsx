@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react';
 import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
-import { formatFileSize } from '@/lib/storage';
+import { formatFileSize, resolveDocumentFileUrl, mapWithConcurrency } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -83,6 +83,9 @@ export default function DocumentSubmissionsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [expandedQuotations, setExpandedQuotations] = useState<Record<string, boolean>>({});
+  const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState<Record<string, string[]>>({});
+  const [resolvingPhotoFor, setResolvingPhotoFor] = useState<string | null>(null);
+  const [modalResolving, setModalResolving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
 
@@ -106,35 +109,10 @@ export default function DocumentSubmissionsPage() {
         getQuotations(userId)
       ]);
 
-      const { getFileUrl } = await import('@/lib/storage');
-
-      // Resolve URLs for documents
-      const submissionResults = await Promise.allSettled((submissionsData as DocumentSubmission[]).map(async (sub) => {
-        const url = await getFileUrl(sub.file_path || sub.file_url, sub.storage_provider || 'supabase');
-        return { ...sub, file_url: url };
-      }));
-      const resolvedSubmissions = submissionResults
-        .filter((r): r is PromiseFulfilledResult<DocumentSubmission> => r.status === 'fulfilled')
-        .map(r => r.value);
-
-      // Resolve URLs for shipment photos in quotations
-      const resolvedQuotations = await Promise.all((quotationsData || []).map(async (q) => {
-        if (q.shipment_photo_url && Array.isArray(q.shipment_photo_url)) {
-          const photoResults = await Promise.allSettled(q.shipment_photo_url.filter(Boolean).map(async (pathOrUrl: string) => {
-            const isPath = typeof pathOrUrl === 'string' && !pathOrUrl.startsWith('http');
-            return await getFileUrl(pathOrUrl, isPath ? 'r2' : 'supabase');
-          }));
-          const resolvedPhotos = photoResults
-            .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-            .map(r => r.value);
-          return { ...q, shipment_photo_url: resolvedPhotos };
-        }
-        return q;
-      }));
-
-      // Type cast to ensure compatibility with our local interface
-      setSubmissions(resolvedSubmissions as unknown as DocumentSubmission[]);
-      setQuotations(resolvedQuotations as unknown as DbQuotation[]);
+      // Show list immediately — resolve R2 signed URLs only when user opens/downloads (avoids dozens of parallel API calls).
+      setSubmissions((submissionsData as DocumentSubmission[]) || []);
+      setQuotations((quotationsData as DbQuotation[]) || []);
+      setResolvedPhotoUrls({});
     } catch (error) {
       console.error('Error loading data:', error);
       setSubmissions([]);
@@ -265,14 +243,13 @@ export default function DocumentSubmissionsPage() {
       const selectedDocs = submissions.filter(s => selectedIds.has(s.id));
 
       // We need to fetch each file as a blob
-      const downloadPromises = selectedDocs.map(async (doc) => {
+      await mapWithConcurrency(selectedDocs, 4, async (doc) => {
         try {
-          const response = await fetch(doc.file_url);
+          const url = await resolveSubmissionUrl(doc);
+          if (!url) throw new Error('No URL');
+          const response = await fetch(url);
           if (!response.ok) throw new Error(`Failed to fetch ${doc.file_name}`);
           const blob = await response.blob();
-
-          // Add to zip. If multiple files have the same name, we append ID to avoid overlap
-          // But usually original_file_name should be used
           const fileName = doc.original_file_name || doc.file_name || `file_${doc.id.substring(0, 5)}`;
           zip.file(fileName, blob);
           successfullyZipped++;
@@ -281,8 +258,6 @@ export default function DocumentSubmissionsPage() {
           failedZipped++;
         }
       });
-
-      await Promise.all(downloadPromises);
 
       if (successfullyZipped === 0) {
         throw new Error('Could not download any of the selected files (likely CORS restrictions).');
@@ -445,17 +420,87 @@ export default function DocumentSubmissionsPage() {
     }
   };
 
-  // Toggle expand/collapse for a quotation
-  const toggleExpand = (quotationId: string) => {
-    setExpandedQuotations(prev => ({
-      ...prev,
-      [quotationId]: !prev[quotationId]
-    }));
+  const resolveSubmissionUrl = async (submission: DocumentSubmission): Promise<string> => {
+    if (submission.file_url?.startsWith('http')) return submission.file_url;
+    return resolveDocumentFileUrl({
+      file_path: submission.file_path,
+      file_url: submission.file_url,
+      storage_provider: submission.storage_provider || 'r2',
+    });
   };
 
-  const openSubmissionModal = (submission: DocumentSubmission) => {
+  const openDocumentInNewTab = async (submission: DocumentSubmission) => {
+    try {
+      const url = await resolveSubmissionUrl(submission);
+      if (!url) {
+        toast.error('Could not open document');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('Failed to open document');
+    }
+  };
+
+  const downloadSubmission = async (submission: DocumentSubmission) => {
+    const url = await resolveSubmissionUrl(submission);
+    if (!url) {
+      toast.error('Could not download document');
+      return;
+    }
+    await handleDownload(url, submission.original_file_name || submission.file_name);
+  };
+
+  // Toggle expand/collapse for a quotation (lazy-resolve shipment photo URLs)
+  const toggleExpand = async (quotationId: string) => {
+    const willExpand = !expandedQuotations[quotationId];
+    setExpandedQuotations(prev => ({
+      ...prev,
+      [quotationId]: willExpand
+    }));
+
+    if (!willExpand || resolvedPhotoUrls[quotationId]) return;
+
+    const quotation = quotations.find((q) => q.id === quotationId);
+    const rawPhotos = quotation?.shipment_photo_url;
+    if (!rawPhotos || !Array.isArray(rawPhotos) || rawPhotos.length === 0) return;
+
+    setResolvingPhotoFor(quotationId);
+    try {
+      const resolved = await mapWithConcurrency(
+        rawPhotos.filter(Boolean) as string[],
+        4,
+        async (pathOrUrl) => {
+          const isPath = !pathOrUrl.startsWith('http');
+          return resolveDocumentFileUrl({
+            file_path: isPath ? pathOrUrl : undefined,
+            file_url: isPath ? undefined : pathOrUrl,
+            storage_provider: isPath ? 'r2' : 'supabase',
+          });
+        }
+      );
+      setResolvedPhotoUrls((prev) => ({ ...prev, [quotationId]: resolved }));
+    } finally {
+      setResolvingPhotoFor(null);
+    }
+  };
+
+  const openSubmissionModal = async (submission: DocumentSubmission) => {
     setSelectedSubmission(submission);
     setIsModalOpen(true);
+    if (submission.file_url?.startsWith('http')) return;
+
+    setModalResolving(true);
+    try {
+      const url = await resolveSubmissionUrl(submission);
+      if (url) {
+        setSelectedSubmission({ ...submission, file_url: url });
+      }
+    } catch {
+      toast.error('Failed to load document preview');
+    } finally {
+      setModalResolving(false);
+    }
   };
 
   return (
@@ -643,16 +688,16 @@ export default function DocumentSubmissionsPage() {
                                       <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => window.open(submission.file_url, '_blank', 'noopener,noreferrer')}
+                                        onClick={() => openDocumentInNewTab(submission)}
                                         title="Open in new tab"
-                                        disabled={!submission.file_url}
+                                        disabled={!submission.file_path && !submission.file_url}
                                       >
                                         <ExternalLink className="h-4 w-4" />
                                       </Button>
                                       <Button
                                         variant="outline"
                                         size="icon"
-                                        onClick={() => handleDownload(submission.file_url, submission.original_file_name)}
+                                        onClick={() => downloadSubmission(submission)}
                                         title="Download Document"
                                       >
                                         <Download className="h-4 w-4" />
@@ -731,16 +776,16 @@ export default function DocumentSubmissionsPage() {
                                           <Button
                                             variant="outline"
                                             size="icon"
-                                            onClick={() => window.open(submission.file_url, '_blank', 'noopener,noreferrer')}
+                                            onClick={() => openDocumentInNewTab(submission)}
                                             title="Open in new tab"
-                                            disabled={!submission.file_url}
+                                            disabled={!submission.file_path && !submission.file_url}
                                           >
                                             <ExternalLink className="h-4 w-4" />
                                           </Button>
                                           <Button
                                             variant="outline"
                                             size="icon"
-                                            onClick={() => handleDownload(submission.file_url, submission.original_file_name)}
+                                            onClick={() => downloadSubmission(submission)}
                                             title="Download Document"
                                           >
                                             <Download className="h-4 w-4" />
@@ -792,9 +837,15 @@ export default function DocumentSubmissionsPage() {
                             {quotationInfo.shipment_photo_url && Array.isArray(quotationInfo.shipment_photo_url) && quotationInfo.shipment_photo_url.length > 0 && (
                               <div className="mb-6 p-4 border rounded-md bg-slate-50">
                                 <h4 className="text-md font-semibold mb-3 text-gray-700">Shipment Photos:</h4>
+                                {resolvingPhotoFor === quotationId && (
+                                  <p className="text-sm text-muted-foreground flex items-center gap-2 mb-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading photos...
+                                  </p>
+                                )}
                                 <Carousel className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg mx-auto">
                                   <CarouselContent>
-                                    {quotationInfo.shipment_photo_url.map((url, index) => (
+                                    {(resolvedPhotoUrls[quotationId] ?? []).filter(Boolean).map((url, index) => (
                                       <CarouselItem key={index}>
                                         <div className="p-1">
                                           <Card className="overflow-hidden">
@@ -881,7 +932,15 @@ export default function DocumentSubmissionsPage() {
                 </div>
               )}
 
+              {modalResolving && (
+                <div className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading preview...
+                </div>
+              )}
+
               {(() => {
+                if (!selectedSubmission.file_url) return null;
                 const urlLower = selectedSubmission.file_url.toLowerCase().split('?')[0];
                 if (urlLower.endsWith('.pdf')) {
                   return (
@@ -917,7 +976,7 @@ export default function DocumentSubmissionsPage() {
               <div className="col-span-2 flex justify-center gap-2 mt-4">
                 <Button
                   variant="outline"
-                  onClick={() => handleDownload(selectedSubmission.file_url, selectedSubmission.original_file_name)}
+                  onClick={() => downloadSubmission(selectedSubmission)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download File

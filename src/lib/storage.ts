@@ -270,6 +270,45 @@ export function formatFileSize(bytes: number): string {
  * @param bucket ชื่อ bucket (สำหรับ Supabase)
  * @returns URL สำหรับเข้าถึงไฟล์
  */
+/** Run async work with a max concurrency (avoids flooding /api/get-signed-url). */
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  const workers = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
+}
+
+/** Resolve a stored path or legacy URL to a browser-openable URL. */
+export async function resolveDocumentFileUrl(params: {
+  file_path?: string | null;
+  file_url?: string | null;
+  storage_provider?: 'supabase' | 'r2';
+  bucket?: string;
+}): Promise<string> {
+  const pathOrUrl = (params.file_path || params.file_url || '').trim();
+  if (!pathOrUrl) return '';
+  if (pathOrUrl.startsWith('http')) return pathOrUrl;
+  return getFileUrl(
+    pathOrUrl,
+    params.storage_provider || 'r2',
+    params.bucket || 'documents'
+  );
+}
+
 export async function getFileUrl(
   path: string,
   provider: 'supabase' | 'r2' = 'supabase',
@@ -287,12 +326,21 @@ export async function getFileUrl(
     try {
       // Check if we are running in the browser
       if (typeof window !== 'undefined') {
-        const response = await fetch(`/api/get-signed-url?path=${encodeURIComponent(path)}&bucket=${encodeURIComponent(bucket)}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch signed URL from server');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        try {
+          const response = await fetch(
+            `/api/get-signed-url?path=${encodeURIComponent(path)}&bucket=${encodeURIComponent(bucket)}`,
+            { signal: controller.signal }
+          );
+          if (!response.ok) {
+            throw new Error('Failed to fetch signed URL from server');
+          }
+          const data = await response.json();
+          return data.url as string;
+        } finally {
+          clearTimeout(timeoutId);
         }
-        const data = await response.json();
-        return data.url;
       }
 
       // Server-side: Generate signed URL directly
