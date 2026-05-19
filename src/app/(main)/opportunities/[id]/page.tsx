@@ -387,6 +387,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                     <QuotationDocuments
                                                         quotationId={quote.id}
                                                         requiredDocTypes={quote.required_doc_types}
+                                                        commodityType={quote.commodity_type}
                                                     />
 
                                                     {/* AWB & Customs Declaration - Staff Upload */}

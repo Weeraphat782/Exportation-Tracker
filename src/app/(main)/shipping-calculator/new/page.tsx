@@ -82,6 +82,7 @@ const additionalChargeSchema = z.object({
 // --- Quotation Form Schema ---
 // Relaxed validation - most fields are optional for flexibility
 const quotationFormSchema = z.object({
+    commodityType: z.enum(['cannabis', 'hemp']),
     companyId: z.string().optional(), // Optional - can be filled later
     customerName: z.string().optional(), // Optional - can be filled later
     contactPerson: z.string().optional(),
@@ -639,6 +640,7 @@ function ShippingCalculatorPageContent() {
     const form = useForm<QuotationFormValues>({
         resolver: zodResolver(quotationFormSchema),
         defaultValues: {
+            commodityType: 'cannabis',
             companyId: paramCompanyId || '',
             customerName: paramCustomerName || '',
             contactPerson: '',
@@ -1001,6 +1003,7 @@ function ShippingCalculatorPageContent() {
                             }))
                             : [{ name: '', description: '', amount: 0 }];
                         reset({
+                            commodityType: typedExistingQuotation.commodity_type === 'hemp' ? 'hemp' : 'cannabis',
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
@@ -1122,6 +1125,7 @@ function ShippingCalculatorPageContent() {
 
                         // Reset form with fetched data
                         reset({
+                            commodityType: typedExistingQuotation.commodity_type === 'hemp' ? 'hemp' : 'cannabis',
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
@@ -1457,6 +1461,7 @@ function ShippingCalculatorPageContent() {
         // Construct the full data object matching NewQuotationData with snake_case field names
         const dataForDB: NewQuotationData = {
             user_id: userId,
+            commodity_type: formData.commodityType || 'cannabis',
             company_id: formData.companyId || '',
             customer_name: formData.customerName || '',
             contact_person: formData.contactPerson || '',
@@ -1733,6 +1738,26 @@ function ShippingCalculatorPageContent() {
                             <CardTitle className="text-lg">Customer & Destination</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            <FormField
+                                control={control}
+                                name="commodityType"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Commodity Type *</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select commodity" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="cannabis">Cannabis</SelectItem>
+                                                <SelectItem value="hemp">Hemp</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={control}
                                 name="companyId"

@@ -10,27 +10,9 @@ import { ArrowUpCircle, FileText, Trash2, Plane } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { getAllTemplateDocumentTypes } from '@/lib/document-presets';
 
-// Document types matching your application
-const DOCUMENT_TYPES = [
-  { id: 'company-registration', name: 'Company Registration', category: 'Company Information' },
-  { id: 'company-declaration', name: 'Company Declaration', category: 'Company Information' },
-  { id: 'id-card-copy', name: 'ID Card Copy', category: 'Company Information' },
-  { id: 'import-permit', name: 'Import Permit', category: 'Permits & TK Forms' },
-  { id: 'tk-10', name: 'TK 10', category: 'Permits & TK Forms' },
-  { id: 'tk-10-eng', name: 'TK 10 (ENG Version)', category: 'Permits & TK Forms' },
-  { id: 'tk-11', name: 'TK 11', category: 'Permits & TK Forms' },
-  { id: 'tk-11-eng', name: 'TK 11 (ENG Version)', category: 'Permits & TK Forms' },
-  { id: 'tk-31', name: 'TK 31', category: 'Permits & TK Forms' },
-  { id: 'tk-31-eng', name: 'TK 31 (ENG Version)', category: 'Permits & TK Forms' },
-  { id: 'tk-32', name: 'TK 32', category: 'Permits & TK Forms' },
-  { id: 'purchase-order', name: 'Purchase Order', category: 'Shipping Documents' },
-  { id: 'msds', name: 'MSDS', category: 'Shipping Documents' },
-  { id: 'commercial-invoice', name: 'Commercial Invoice', category: 'Shipping Documents' },
-  { id: 'packing-list', name: 'Packing List', category: 'Shipping Documents' },
-  { id: 'hemp-letter', name: 'Letter (Hemp Case)', category: 'Additional Documents' },
-  { id: 'additional-file', name: 'Additional File', category: 'Additional Documents' },
-];
+const DOCUMENT_TYPES = getAllTemplateDocumentTypes();
 
 // Group document types by category
 const DOCUMENT_CATEGORIES = DOCUMENT_TYPES.reduce((categories, type) => {

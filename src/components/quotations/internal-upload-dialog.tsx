@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,34 +8,28 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FilePlus, Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-
-const ALL_DOC_TYPES = [
-    { id: 'company-registration', name: 'Company Registration' },
-    { id: 'company-declaration', name: 'Company Declaration' },
-    { id: 'id-card-copy', name: 'ID Card Copy' },
-    { id: 'import-permit', name: 'Import Permit' },
-    { id: 'tk-10', name: 'TK 10 (TH)' },
-    { id: 'tk-10-eng', name: 'TK 10 (EN)' },
-    { id: 'tk-11', name: 'TK 11 (TH)' },
-    { id: 'tk-11-eng', name: 'TK 11 (EN)' },
-    { id: 'tk-31', name: 'TK 31 (TH)' },
-    { id: 'tk-31-eng', name: 'TK 31 (EN)' },
-    { id: 'tk-32', name: 'TK 32 (TH)' },
-    { id: 'purchase-order', name: 'Purchase Order' },
-    { id: 'msds', name: 'MSDS' },
-    { id: 'commercial-invoice', name: 'Commercial Invoice' },
-    { id: 'packing-list', name: 'Packing List' },
-    { id: 'hemp-letter', name: 'Letter (Hemp Case)' },
-    { id: 'additional-file', name: 'Additional File' }
-];
+import { getPresetFlat, normalizeCommodityType, type CommodityType } from '@/lib/document-presets';
 
 interface InternalUploadDialogProps {
     quotationId: string;
     companyName: string;
+    commodityType?: CommodityType | string | null;
+    includeMsds?: boolean;
     onUploadSuccess: () => void;
 }
 
-export function InternalUploadDialog({ quotationId, companyName, onUploadSuccess }: InternalUploadDialogProps) {
+export function InternalUploadDialog({
+    quotationId,
+    companyName,
+    commodityType: commodityTypeProp,
+    includeMsds = false,
+    onUploadSuccess,
+}: InternalUploadDialogProps) {
+    const commodityType = normalizeCommodityType(commodityTypeProp ?? undefined);
+    const docTypes = useMemo(
+        () => getPresetFlat(commodityType, includeMsds),
+        [commodityType, includeMsds]
+    );
     const [open, setOpen] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [documentType, setDocumentType] = useState<string>('');
@@ -84,7 +78,7 @@ export function InternalUploadDialog({ quotationId, companyName, onUploadSuccess
             if (!storageResponse.ok) throw new Error('Storage upload failed');
 
             // 3. Confirm Upload
-            const docTypeObj = ALL_DOC_TYPES.find(t => t.id === documentType);
+            const docTypeObj = docTypes.find(t => t.id === documentType);
             const confirmResponse = await fetch('/api/confirm-upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -143,7 +137,7 @@ export function InternalUploadDialog({ quotationId, companyName, onUploadSuccess
                                 <SelectValue placeholder="Select document type" />
                             </SelectTrigger>
                             <SelectContent>
-                                {ALL_DOC_TYPES.map((type) => (
+                                {docTypes.map((type) => (
                                     <SelectItem key={type.id} value={type.id}>
                                         {type.name}
                                     </SelectItem>

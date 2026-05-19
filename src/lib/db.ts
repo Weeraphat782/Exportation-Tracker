@@ -373,6 +373,9 @@ export interface Quotation {
   vat_amount?: number | null;
   /** total_cost + vat_amount */
   grand_total_with_vat?: number | null;
+
+  /** Document checklist preset: cannabis | hemp */
+  commodity_type?: 'cannabis' | 'hemp';
 }
 
 export interface DocumentSubmission {
