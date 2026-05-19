@@ -44,6 +44,7 @@ import {
     type QuotationTaxableLinesForm,
 } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
+import { ALL_COMMODITY_TYPES, COMMODITY_META, normalizeCommodityType } from '@/lib/document-presets';
 import { toast } from 'sonner';
 // import Link from 'next/link'; // Removed unused import
 
@@ -82,7 +83,7 @@ const additionalChargeSchema = z.object({
 // --- Quotation Form Schema ---
 // Relaxed validation - most fields are optional for flexibility
 const quotationFormSchema = z.object({
-    commodityType: z.enum(['cannabis', 'hemp']),
+    commodityType: z.enum(['cannabis', 'hemp', 'kratom', 'general']),
     companyId: z.string().optional(), // Optional - can be filled later
     customerName: z.string().optional(), // Optional - can be filled later
     contactPerson: z.string().optional(),
@@ -1003,7 +1004,7 @@ function ShippingCalculatorPageContent() {
                             }))
                             : [{ name: '', description: '', amount: 0 }];
                         reset({
-                            commodityType: typedExistingQuotation.commodity_type === 'hemp' ? 'hemp' : 'cannabis',
+                            commodityType: normalizeCommodityType(typedExistingQuotation.commodity_type),
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
@@ -1092,7 +1093,7 @@ function ShippingCalculatorPageContent() {
                                     amount: Number(c.amount) || 0
                                 })) : []
                             )),
-                            destinationId: typedExistingQuotation.destination_id
+                            destinationId: typedExistingQuotation.destination_id || ''
                         };
                     } else {
                         console.error(`Effect 2: Quotation ${quotationId} NOT FOUND or RLS blocked access. Current User: ${userId}`);
@@ -1125,7 +1126,7 @@ function ShippingCalculatorPageContent() {
 
                         // Reset form with fetched data
                         reset({
-                            commodityType: typedExistingQuotation.commodity_type === 'hemp' ? 'hemp' : 'cannabis',
+                            commodityType: normalizeCommodityType(typedExistingQuotation.commodity_type),
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
@@ -1202,7 +1203,7 @@ function ShippingCalculatorPageContent() {
                                     amount: Number(c.amount) || 0
                                 })) : []
                             )),
-                            destinationId: typedExistingQuotation.destination_id
+                            destinationId: typedExistingQuotation.destination_id || ''
                         };
 
                         toast.success("Quotation Cloned", { description: "Data copied from existing quotation. Ready to edit." });
@@ -1232,6 +1233,7 @@ function ShippingCalculatorPageContent() {
                             : [{ name: '', description: '', amount: 0 }];
 
                         reset({
+                            commodityType: normalizeCommodityType(typedQ.commodity_type),
                             companyId: typedQ.company_id || '',
                             customerName: typedQ.customer_name || '',
                             contactPerson: typedQ.contact_person || '',
@@ -1466,7 +1468,7 @@ function ShippingCalculatorPageContent() {
             customer_name: formData.customerName || '',
             contact_person: formData.contactPerson || '',
             contract_no: formData.contractNo || null,
-            destination_id: formData.destinationId || '',
+            destination_id: formData.destinationId || null,
             pallets: convertedPallets,
             delivery_service_required: formData.deliveryServiceRequired,
             delivery_vehicle_type: formData.deliveryVehicleType || '4wheel',
@@ -1494,7 +1496,7 @@ function ShippingCalculatorPageContent() {
             company_name: selectedCompany?.name || formData.companyId,
             destination: selectedDestination
                 ? `${selectedDestination.country}${selectedDestination.port ? `, ${selectedDestination.port}` : ''}`
-                : formData.destinationId,
+                : null,
             taxable_lines,
             vat_amount: vatComputed.vat_amount,
             grand_total_with_vat: vatComputed.grand_total_with_vat,
@@ -1719,7 +1721,7 @@ function ShippingCalculatorPageContent() {
                             <h3 className="font-bold text-orange-800">Customer Quote Request</h3>
                             <p className="text-sm text-orange-700 mt-1">
                                 <strong>{existingQuotation.customer_name}</strong> submitted a quote request with pallet dimensions.
-                                Please select a <strong>destination</strong>, review rates, and save to approve.
+                                You can approve without selecting a destination — the customer will not see any price until you fill in destination &amp; rate later.
                             </p>
                             {existingQuotation.notes && (
                                 <p className="text-sm text-orange-600 mt-2 bg-orange-100 rounded px-3 py-1.5">
@@ -1751,8 +1753,11 @@ function ShippingCalculatorPageContent() {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="cannabis">Cannabis</SelectItem>
-                                                <SelectItem value="hemp">Hemp</SelectItem>
+                                                {ALL_COMMODITY_TYPES.map((type) => (
+                                                    <SelectItem key={type} value={type}>
+                                                        {COMMODITY_META[type].label}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </FormItem>
@@ -2508,7 +2513,9 @@ function ShippingCalculatorPageContent() {
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 <span>Saving...</span>
                             </div>
-                        ) : (isApproveMode ? 'Approve & Save' : isEditMode ? 'Update Quotation' : 'Confirm & Save')}
+                        ) : (isApproveMode
+                            ? (watchedDestinationId ? 'Approve & Save' : 'Approve without pricing')
+                            : isEditMode ? 'Update Quotation' : 'Confirm & Save')}
                     </Button>
                 </CardFooter>
             </form>

@@ -1,5 +1,6 @@
 import { queryClient, loadSession } from '@/lib/customer-query-client';
 import type { Quotation, DocumentSubmission } from '@/lib/db';
+import type { CommodityType } from '@/lib/document-presets';
 
 export interface FreightRate {
   id: string;
@@ -374,7 +375,8 @@ export async function saveCustomerSetting(category: string, key: string, value: 
 export async function createCustomerQuoteRequest(
   pallets: { length: number; width: number; height: number; weight: number; quantity: number }[],
   requestedDestination: string,
-  notes?: string
+  notes?: string,
+  commodity: CommodityType = 'cannabis'
 ): Promise<{ success: boolean; quotationId?: string; error?: string }> {
   try {
     await loadSession();
@@ -412,6 +414,7 @@ export async function createCustomerQuoteRequest(
         pallets: explodedPallets,
         requested_destination: requestedDestination,
         notes: notes || null,
+        commodity_type: commodity,
         // Pre-fill company from customer's registered company (staff can change at approval)
         company_id: companyId,
         // Fields that staff will fill in later

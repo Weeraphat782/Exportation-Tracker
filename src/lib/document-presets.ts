@@ -1,8 +1,18 @@
-﻿/**
+/**
  * Central document checklist presets per commodity (internal system).
  */
 
-export type CommodityType = 'cannabis' | 'hemp';
+import type { LucideIcon } from 'lucide-react';
+import { Leaf, Package, Sprout, Trees } from 'lucide-react';
+
+export type CommodityType = 'cannabis' | 'hemp' | 'kratom' | 'general';
+
+export const ALL_COMMODITY_TYPES: CommodityType[] = [
+  'cannabis',
+  'hemp',
+  'kratom',
+  'general',
+];
 
 export interface DocTypeDef {
   id: string;
@@ -15,9 +25,84 @@ export interface DocCategory {
   types: DocTypeDef[];
 }
 
+export const GACP_DOCS_STANDARD: DocTypeDef[] = [
+  { id: 'thai-gacp-certificate-standard', name: 'Thai GACP or GACP Certificate' },
+];
+
+export const GACP_DOCS_FARM: DocTypeDef[] = [
+  { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
+  { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
+  { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' },
+];
+
+export const COMMODITY_META: Record<
+  CommodityType,
+  {
+    label: string;
+    description: string;
+    icon: LucideIcon;
+    iconBgClass: string;
+    iconClass: string;
+    selectedRingClass: string;
+    badgeClass: string;
+    supportsMsds: boolean;
+    supportsGacp: boolean;
+  }
+> = {
+  cannabis: {
+    label: 'Cannabis',
+    description: 'Medical-grade cannabis flowers, extracts, biomass',
+    icon: Leaf,
+    iconBgClass: 'bg-emerald-100',
+    iconClass: 'text-emerald-600',
+    selectedRingClass: 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/50',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    supportsMsds: true,
+    supportsGacp: true,
+  },
+  hemp: {
+    label: 'Hemp',
+    description: 'Industrial hemp & CBD products (Hemp Letter included)',
+    icon: Sprout,
+    iconBgClass: 'bg-lime-100',
+    iconClass: 'text-lime-700',
+    selectedRingClass: 'border-lime-500 ring-2 ring-lime-500/20 bg-lime-50/50',
+    badgeClass: 'bg-lime-50 text-lime-800 border-lime-200',
+    supportsMsds: true,
+    supportsGacp: false,
+  },
+  kratom: {
+    label: 'Kratom',
+    description: 'Kratom products for export',
+    icon: Trees,
+    iconBgClass: 'bg-amber-100',
+    iconClass: 'text-amber-700',
+    selectedRingClass: 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/50',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    supportsMsds: false,
+    supportsGacp: false,
+  },
+  general: {
+    label: 'General',
+    description: 'General export shipments',
+    icon: Package,
+    iconBgClass: 'bg-slate-100',
+    iconClass: 'text-slate-600',
+    selectedRingClass: 'border-slate-500 ring-2 ring-slate-500/20 bg-slate-50/50',
+    badgeClass: 'bg-slate-50 text-slate-800 border-slate-200',
+    supportsMsds: false,
+    supportsGacp: false,
+  },
+};
+
 const COMPANY_INFO_TYPES: DocTypeDef[] = [
   { id: 'company-registration', name: 'Company Registration' },
   { id: 'company-declaration', name: 'Company Declaration' },
+  { id: 'id-card-copy', name: 'ID Card Copy' },
+];
+
+const BASIC_COMPANY_INFO_TYPES: DocTypeDef[] = [
+  { id: 'company-registration', name: 'Company Registration' },
   { id: 'id-card-copy', name: 'ID Card Copy' },
 ];
 
@@ -38,6 +123,10 @@ const CANNABIS_PERMIT_TYPES: DocTypeDef[] = [
 
 const HEMP_PERMIT_TYPES: DocTypeDef[] = [...TK_FORM_TYPES];
 
+const KRATOM_PERMIT_TYPES: DocTypeDef[] = [
+  { id: 'export-permit', name: 'Export Permit' },
+];
+
 const MSDS_TYPE: DocTypeDef = { id: 'msds', name: 'MSDS' };
 
 function buildShippingTypes(includeMsds: boolean): DocTypeDef[] {
@@ -49,6 +138,12 @@ function buildShippingTypes(includeMsds: boolean): DocTypeDef[] {
     { id: 'coa', name: 'COA' },
   ];
 }
+
+const BASIC_SHIPPING_TYPES: DocTypeDef[] = [
+  { id: 'purchase-order', name: 'Purchase Order' },
+  { id: 'commercial-invoice', name: 'Commercial Invoice' },
+  { id: 'packing-list', name: 'Packing List' },
+];
 
 const CANNABIS_ADDITIONAL: DocTypeDef[] = [
   { id: 'additional-file', name: 'Additional File' },
@@ -81,10 +176,30 @@ export const DOCUMENT_PRESETS: Record<
       { id: 'additional', name: 'Additional Documents', types: HEMP_ADDITIONAL },
     ],
   },
+  kratom: {
+    label: 'Kratom',
+    getCategories: () => [
+      { id: 'company-info', name: 'Company Information', types: BASIC_COMPANY_INFO_TYPES },
+      { id: 'permits-forms', name: 'Permits & Forms', types: KRATOM_PERMIT_TYPES },
+      { id: 'shipping-docs', name: 'Shipping Documents', types: BASIC_SHIPPING_TYPES },
+      { id: 'additional', name: 'Additional Documents', types: CANNABIS_ADDITIONAL },
+    ],
+  },
+  general: {
+    label: 'General',
+    getCategories: () => [
+      { id: 'company-info', name: 'Company Information', types: BASIC_COMPANY_INFO_TYPES },
+      { id: 'shipping-docs', name: 'Shipping Documents', types: BASIC_SHIPPING_TYPES },
+      { id: 'additional', name: 'Additional Documents', types: CANNABIS_ADDITIONAL },
+    ],
+  },
 };
 
 export function normalizeCommodityType(value: string | null | undefined): CommodityType {
-  return value === 'hemp' ? 'hemp' : 'cannabis';
+  if (value === 'hemp') return 'hemp';
+  if (value === 'kratom') return 'kratom';
+  if (value === 'general') return 'general';
+  return 'cannabis';
 }
 
 export function getDocumentCategories(
@@ -106,7 +221,7 @@ export function getAllTemplateDocumentTypes(): Array<DocTypeDef & { category: st
   const seen = new Set<string>();
   const result: Array<DocTypeDef & { category: string }> = [];
 
-  (['cannabis', 'hemp'] as CommodityType[]).forEach((commodity) => {
+  ALL_COMMODITY_TYPES.forEach((commodity) => {
     getDocumentCategories(commodity, true).forEach((cat) => {
       cat.types.forEach((type) => {
         if (seen.has(type.id)) return;

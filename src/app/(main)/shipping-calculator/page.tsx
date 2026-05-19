@@ -799,16 +799,27 @@ export default function ShippingCalculatorPage() {
                 {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
                 {isColumnVisible('destination') && (
                   <TableCell className="text-xs sm:text-sm">
-                    {quotation.destination ? (
-                      quotation.destination
-                    ) : quotation.requested_destination ? (
-                      <div className="flex flex-col">
-                        <span className="font-medium text-emerald-700">{quotation.requested_destination}</span>
-                        <span className="text-[10px] text-emerald-500 uppercase font-bold tracking-tight">(Customer Req)</span>
-                      </div>
-                    ) : (
-                      '-'
-                    )}
+                    <div className="max-w-[240px] sm:max-w-[280px]">
+                      {quotation.destination ? (
+                        <div className="truncate" title={quotation.destination}>
+                          {quotation.destination}
+                        </div>
+                      ) : quotation.requested_destination ? (
+                        <div className="flex flex-col min-w-0">
+                          <span
+                            className="font-medium text-emerald-700 truncate"
+                            title={quotation.requested_destination}
+                          >
+                            {quotation.requested_destination}
+                          </span>
+                          <span className="text-[10px] text-emerald-500 uppercase font-bold tracking-tight">
+                            (Customer Req)
+                          </span>
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </div>
                   </TableCell>
                 )}
                 {isColumnVisible('internal_remark') && (
@@ -904,7 +915,7 @@ export default function ShippingCalculatorPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
+                        const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}&commodity=${quotation.commodity_type || 'cannabis'}`;
                         navigator.clipboard.writeText(url);
                         toast.success('Link Copied', {
                           description: 'Document upload link copied to clipboard!'

@@ -41,58 +41,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Leaf } from 'lucide-react';
-
-// ============ CONSTANTS ============
-
-const DOCUMENT_CATEGORIES = [
-    {
-        id: 'company-info', name: 'Company Information',
-        types: [
-            { id: 'company-registration', name: 'Company Registration' },
-            { id: 'company-declaration', name: 'Company Declaration' },
-            { id: 'id-card-copy', name: 'ID Card Copy' }
-        ]
-    },
-    {
-        id: 'permits-forms', name: 'Permits & TK Forms',
-        types: [
-            { id: 'import-permit', name: 'Import Permit' },
-            { id: 'tk-10', name: 'TK 10' },
-            { id: 'tk-10-eng', name: 'TK 10 (ENG Version)' },
-            { id: 'tk-11', name: 'TK 11' },
-            { id: 'tk-11-eng', name: 'TK 11 (ENG Version)' },
-            { id: 'tk-31', name: 'TK 31' },
-            { id: 'tk-31-eng', name: 'TK 31 (ENG Version)' },
-            { id: 'tk-32', name: 'TK 32' }
-        ]
-    },
-    {
-        id: 'shipping-docs', name: 'Shipping Documents',
-        types: [
-            { id: 'purchase-order', name: 'Purchase Order' },
-            { id: 'msds', name: 'MSDS' },
-            { id: 'commercial-invoice', name: 'Commercial Invoice' },
-            { id: 'packing-list', name: 'Packing List' }
-        ]
-    },
-    {
-        id: 'additional', name: 'Additional Documents',
-        types: [
-            { id: 'hemp-letter', name: 'Letter (Hemp Case)' },
-            { id: 'additional-file', name: 'Additional File' }
-        ]
-    }
-];
-
-const GACP_DOCS_STANDARD = [
-    { id: 'thai-gacp-certificate-standard', name: 'Thai GACP or GACP Certificate' }
-];
-
-const GACP_DOCS_FARM = [
-    { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
-    { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
-    { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
-];
+import {
+    COMMODITY_META,
+    GACP_DOCS_FARM,
+    GACP_DOCS_STANDARD,
+    getDocumentCategories,
+    normalizeCommodityType,
+} from '@/lib/document-presets';
 
 const TRACKING_STEPS = [
     { label: 'Pending Docs', step: 1 },
@@ -422,6 +377,7 @@ export default function ShipmentDetailPage() {
     const [companyDocs, setCompanyDocs] = useState<CompanyDocument[]>([]);
     const [freightRates, setFreightRates] = useState<FreightRate[]>([]);
     const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
+    const [includeMsds, setIncludeMsds] = useState(false);
     const [isThaiGacp, setIsThaiGacp] = useState(false);
     const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
     const [resolvedShippingUrls, setResolvedShippingUrls] = useState<{ awb?: string; customs?: string }>({});
@@ -478,11 +434,29 @@ export default function ShipmentDetailPage() {
             }
 
             // Resolve Document URLs
-            const docsWithUrls = await Promise.all(docsData.filter(d => d.quotation_id === id).map(async (doc) => {
-                const url = await getFileUrl(doc.file_path || '', doc.storage_provider || 'supabase');
-                return { ...doc, file_url: url };
-            }));
+            const docsToResolve = docsData.filter(d => d.quotation_id === id);
+            // #region agent log
+            fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1H3',location:'customer-shipment:loadData:before-map',message:'eager URL resolve begin',data:{docCount:docsToResolve.length,providers:docsToResolve.map(d=>d.storage_provider||'supabase'),hasEmptyPath:docsToResolve.filter(d=>!d.file_path).length,quotationId:id},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            let docsWithUrls: typeof docsToResolve = [];
+            try {
+                docsWithUrls = await Promise.all(docsToResolve.map(async (doc) => {
+                    const url = await getFileUrl(doc.file_path || '', doc.storage_provider || 'supabase');
+                    return { ...doc, file_url: url };
+                }));
+                // #region agent log
+                fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1',location:'customer-shipment:loadData:after-map',message:'eager URL resolve done',data:{resolved:docsWithUrls.length,blanks:docsWithUrls.filter(d=>!d.file_url).length},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
+            } catch (mapErr) {
+                // #region agent log
+                fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1',location:'customer-shipment:loadData:map-throw',message:'Promise.all docs map threw',data:{err:String((mapErr as Error)?.message||mapErr),name:(mapErr as Error)?.name},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
+                throw mapErr;
+            }
             setDocuments(docsWithUrls);
+            if (docsWithUrls.length === 0) {
+                setDocsOpen(true);
+            }
 
             // Resolve Shipping Doc URLs
             const shippingUrls: { awb?: string; customs?: string } = {};
@@ -517,9 +491,15 @@ export default function ShipmentDetailPage() {
         return computeShipmentTotalsFromPallets(quotation, pallets, freightRates);
     }, [pallets, quotation, freightRates]);
 
+    const isPricingPending = useMemo(() => {
+        if (!quotation) return false;
+        return !quotation.destination_id || !quotation.total_cost || Number(quotation.total_cost) <= 0;
+    }, [quotation]);
+
     /** VAT breakdown from live freight/delivery when price is not locked; otherwise use DB. */
     const liveVatBreakdown = useMemo(() => {
         if (!quotation || !totals) return null;
+        if (isPricingPending) return null;
         if (quotation.price_confirmed) return null;
         return getQuotationVatBreakdownFromQuote({
             total_freight_cost: totals.totalFreightCost,
@@ -529,25 +509,25 @@ export default function ShipmentDetailPage() {
             additional_charges: quotation.additional_charges ?? [],
             taxable_lines: quotation.taxable_lines,
         });
-    }, [quotation, totals]);
+    }, [quotation, totals, isPricingPending]);
 
     const payableTotalThb = useMemo(() => {
-        if (!quotation || !totals) return 0;
+        if (!quotation || !totals || isPricingPending) return 0;
         if (quotation.price_confirmed) {
             return getQuotationPayableTotalThb(quotation);
         }
         return liveVatBreakdown?.grand_total_with_vat ?? totals.totalCost;
-    }, [quotation, totals, liveVatBreakdown]);
+    }, [quotation, totals, liveVatBreakdown, isPricingPending]);
 
     const subtotalExclVat = totals?.totalCost ?? 0;
 
     const vatLineAmount = useMemo(() => {
-        if (!quotation || !totals) return 0;
+        if (!quotation || !totals || isPricingPending) return 0;
         if (quotation.price_confirmed) {
             return quotation.vat_amount != null ? Number(quotation.vat_amount) : 0;
         }
         return liveVatBreakdown?.vat_amount ?? 0;
-    }, [quotation, totals, liveVatBreakdown]);
+    }, [quotation, totals, liveVatBreakdown, isPricingPending]);
 
     // ---- Pallet handlers ----
     const isPalletLocked = quotation?.price_confirmed === true;
@@ -732,6 +712,29 @@ export default function ShipmentDetailPage() {
         }
     };
 
+    const commodity = useMemo(
+        () => normalizeCommodityType(quotation?.commodity_type),
+        [quotation?.commodity_type]
+    );
+
+    const documentCategoriesWithGacp = useMemo(() => {
+        const base = getDocumentCategories(commodity, includeMsds);
+        if (!COMMODITY_META[commodity].supportsGacp) {
+            return base;
+        }
+        return [
+            ...base,
+            {
+                id: 'gacp-certification',
+                name: 'Thai GACP or GACP Certificate',
+                types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD,
+            },
+        ];
+    }, [commodity, includeMsds, isThaiGacp]);
+
+    const commodityMeta = COMMODITY_META[commodity];
+    const CommodityIcon = commodityMeta.icon;
+
     // ---- Loading / Not found ----
     if (loading) {
         return (
@@ -775,6 +778,10 @@ export default function ShipmentDetailPage() {
                             <div className="space-y-1.5">
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-xl font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</h1>
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${commodityMeta.badgeClass}`}>
+                                        <CommodityIcon className="w-3 h-3" />
+                                        {commodityMeta.label}
+                                    </span>
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
                                         {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-2 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-blue-500'}`} />}
                                         {sc.label}
@@ -806,15 +813,22 @@ export default function ShipmentDetailPage() {
                                 )}
                                 {shareCopied ? 'Copied!' : 'Share'}
                             </button>
-                            <div className={`px-5 py-3 rounded-xl border-2 ${q.price_confirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-400 animate-pulse'}`}>
-                                <div className={`text-[10px] font-black uppercase tracking-widest text-right mb-0.5 ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                    {q.price_confirmed ? 'Confirmed Total' : '⚠ Price not confirmed'}
+                            {isPricingPending ? (
+                                <div className="px-5 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 text-right max-w-[220px]">
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Awaiting Pricing</div>
+                                    <div className="text-sm font-semibold text-slate-600">Our team will provide a quote shortly</div>
                                 </div>
-                                <div className={`text-2xl font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoneyThb(payableTotalThb)}</div>
-                                {!q.price_confirmed && (
-                                    <div className="text-[10px] text-amber-600 font-semibold text-right mt-0.5">might be changed</div>
-                                )}
-                            </div>
+                            ) : (
+                                <div className={`px-5 py-3 rounded-xl border-2 ${q.price_confirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-400 animate-pulse'}`}>
+                                    <div className={`text-[10px] font-black uppercase tracking-widest text-right mb-0.5 ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                        {q.price_confirmed ? 'Confirmed Total' : 'Price not confirmed'}
+                                    </div>
+                                    <div className={`text-2xl font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatMoneyThb(payableTotalThb)}</div>
+                                    {!q.price_confirmed && (
+                                        <div className="text-[10px] text-amber-600 font-semibold text-right mt-0.5">might be changed</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <TrackingProgress sc={sc} />
@@ -879,8 +893,18 @@ export default function ShipmentDetailPage() {
                 <div className="px-5 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
                     <Calculator className="w-3.5 h-3.5 text-gray-400" />
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cost Breakdown</span>
-                    <span className="ml-auto text-[10px] text-gray-400 italic">Updates in real-time</span>
+                    {!isPricingPending && (
+                        <span className="ml-auto text-[10px] text-gray-400 italic">Updates in real-time</span>
+                    )}
                 </div>
+                {isPricingPending ? (
+                    <div className="px-5 py-8 text-center">
+                        <p className="text-sm font-semibold text-slate-700">Awaiting pricing</p>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                            Our team is preparing your quote. You will see the cost breakdown here once destination and rates are set.
+                        </p>
+                    </div>
+                ) : (
                 <div className="divide-y divide-gray-50">
                     {q.status === 'pending_approval' && (
                         <div className="px-5 py-2.5 bg-amber-50/60 border-b border-amber-100/80 flex gap-2 text-xs text-amber-900">
@@ -935,6 +959,7 @@ export default function ShipmentDetailPage() {
                         <span className="text-xl font-black text-white">{formatMoneyThb(payableTotalThb)}</span>
                     </div>
                 </div>
+                )}
             </div>
 
             {/* ===== AWB + CUSTOMS (from staff) ===== */}
@@ -1074,20 +1099,7 @@ export default function ShipmentDetailPage() {
                     ...documents.map(d => d.document_type).filter(Boolean),
                     ...companyDocs.map(d => d.document_type),
                 ] as string[]);
-                const allCategories = [
-                    ...DOCUMENT_CATEGORIES,
-                    ...(isThaiGacp ? [{
-                        id: 'gacp-farm', name: 'GACP Certification (Farm)',
-                        types: [
-                            { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
-                            { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
-                            { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
-                        ]
-                    }] : [{
-                        id: 'gacp-standard', name: 'GACP Certification',
-                        types: [{ id: 'thai-gacp-certificate-standard', name: 'Thai GACP Certificate' }]
-                    }])
-                ];
+                const allCategories = documentCategoriesWithGacp;
                 const processed = allCategories.map(cat => {
                     const types = cat.types.map(type => ({
                         ...type,
@@ -1190,10 +1202,7 @@ export default function ShipmentDetailPage() {
                             <Upload className="w-5 h-5 text-blue-600 shrink-0" />
                             <p className="text-xs font-semibold text-blue-800">You can upload multiple files at once and drag-and-drop files into each document slot.</p>
                         </div>
-                        {[
-                            ...DOCUMENT_CATEGORIES,
-                            { id: 'gacp-certification', name: 'Thai GACP or GACP Certificate', types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD }
-                        ].map(category => (
+                        {documentCategoriesWithGacp.map(category => (
                             <Collapsible key={category.id} open={openSections[category.id]}
                                 onOpenChange={(open) => setOpenSections(prev => ({ ...prev, [category.id]: open }))}
                                 className="border rounded-xl overflow-hidden bg-white border-gray-100">
@@ -1210,6 +1219,18 @@ export default function ShipmentDetailPage() {
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
                                     <div className="p-4 space-y-4">
+                                        {category.id === 'shipping-docs' && commodityMeta.supportsMsds && (
+                                            <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg mb-2">
+                                                <Checkbox
+                                                    id={`msds-toggle-${id}`}
+                                                    checked={includeMsds}
+                                                    onCheckedChange={(checked) => setIncludeMsds(checked === true)}
+                                                />
+                                                <Label htmlFor={`msds-toggle-${id}`} className="text-sm font-medium cursor-pointer">
+                                                    Has Data Logger (attach MSDS)
+                                                </Label>
+                                            </div>
+                                        )}
                                         {category.id === 'gacp-certification' && (
                                             <div className="flex items-start space-x-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg">
                                                 <Leaf className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />

@@ -449,7 +449,7 @@ export default function ShippingCalculatorPage() {
                             variant="outline"
                             size="icon"
                             onClick={() => {
-                              const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}`;
+                              const url = `${window.location.origin}/documents-upload/${quotation.id}?company=${encodeURIComponent(quotation.company_name || '')}&destination=${encodeURIComponent(quotation.destination || '')}&commodity=${quotation.commodity_type || 'cannabis'}`;
                               navigator.clipboard.writeText(url);
                               toast.success('Link Copied', {
                                 description: 'Document upload link copied to clipboard!'

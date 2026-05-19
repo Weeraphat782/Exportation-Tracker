@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { getDocumentSubmissions, deleteDocumentSubmission, DocumentSubmission } from '@/lib/db';
 import { resolveDocumentFileUrl } from '@/lib/storage';
 import {
+    COMMODITY_META,
     getDocumentCategories,
     countPresetTypes,
     normalizeCommodityType,
@@ -163,7 +164,7 @@ export function QuotationDocuments({
                     <div className="min-w-0">
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 leading-none">Audit Status</h4>
                         <p className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase tracking-tighter">
-                            {totalMatched} / {totalPresetTypes} Matched · {commodityType === 'hemp' ? 'Hemp' : 'Cannabis'}
+                            {totalMatched} / {totalPresetTypes} Matched · {COMMODITY_META[commodityType].label}
                         </p>
                     </div>
                 </div>
@@ -206,7 +207,7 @@ export function QuotationDocuments({
                                 <span className="flex-1 text-xs font-black uppercase tracking-tight text-slate-900 leading-tight">
                                     {cat.name}
                                 </span>
-                                {cat.id === 'shipping-docs' && (
+                                {cat.id === 'shipping-docs' && COMMODITY_META[commodityType].supportsMsds && (
                                     <div className="flex items-center gap-2 ml-auto">
                                         <Checkbox
                                             id={`msds-toggle-${quotationId}`}
@@ -217,7 +218,7 @@ export function QuotationDocuments({
                                             htmlFor={`msds-toggle-${quotationId}`}
                                             className="text-[10px] font-bold text-slate-600 cursor-pointer whitespace-nowrap"
                                         >
-                                            มี Data Logger (แนบ MSDS)
+                                            Has Data Logger (attach MSDS)
                                         </Label>
                                     </div>
                                 )}

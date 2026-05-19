@@ -1,64 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { /* createDocumentSubmission, */ getDocumentTemplate, /* updateQuotation */ } from '@/lib/db'; // Removed updateQuotation as unused
+import { getDocumentTemplate } from '@/lib/db';
 import { getFileUrl } from '@/lib/storage';
+import {
+  COMMODITY_META,
+  getDocumentCategories,
+  getPresetFlat,
+  normalizeCommodityType,
+} from '@/lib/document-presets';
 import { Upload, Check, AlertCircle, X, Trash, ChevronUp, ChevronDown, FileText, Leaf } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from 'next/image';
-
-// Document categories and types
-const DOCUMENT_CATEGORIES = [
-  {
-    id: 'company-info',
-    name: 'Company Information',
-    types: [
-      { id: 'company-registration', name: 'Company Registration' },
-      { id: 'company-declaration', name: 'Company Declaration' },
-      { id: 'id-card-copy', name: 'ID Card Copy' }
-    ]
-  },
-  {
-    id: 'permits-forms',
-    name: 'Permits & TK Forms',
-    types: [
-      { id: 'import-permit', name: 'Import Permit' },
-      { id: 'tk-10', name: 'TK 10' },
-      { id: 'tk-10-eng', name: 'TK 10 (ENG Version)' },
-      { id: 'tk-11', name: 'TK 11' },
-      { id: 'tk-11-eng', name: 'TK 11 (ENG Version)' },
-      { id: 'tk-31', name: 'TK 31' },
-      { id: 'tk-31-eng', name: 'TK 31 (ENG Version)' },
-      { id: 'tk-32', name: 'TK 32' }
-    ]
-  },
-  {
-    id: 'shipping-docs',
-    name: 'Shipping Documents',
-    types: [
-      { id: 'purchase-order', name: 'Purchase Order' },
-      { id: 'msds', name: 'MSDS' },
-      { id: 'commercial-invoice', name: 'Commercial Invoice' },
-      { id: 'packing-list', name: 'Packing List' }
-    ]
-  },
-  {
-    id: 'additional',
-    name: 'Additional Documents',
-    types: [
-      { id: 'hemp-letter', name: 'Letter (Hemp Case)' },
-      { id: 'additional-file', name: 'Additional File' }
-    ]
-  }
-];
 
 // Thai GACP specific document types
 const GACP_DOCS_STANDARD = [
@@ -69,15 +30,6 @@ const GACP_DOCS_FARM = [
   { id: 'farm-purchase-order', name: 'Farm Purchase Order' },
   { id: 'farm-commercial-invoice', name: 'Farm Commercial Invoice' },
   { id: 'thai-gacp-certificate-farm', name: 'Thai GACP Certificate (Farm)' }
-];
-
-// Flatten all document types for easier lookup
-const ALL_DOCUMENT_TYPES = [
-  ...DOCUMENT_CATEGORIES.flatMap(category =>
-    category.types.map(type => ({ ...type, category: category.id }))
-  ),
-  ...GACP_DOCS_STANDARD,
-  ...GACP_DOCS_FARM
 ];
 
 // Allowed file types and size limits
@@ -119,14 +71,9 @@ export default function DocumentUploadPage() {
   const quotationId = params.id as string;
   const companyName = searchParams.get('company') || 'Unknown Company';
   const destination = searchParams.get('destination') || 'Unknown Destination';
+  const commodity = normalizeCommodityType(searchParams.get('commodity'));
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    'company-info': true,
-    'permits-forms': true,
-    'shipping-docs': true,
-    'additional': true,
-    'gacp-certification': true
-  });
+  const [includeMsds, setIncludeMsds] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const [notes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -137,15 +84,48 @@ export default function DocumentUploadPage() {
   const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
   const [isThaiGacp, setIsThaiGacp] = useState(false);
 
-  // Computed document categories based on Thai GACP toggle
-  const currentCategories = [
-    ...DOCUMENT_CATEGORIES,
-    {
+  const presetCategories = useMemo(
+    () => getDocumentCategories(commodity, includeMsds),
+    [commodity, includeMsds]
+  );
+
+  const gacpCategory = useMemo(
+    () => ({
       id: 'gacp-certification',
       name: 'Thai GACP or GACP Certificate',
-      types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD
-    }
-  ];
+      types: isThaiGacp ? GACP_DOCS_FARM : GACP_DOCS_STANDARD,
+    }),
+    [isThaiGacp]
+  );
+
+  const currentCategories = useMemo(
+    () =>
+      COMMODITY_META[commodity].supportsGacp
+        ? [...presetCategories, gacpCategory]
+        : presetCategories,
+    [commodity, presetCategories, gacpCategory]
+  );
+
+  const allDocumentTypes = useMemo(
+    () => [
+      ...getPresetFlat(commodity, true).map((type) => ({ ...type, category: '' })),
+      ...(COMMODITY_META[commodity].supportsGacp
+        ? [
+            ...GACP_DOCS_STANDARD.map((type) => ({ ...type, category: 'gacp-certification' })),
+            ...GACP_DOCS_FARM.map((type) => ({ ...type, category: 'gacp-certification' })),
+          ]
+        : []),
+    ],
+    [commodity]
+  );
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => ({
+    'company-info': true,
+    'permits-forms': true,
+    'shipping-docs': true,
+    'additional': true,
+    'gacp-certification': true,
+  }));
 
   // Toggle section open/closed
   const toggleSection = (sectionId: string) => {
@@ -184,7 +164,7 @@ export default function DocumentUploadPage() {
         }));
 
         // Add to queue automatically
-        const docType = ALL_DOCUMENT_TYPES.find(type => type.id === documentTypeId);
+        const docType = allDocumentTypes.find(type => type.id === documentTypeId);
         if (docType) {
           addToQueue(file, documentTypeId, docType.name, notes[documentTypeId] || '');
         }
@@ -477,6 +457,10 @@ export default function DocumentUploadPage() {
                 <span className="text-gray-600">Destination:</span>
                 <span className="font-medium">{destination}</span>
               </div>
+              <div className="flex justify-between pb-2">
+                <span className="text-gray-600">Commodity:</span>
+                <span className="font-medium">{COMMODITY_META[commodity].label}</span>
+              </div>
             </div>
           </div>
 
@@ -531,6 +515,18 @@ export default function DocumentUploadPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="p-4 space-y-4 bg-white">
+                    {category.id === 'shipping-docs' && COMMODITY_META[commodity].supportsMsds && (
+                      <div className="mb-4 flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                        <Checkbox
+                          id="msds-toggle-upload"
+                          checked={includeMsds}
+                          onCheckedChange={(checked) => setIncludeMsds(checked === true)}
+                        />
+                        <Label htmlFor="msds-toggle-upload" className="text-sm font-medium cursor-pointer">
+                          Has Data Logger (attach MSDS)
+                        </Label>
+                      </div>
+                    )}
                     {category.id === 'gacp-certification' && (
                       <div className="mb-4 flex items-start space-x-3 p-4 bg-emerald-50 border border-emerald-100 rounded-xl transition-all">
                         <div className="p-2 bg-emerald-100 rounded-lg mt-1">

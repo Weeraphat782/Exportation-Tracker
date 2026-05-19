@@ -88,6 +88,7 @@ export default function EditProformaPage() {
   const [importMergeLines, setImportMergeLines] = useState(false);
   const [importMergedDescription, setImportMergedDescription] = useState('');
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+  const [importIncludeVat, setImportIncludeVat] = useState(false);
 
   const quoteOptions = useMemo(
     () => (quote ? getQuotationLineOptions(quote) : []),
@@ -161,6 +162,7 @@ export default function EditProformaPage() {
     setImportSelected(all);
     setImportMergeLines(false);
     setImportMergedDescription('');
+    setImportIncludeVat(false);
     setImportMode('append');
     setImportOpen(true);
   };
@@ -174,11 +176,15 @@ export default function EditProformaPage() {
 
     let newRows: ProformaLineItem[];
     if (importMergeLines) {
-      const sum = roundMoney(picked.reduce((s, o) => s + o.amount, 0));
-      const desc =
+      const subtotal = roundMoney(picked.reduce((s, o) => s + o.amount, 0));
+      const vatBase = picked.reduce((s, o) => s + (o.taxable ? o.amount : 0), 0);
+      const vatAmount = importIncludeVat ? roundMoney(vatBase * 0.07) : 0;
+      const total = roundMoney(subtotal + vatAmount);
+      const baseDesc =
         importMergedDescription.trim() ||
         picked.map((o) => o.description).join(' + ');
-      newRows = [{ description: desc, amount: sum, taxable: true }];
+      const desc = importIncludeVat ? `${baseDesc} (incl. VAT 7%)` : baseDesc;
+      newRows = [{ description: desc, amount: total, taxable: !importIncludeVat }];
     } else {
       newRows = picked.map((o) => ({
         description: o.description,
@@ -547,6 +553,20 @@ export default function EditProformaPage() {
 
               {importMergeLines && (
                 <div className="space-y-2">
+                  <div className="flex items-start gap-2 rounded-md border px-3 py-2 bg-muted/30">
+                    <Checkbox
+                      id="import-include-vat"
+                      checked={importIncludeVat}
+                      onCheckedChange={(v) => setImportIncludeVat(v === true)}
+                      className="mt-0.5"
+                    />
+                    <label htmlFor="import-include-vat" className="cursor-pointer text-sm">
+                      Include VAT 7% in merged amount
+                      <span className="block text-xs text-muted-foreground">
+                        คำนวณเฉพาะ line ที่ taxable ใน quotation เดิม แล้วบวกเข้าไปในยอดรวม
+                      </span>
+                    </label>
+                  </div>
                   <Label htmlFor="import-merged-desc">Merged description</Label>
                   <Textarea
                     id="import-merged-desc"

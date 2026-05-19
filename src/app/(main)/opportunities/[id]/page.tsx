@@ -17,6 +17,7 @@ import { ContactWidget } from '@/components/opportunities/contact-widget';
 import { OpportunityTasks } from '@/components/opportunities/opportunity-tasks';
 import { AnalysisHistory } from '@/components/opportunities/analysis-history';
 import { LinkQuotationDialog } from '@/components/opportunities/link-quotation-dialog';
+import { COMMODITY_META, normalizeCommodityType } from '@/lib/document-presets';
 
 interface OpportunityDetail extends Omit<Opportunity, 'quotationIds'> {
     description?: string;
@@ -144,11 +145,12 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
         }
     };
 
-    const handleShareLink = (quoteId: string) => {
+    const handleShareLink = (quoteId: string, commodityType?: string) => {
         if (typeof window === 'undefined') return;
 
         const baseUrl = window.location.origin;
-        const uploadUrl = `${baseUrl}/documents-upload/${quoteId}?company=${encodeURIComponent(opportunity?.companyName || '')}&destination=${encodeURIComponent(opportunity?.destinationName || '')}`;
+        const commodity = commodityType || 'cannabis';
+        const uploadUrl = `${baseUrl}/documents-upload/${quoteId}?company=${encodeURIComponent(opportunity?.companyName || '')}&destination=${encodeURIComponent(opportunity?.destinationName || '')}&commodity=${commodity}`;
 
         navigator.clipboard.writeText(uploadUrl).then(() => {
             toast.success('Upload link copied to clipboard');
@@ -284,6 +286,17 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                                     }`}>
                                                                     {quote.status.toUpperCase()}
                                                                 </span>
+                                                                {(() => {
+                                                                    const comm = normalizeCommodityType(quote.commodity_type);
+                                                                    const meta = COMMODITY_META[comm];
+                                                                    const Icon = meta.icon;
+                                                                    return (
+                                                                        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-bold ${meta.badgeClass}`}>
+                                                                            <Icon className="w-3 h-3" />
+                                                                            {meta.label}
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                             <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">
                                                                 Created: {new Date(quote.created_at).toLocaleDateString('th-TH', { year: '2-digit', month: 'short', day: 'numeric' })}
@@ -408,7 +421,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                             variant="outline"
                                                             size="sm"
                                                             className="h-8 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                                            onClick={() => handleShareLink(quote.id)}
+                                                            onClick={() => handleShareLink(quote.id, quote.commodity_type)}
                                                         >
                                                             <Share2 className="h-3.5 w-3.5 mr-1.5" />
                                                             Share Link

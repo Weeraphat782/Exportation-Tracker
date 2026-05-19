@@ -5,7 +5,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Inbox, Loader2, FileText,
-    Search, ArrowRight, Eye, Clock, PlusCircle, X
+    Search, ArrowRight, Eye, Clock, PlusCircle, X,
+    ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { getCustomerQuotations, getCustomerPendingRequests, cancelCustomerQuoteRequest } from '@/lib/customer-db';
@@ -39,6 +40,14 @@ function getStageDisplay(stage?: string, status?: string) {
     }
 }
 
+function isShipmentCompleted(q: Quotation): boolean {
+    return getStageDisplay(q.opportunities?.stage, q.status).step === 6;
+}
+
+function isPricingPending(q: Quotation): boolean {
+    return !q.destination_id || !q.total_cost || Number(q.total_cost) <= 0;
+}
+
 // ============ MINI PROGRESS BAR ============
 
 function MiniProgress({ step }: { step: number }) {
@@ -61,6 +70,7 @@ function MiniProgress({ step }: { step: number }) {
 
 function ShipmentListCard({ q }: { q: Quotation }) {
     const sc = getStageDisplay(q.opportunities?.stage, q.status);
+    const pricingPending = isPricingPending(q);
 
     return (
         <Link
@@ -85,7 +95,7 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                                 <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                                    <MapPin className="w-3.5 h-3.5" /> {q.destination || 'N/A'}
+                                    <MapPin className="w-3.5 h-3.5" /> {pricingPending ? 'Destination TBD' : (q.destination || 'N/A')}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Package className="w-3.5 h-3.5 text-gray-400" /> {q.pallets?.length || 0} pallets
@@ -103,12 +113,19 @@ function ShipmentListCard({ q }: { q: Quotation }) {
 
                     {/* Right: Amount + Arrow */}
                     <div className="flex items-center gap-4 sm:gap-6 shrink-0 self-end sm:self-center">
-                        <div className={`text-right px-3 py-2 rounded-lg border-2 ${q.price_confirmed ? 'border-emerald-300 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'}`}>
-                            <div className={`text-[10px] font-bold uppercase tracking-widest ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                {q.price_confirmed ? 'Confirmed' : '⚠ Pending'}
+                        {pricingPending ? (
+                            <div className="text-right px-3 py-2 rounded-lg border-2 border-slate-200 bg-slate-50">
+                                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Awaiting Pricing</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Staff will set rate soon</div>
                             </div>
-                            <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatPayableThb(getQuotationPayableTotalThb(q))}</div>
-                        </div>
+                        ) : (
+                            <div className={`text-right px-3 py-2 rounded-lg border-2 ${q.price_confirmed ? 'border-emerald-300 bg-emerald-50/50' : 'border-amber-400 bg-amber-50/50'}`}>
+                                <div className={`text-[10px] font-bold uppercase tracking-widest ${q.price_confirmed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                    {q.price_confirmed ? 'Confirmed' : 'Pending'}
+                                </div>
+                                <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatPayableThb(getQuotationPayableTotalThb(q))}</div>
+                            </div>
+                        )}
                         <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                         </div>
@@ -139,6 +156,7 @@ export default function MyShipmentsPage() {
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [pendingRequests, setPendingRequests] = useState<Quotation[]>([]);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [showCompleted, setShowCompleted] = useState(false);
 
     const loadData = useCallback(async () => {
         if (!user?.id) return;
@@ -185,6 +203,9 @@ export default function MyShipmentsPage() {
         const company = (q.company_name || '').toLowerCase();
         return qNo.includes(query) || dest.includes(query) || company.includes(query);
     });
+
+    const activeFiltered = filtered.filter(q => !isShipmentCompleted(q));
+    const completedFiltered = filtered.filter(q => isShipmentCompleted(q));
 
     const stats = useMemo(() => {
         const total = quotations.length;
@@ -340,12 +361,12 @@ export default function MyShipmentsPage() {
                 </div>
             )}
 
-            {/* Shipment List */}
+            {/* Shipment List (active only) */}
             {loading ? (
                 <div className="bg-white rounded-xl border border-gray-100 flex items-center justify-center py-20">
                     <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                 </div>
-            ) : filtered.length === 0 ? (
+            ) : activeFiltered.length === 0 && completedFiltered.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-100">
                     <div className="flex flex-col items-center justify-center py-20 text-center">
                         <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
@@ -361,16 +382,68 @@ export default function MyShipmentsPage() {
                         </p>
                     </div>
                 </div>
+            ) : activeFiltered.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100">
+                    <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                        <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-3">
+                            <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900 mb-1">All shipments delivered</h3>
+                        <p className="text-sm text-gray-500 max-w-[320px]">
+                            {searchQuery
+                                ? 'No active shipments match your search. Expand Completed below to see delivered shipments.'
+                                : 'You have no active shipments. Expand the Completed section below to view delivered shipments.'}
+                        </p>
+                    </div>
+                </div>
             ) : (
                 <div className="space-y-3">
-                    {filtered.map((q) => (
+                    {activeFiltered.map((q) => (
                         <ShipmentListCard key={q.id} q={q} />
                     ))}
                     <div className="text-center pt-2">
                         <span className="text-xs text-gray-400">
-                            Showing {filtered.length} of {quotations.length} shipments
+                            Showing {activeFiltered.length} active shipment{activeFiltered.length === 1 ? '' : 's'}
+                            {completedFiltered.length > 0 && ` · ${completedFiltered.length} completed hidden`}
                         </span>
                     </div>
+                </div>
+            )}
+
+            {/* Completed shipments (collapsed by default) */}
+            {!loading && completedFiltered.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setShowCompleted((v) => !v)}
+                        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            </div>
+                            <div className="text-left">
+                                <div className="text-sm font-bold text-gray-900">
+                                    Completed ({completedFiltered.length})
+                                </div>
+                                <div className="text-[11px] text-gray-500">
+                                    Delivered shipments — hidden by default
+                                </div>
+                            </div>
+                        </div>
+                        {showCompleted ? (
+                            <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                    </button>
+                    {showCompleted && (
+                        <div className="border-t border-gray-100 p-3 space-y-3 bg-gray-50/40">
+                            {completedFiltered.map((q) => (
+                                <ShipmentListCard key={q.id} q={q} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

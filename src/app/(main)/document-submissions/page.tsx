@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react';
-import { getDocumentSubmissions, getQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
+import { getDocumentSubmissions, getQuotations, getPendingApprovalQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
 import { formatFileSize, resolveDocumentFileUrl, mapWithConcurrency } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -104,14 +104,28 @@ export default function DocumentSubmissionsPage() {
       }
 
       const userId = user.id;
-      const [submissionsData, quotationsData] = await Promise.all([
+      const [submissionsData, quotationsData, pendingQuotationsData] = await Promise.all([
         getDocumentSubmissions(),
-        getQuotations(userId)
+        getQuotations(userId),
+        getPendingApprovalQuotations(),
       ]);
+
+      // Merge staff-owned + pending_approval quotes so customer-submitted
+      // requests are visible in the dropdown and matched to their docs.
+      const mergedQuotations: DbQuotation[] = [
+        ...((quotationsData as DbQuotation[]) || []),
+      ];
+      const seenIds = new Set(mergedQuotations.map((q) => q.id));
+      for (const pq of (pendingQuotationsData as DbQuotation[]) || []) {
+        if (!seenIds.has(pq.id)) {
+          mergedQuotations.push(pq);
+          seenIds.add(pq.id);
+        }
+      }
 
       // Show list immediately — resolve R2 signed URLs only when user opens/downloads (avoids dozens of parallel API calls).
       setSubmissions((submissionsData as DocumentSubmission[]) || []);
-      setQuotations((quotationsData as DbQuotation[]) || []);
+      setQuotations(mergedQuotations);
       setResolvedPhotoUrls({});
     } catch (error) {
       console.error('Error loading data:', error);
@@ -587,7 +601,10 @@ export default function DocumentSubmissionsPage() {
         <div className="space-y-6">
           {Object.entries(submissionsByQuotation).map(([quotationId, quotationSubmissions]) => {
             const quotationInfo = getQuotationInfo(quotationId);
-            if (!quotationInfo) return null;
+            const headerCompany = quotationInfo?.company_name || quotationSubmissions[0]?.company_name || 'Pending customer request';
+            const headerDestination = quotationInfo?.destination || '—';
+            const headerCreatedAt = quotationInfo?.created_at || quotationSubmissions[0]?.submitted_at;
+            const isPendingApproval = quotationInfo?.status === 'pending_approval';
 
             const isExpanded = expandedQuotations[quotationId] || false;
 
@@ -596,11 +613,16 @@ export default function DocumentSubmissionsPage() {
                 <CardHeader className="bg-muted/50 py-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <CardTitle className="text-xl">
-                        {quotationInfo.company_name} - {quotationInfo.destination}
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        {headerCompany} - {headerDestination}
+                        {isPendingApproval && (
+                          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                            Awaiting approval
+                          </Badge>
+                        )}
                       </CardTitle>
                       <CardDescription>
-                        Quotation: {quotationId.substring(0, 8)}... • Created: {formatDate(quotationInfo.created_at)} • Documents: {quotationSubmissions.length}
+                        Quotation: {quotationId.substring(0, 8)}... • Created: {headerCreatedAt ? formatDate(headerCreatedAt) : '—'} • Documents: {quotationSubmissions.length}
                       </CardDescription>
                     </div>
                     <Button
@@ -834,7 +856,7 @@ export default function DocumentSubmissionsPage() {
                           </div>
                           <div>
                             <h3 className="text-lg font-semibold mb-2">Uploaded Shipment Photos</h3>
-                            {quotationInfo.shipment_photo_url && Array.isArray(quotationInfo.shipment_photo_url) && quotationInfo.shipment_photo_url.length > 0 && (
+                            {quotationInfo?.shipment_photo_url && Array.isArray(quotationInfo.shipment_photo_url) && quotationInfo.shipment_photo_url.length > 0 && (
                               <div className="mb-6 p-4 border rounded-md bg-slate-50">
                                 <h4 className="text-md font-semibold mb-3 text-gray-700">Shipment Photos:</h4>
                                 {resolvingPhotoFor === quotationId && (
@@ -864,7 +886,7 @@ export default function DocumentSubmissionsPage() {
                                       </CarouselItem>
                                     ))}
                                   </CarouselContent>
-                                  {quotationInfo.shipment_photo_url.length > 1 && (
+                                  {Array.isArray(quotationInfo?.shipment_photo_url) && quotationInfo.shipment_photo_url.length > 1 && (
                                     <>
                                       <CarouselPrevious className="absolute left-[-50px] top-1/2 -translate-y-1/2 fill-black" />
                                       <CarouselNext className="absolute right-[-50px] top-1/2 -translate-y-1/2 fill-black" />

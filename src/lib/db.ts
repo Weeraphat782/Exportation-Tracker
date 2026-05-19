@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { CommodityType } from '@/lib/document-presets';
 
 export interface Product {
   id: string;
@@ -310,7 +311,7 @@ export interface Quotation {
   customer_name: string;
   contact_person: string;
   contract_no?: string | null;
-  destination_id: string;
+  destination_id: string | null;
   shipping_date?: string | null;
   pallets: Pallet[]; // Use defined type
   delivery_service_required: boolean;
@@ -374,8 +375,8 @@ export interface Quotation {
   /** total_cost + vat_amount */
   grand_total_with_vat?: number | null;
 
-  /** Document checklist preset: cannabis | hemp */
-  commodity_type?: 'cannabis' | 'hemp';
+  /** Document checklist preset: cannabis | hemp | kratom | general */
+  commodity_type?: CommodityType;
 }
 
 export interface DocumentSubmission {
@@ -981,13 +982,14 @@ export async function getQuotations(userId: string) {
       const row = q as {
         company?: { name?: string };
         destination_country?: { country?: string; port?: string | null };
+        destination?: string | null;
       } & Record<string, unknown>;
       const lean = stripQuotationSignature(row);
       const dc = row.destination_country;
       const destination =
         dc && dc.country
           ? `${dc.country}${dc.port ? ` - ${dc.port}` : ''}`.trim()
-          : 'N/A';
+          : row.destination ?? null;
       return {
         ...lean,
         company_name: row.company?.name,
@@ -1009,7 +1011,12 @@ export async function getPendingApprovalQuotations(): Promise<Quotation[]> {
   try {
     const { data, error } = await supabase
       .from('quotations')
-      .select('*')
+      .select(`
+        *,
+        company:companies(name),
+        destination_country:destinations(country, port),
+        product:products(name)
+      `)
       .eq('status', 'pending_approval')
       .order('created_at', { ascending: false });
 
@@ -1018,9 +1025,26 @@ export async function getPendingApprovalQuotations(): Promise<Quotation[]> {
       return [];
     }
 
-    return (data || []).map((q) =>
-      stripQuotationSignature(q as Record<string, unknown>)
-    ) as unknown as Quotation[];
+    const transformedData = (data || []).map((q) => {
+      const row = q as {
+        company?: { name?: string };
+        destination_country?: { country?: string; port?: string | null };
+        destination?: string | null;
+      } & Record<string, unknown>;
+      const lean = stripQuotationSignature(row);
+      const dc = row.destination_country;
+      const destination =
+        dc && dc.country
+          ? `${dc.country}${dc.port ? ` - ${dc.port}` : ''}`.trim()
+          : row.destination ?? null;
+      return {
+        ...lean,
+        company_name: row.company?.name,
+        destination,
+      };
+    });
+
+    return transformedData as Quotation[];
   } catch (err) {
     console.error('Error in getPendingApprovalQuotations:', err);
     return [];
@@ -1088,7 +1112,9 @@ export async function getQuotationById(id: string): Promise<Quotation | null> {
     const quotation: Quotation = {
       ...data,
       company_name: data.company?.name,
-      destination: data.destination_country ? `${data.destination_country.country} ${data.destination_country.port ? '- ' + data.destination_country.port : ''} ` : 'N/A',
+      destination: data.destination_country
+        ? `${data.destination_country.country}${data.destination_country.port ? ' - ' + data.destination_country.port : ''}`.trim()
+        : data.destination ?? null,
       // Ensure shipment_photo_url and shipment_photo_uploaded_at are correctly typed here if needed
       // If the database returns shipment_photo_url as a string that looks like an array (e.g., "{\"url1\",\"url2\"}"),
       // you might need to parse it here. However, Supabase usually handles TEXT[] as JS arrays directly.
@@ -1256,7 +1282,7 @@ export async function getUnlinkedQuotations(userId?: string): Promise<Quotation[
         company_name: row.company?.name || row.company_name,
         destination: row.destination_country
           ? `${row.destination_country.country}${row.destination_country.port ? ' - ' + row.destination_country.port : ''}`
-          : row.destination || 'N/A',
+          : row.destination ?? null,
       };
     });
 
@@ -1929,6 +1955,7 @@ export interface QuotationLineOption {
   key: string;
   description: string;
   amount: number;
+  taxable: boolean;
 }
 
 export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
@@ -1938,6 +1965,7 @@ export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
       key: 'freight',
       description: 'Freight Cost',
       amount: Number(q.total_freight_cost),
+      taxable: quotationLineIsTaxable(q.taxable_lines, 'freight'),
     });
   }
   if (q.clearance_cost) {
@@ -1945,6 +1973,7 @@ export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
       key: 'clearance',
       description: 'Clearance Cost',
       amount: Number(q.clearance_cost),
+      taxable: quotationLineIsTaxable(q.taxable_lines, 'clearance'),
     });
   }
   if (q.delivery_service_required && q.delivery_cost) {
@@ -1952,6 +1981,7 @@ export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
       key: 'delivery',
       description: `Delivery Service (${q.delivery_vehicle_type || ''})`,
       amount: Number(q.delivery_cost),
+      taxable: quotationLineIsTaxable(q.taxable_lines, 'delivery'),
     });
   }
   (q.additional_charges ?? []).forEach((c, index) => {
@@ -1959,6 +1989,7 @@ export function getQuotationLineOptions(q: Quotation): QuotationLineOption[] {
       key: `additional:${index}`,
       description: c.description,
       amount: Number(c.amount) || 0,
+      taxable: quotationLineIsTaxable(q.taxable_lines, `additional:${index}`),
     });
   });
   return out;

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { CommodityType } from '@/lib/document-presets';
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -232,7 +233,8 @@ export async function listFiles(
 export function generateDocumentUploadLink(
   quotationId: string,
   companyName: string,
-  destination: string
+  destination: string,
+  commodity?: CommodityType
 ): string {
   // สร้าง URL ไปยังหน้าอัปโหลดเอกสาร
   const baseUrl = typeof window !== 'undefined'
@@ -242,6 +244,9 @@ export function generateDocumentUploadLink(
   const url = new URL(`${baseUrl}/documents-upload/${quotationId}`);
   url.searchParams.append('company', companyName);
   url.searchParams.append('destination', destination);
+  if (commodity) {
+    url.searchParams.append('commodity', commodity);
+  }
 
   return url.toString();
 }
@@ -326,6 +331,10 @@ export async function getFileUrl(
     try {
       // Check if we are running in the browser
       if (typeof window !== 'undefined') {
+        // #region agent log
+        const __t0 = Date.now();
+        fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1H2',location:'storage.ts:getFileUrl:enter',message:'getFileUrl R2 fetch begin',data:{pathLen:path.length,bucket},timestamp:__t0})}).catch(()=>{});
+        // #endregion
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         try {
@@ -334,9 +343,15 @@ export async function getFileUrl(
             { signal: controller.signal }
           );
           if (!response.ok) {
+            // #region agent log
+            fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H2',location:'storage.ts:getFileUrl:non-ok',message:'/api/get-signed-url non-ok',data:{status:response.status,elapsed:Date.now()-__t0,bucket},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             throw new Error('Failed to fetch signed URL from server');
           }
           const data = await response.json();
+          // #region agent log
+          fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1',location:'storage.ts:getFileUrl:ok',message:'getFileUrl ok',data:{elapsed:Date.now()-__t0,bucket,hasUrl:!!data?.url},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           return data.url as string;
         } finally {
           clearTimeout(timeoutId);
@@ -350,6 +365,11 @@ export async function getFileUrl(
       });
       return await getSignedUrl(r2Client, command, { expiresIn: 3600 });
     } catch (error) {
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        fetch('http://127.0.0.1:7320/ingest/4b64fd98-742a-4a5c-9fe7-b64daefbd016',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a9b11d'},body:JSON.stringify({sessionId:'a9b11d',runId:'r1',hypothesisId:'H1H2',location:'storage.ts:getFileUrl:catch',message:'getFileUrl caught error',data:{err:String((error as Error)?.message||error),name:(error as Error)?.name},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       console.error('Error generating R2 signed URL:', error);
       return '';
     }

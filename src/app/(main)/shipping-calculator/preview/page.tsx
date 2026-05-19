@@ -158,7 +158,7 @@ function QuotationPreviewPageInner() {
           <Button
             onClick={() =>
               router.push(
-                `/documents-upload/${quotationData?.id}?company=${encodeURIComponent(quotationData?.company_name || '')}&destination=${encodeURIComponent(quotationData?.destination || '')}`
+                `/documents-upload/${quotationData?.id}?company=${encodeURIComponent(quotationData?.company_name || '')}&destination=${encodeURIComponent(quotationData?.destination || '')}&commodity=${quotationData?.commodity_type || 'cannabis'}`
               )
             }
             variant="outline"
