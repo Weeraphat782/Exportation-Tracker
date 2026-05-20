@@ -49,7 +49,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   return (
     <SidebarContext.Provider value={{ toggleSidebar, isMobile, isSidebarCollapsed }}>
-      <div className="h-screen bg-gray-100 print:block overflow-hidden">
+      <div className="fixed inset-0 bg-gray-100 overflow-hidden print:static print:block">
         {/* Layout Container */}
         <div className="flex h-full">
           {/* Sidebar - Desktop: always visible, Mobile: overlay */}
@@ -68,7 +68,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             {/* Main Content */}
             <main
               className={cn(
-                "flex-1 overflow-y-auto bg-gray-50",
+                "flex-1 overflow-y-auto overscroll-contain bg-gray-50",
                 "print:flex-none print:p-0 print:m-0 print:overflow-visible print:w-full",
                 "p-4 sm:p-6"
               )}

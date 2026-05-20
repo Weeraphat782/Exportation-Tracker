@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check, Leaf } from 'lucide-react';
+import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check, Leaf, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
     calculateVolumeWeight,
     // getTotalVolumeWeight, // Removed unused import
@@ -129,6 +130,15 @@ interface AdditionalChargeType {
     amount: number;
     id?: string; // Make id optional since it's not used in existing code
     productId?: string; // Optional product ID for tracking
+}
+
+interface PalletGroup {
+    key: string;
+    dims: { length: number; width: number; height: number; weight: number };
+    indices: number[];
+    fieldIds: string[];
+    totalChargeableWeight: number;
+    totalFreight: number;
 }
 
 // Add this helper function after existing utility functions
@@ -388,6 +398,68 @@ const PalletItem = ({
     );
 };
 
+// --- Collapsed pallet group card (identical dimensions) ---
+const PalletGroupCard = ({
+    dims,
+    count,
+    isExpanded,
+    onToggle,
+    onDuplicate,
+    onRemoveGroup,
+    totalChargeableWeight,
+    totalFreight,
+    children,
+}: {
+    dims: { length: number; width: number; height: number; weight: number };
+    count: number;
+    isExpanded: boolean;
+    onToggle: () => void;
+    onDuplicate: () => void;
+    onRemoveGroup: () => void;
+    totalChargeableWeight: number;
+    totalFreight: number;
+    children?: React.ReactNode;
+}) => (
+    <div className="border rounded-md my-2 bg-gray-50 shadow-sm overflow-hidden">
+        <div className="flex w-full items-center justify-between p-4 gap-2">
+            <button
+                type="button"
+                onClick={onToggle}
+                className="flex flex-1 items-center gap-3 min-w-0 text-left"
+            >
+                <ChevronRight
+                    className={cn('h-4 w-4 shrink-0 text-slate-500 transition-transform', isExpanded && 'rotate-90')}
+                />
+                <div className="min-w-0">
+                    <div className="font-semibold text-md">
+                        {dims.length}×{dims.width}×{dims.height} cm · {formatNumber(dims.weight)} kg
+                        <span className="ml-2 text-blue-600 font-bold">× {count}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                        Total chargeable: {formatNumber(totalChargeableWeight)} kg · Freight:{' '}
+                        {totalFreight.toLocaleString()} THB
+                    </div>
+                </div>
+            </button>
+            <div className="flex gap-1 shrink-0">
+                <Button type="button" size="sm" variant="outline" onClick={onDuplicate}>
+                    + Add same
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600 hover:bg-red-100"
+                    onClick={onRemoveGroup}
+                >
+                    Remove group
+                </Button>
+            </div>
+        </div>
+        {isExpanded && children ? <div className="border-t px-2 pb-2">{children}</div> : null}
+    </div>
+);
+
 // --- Additional Charge Item ---
 const AdditionalChargeItem = ({
     index,
@@ -399,15 +471,15 @@ const AdditionalChargeItem = ({
     const { control } = useFormContext<QuotationFormValues>();
 
     return (
-        <div className="flex flex-col sm:flex-row sm:flex-wrap items-end gap-2 mb-2">
+        <div className="flex flex-row items-center gap-2 mb-2">
             <FormField
                 control={control}
                 name={`additionalCharges.${index}.name`}
                 render={({ field }) => (
-                    <FormItem className="flex-grow min-w-[120px]">
-                        <FormLabel className="text-xs">Name</FormLabel>
+                    <FormItem className="flex-[2] min-w-0 mb-0">
+                        <FormLabel className="sr-only">Name</FormLabel>
                         <FormControl>
-                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
+                            <Input {...field} placeholder="Name" className="h-9" />
                         </FormControl>
                     </FormItem>
                 )}
@@ -416,10 +488,10 @@ const AdditionalChargeItem = ({
                 control={control}
                 name={`additionalCharges.${index}.description`}
                 render={({ field }) => (
-                    <FormItem className="flex-grow min-w-[120px]">
-                        <FormLabel className="text-xs">Description</FormLabel>
+                    <FormItem className="flex-[2] min-w-0 mb-0">
+                        <FormLabel className="sr-only">Description</FormLabel>
                         <FormControl>
-                            <Input {...field} placeholder="e.g., Handling Fee" className="h-9" />
+                            <Input {...field} placeholder="Description" className="h-9" />
                         </FormControl>
                     </FormItem>
                 )}
@@ -428,18 +500,18 @@ const AdditionalChargeItem = ({
                 control={control}
                 name={`additionalCharges.${index}.amount`}
                 render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs">Amount (THB)</FormLabel>
+                    <FormItem className="w-28 shrink-0 mb-0">
+                        <FormLabel className="sr-only">Amount (THB)</FormLabel>
                         <FormControl>
                             <Input
                                 {...field}
                                 type="number"
-                                placeholder="0.00"
+                                placeholder="0.00 THB"
                                 value={field.value || ''}
                                 onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
                                 }}
-                                className="h-9 w-28"
+                                className="h-9"
                             />
                         </FormControl>
                     </FormItem>
@@ -449,8 +521,8 @@ const AdditionalChargeItem = ({
                 control={control}
                 name={`taxableLines.additional.${index}`}
                 render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="text-xs text-muted-foreground">VAT 7%</FormLabel>
+                    <FormItem className="mb-0 shrink-0">
+                        <FormLabel className="sr-only">VAT 7% Taxable</FormLabel>
                         <label
                             className="flex items-center gap-2 h-9 px-3 rounded-md border border-input bg-background cursor-pointer select-none whitespace-nowrap"
                             htmlFor={`add-taxable-${index}`}
@@ -656,7 +728,7 @@ function ShippingCalculatorPageContent() {
             opportunityId: paramOpportunityId || '',
             productId: paramProductId || '',
             taxableLines: {
-                freight: true,
+                freight: false,
                 clearance: true,
                 delivery: true,
                 additional: [true],
@@ -739,6 +811,8 @@ function ShippingCalculatorPageContent() {
         name: "additionalCharges",
     });
 
+    const [expandedGroupKeys, setExpandedGroupKeys] = React.useState<Set<string>>(() => new Set());
+
     const appendChargeRow = React.useCallback(
         (row: { name: string; description: string; amount: number; productId?: string }) => {
             appendCharge(row);
@@ -782,11 +856,86 @@ function ShippingCalculatorPageContent() {
     const watchedTaxableLines = useWatch({ control, name: 'taxableLines' });
     const watchedClearanceCost = useWatch({ control, name: 'clearanceCost' });
     const watchedAdditionalCharges = useWatch({ control, name: 'additionalCharges' });
+    const watchedPallets = useWatch({ control, name: 'pallets' }) ?? [];
+
+    const palletGroups = React.useMemo((): PalletGroup[] => {
+        const map = new Map<string, PalletGroup>();
+        const order: string[] = [];
+
+        palletFields.forEach((field, idx) => {
+            const p = watchedPallets[idx] ?? {};
+            const l = p.length || 0;
+            const w = p.width || 0;
+            const h = p.height || 0;
+            const wt = p.weight || 0;
+            const key = `${l}-${w}-${h}-${wt}`;
+
+            if (!map.has(key)) {
+                map.set(key, {
+                    key,
+                    dims: { length: l, width: w, height: h, weight: wt },
+                    indices: [],
+                    fieldIds: [],
+                    totalChargeableWeight: 0,
+                    totalFreight: 0,
+                });
+                order.push(key);
+            }
+
+            const group = map.get(key)!;
+            group.indices.push(idx);
+            group.fieldIds.push(field.id);
+
+            const calc = calculateSinglePalletFreightCost(p, watchedDestinationId, freightRates);
+            group.totalChargeableWeight += calc.chargeableWeight;
+            group.totalFreight += calc.freightCost;
+        });
+
+        return order.map((k) => map.get(k)!);
+    }, [palletFields, watchedPallets, watchedDestinationId, freightRates]);
+
+    const togglePalletGroup = React.useCallback((key: string) => {
+        setExpandedGroupKeys((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    }, []);
+
+    const duplicatePalletGroup = React.useCallback(
+        (dims: PalletGroup['dims']) => {
+            appendPallet({
+                length: dims.length,
+                width: dims.width,
+                height: dims.height,
+                weight: dims.weight,
+                quantity: 1,
+            });
+        },
+        [appendPallet]
+    );
+
+    const removePalletGroup = React.useCallback(
+        (indices: number[]) => {
+            const total = palletFields.length;
+            const sorted = [...indices].sort((a, b) => b - a);
+            const toRemove = sorted.length >= total ? sorted.slice(0, sorted.length - 1) : sorted;
+            toRemove.forEach((i) => removePallet(i));
+        },
+        [palletFields.length, removePallet]
+    );
+
+    React.useEffect(() => {
+        if (isEditMode || isApproveMode || cloneFromId) {
+            setExpandedGroupKeys(new Set());
+        }
+    }, [isEditMode, isApproveMode, cloneFromId, quotationId, approveFromId]);
 
     const quotationVatBreakdown = React.useMemo(() => {
         if (!calculationResult) return null;
         const tlForm = (watchedTaxableLines ?? {
-            freight: true,
+            freight: false,
             clearance: true,
             delivery: true,
             additional: [],
@@ -814,7 +963,7 @@ function ShippingCalculatorPageContent() {
     const vatDisplayRows = React.useMemo(() => {
         if (!calculationResult) return [];
         const tl = (watchedTaxableLines ?? {
-            freight: true,
+            freight: false,
             clearance: true,
             delivery: true,
             additional: [],
@@ -1303,7 +1452,7 @@ function ShippingCalculatorPageContent() {
                         notes: paramNotes || '',
                         opportunityId: paramOpportunityId || '',
                         taxableLines: {
-                            freight: true,
+                            freight: false,
                             clearance: true,
                             delivery: true,
                             additional: [true],
@@ -1436,7 +1585,7 @@ function ShippingCalculatorPageContent() {
         );
 
         const tlForm = (formData.taxableLines ?? {
-            freight: true,
+            freight: false,
             clearance: true,
             delivery: true,
             additional: [],
@@ -2023,15 +2172,48 @@ function ShippingCalculatorPageContent() {
                                 </div>
                             </div>
 
-                            {palletFields.map((field, index) => (
-                                <PalletItem
-                                    key={field.id}
-                                    index={index}
-                                    removePallet={removePallet}
-                                    destinationId={watchedDestinationId}
-                                    freightRates={freightRates}
-                                />
-                            ))}
+                            {palletGroups.map((group) => {
+                                if (group.indices.length === 1) {
+                                    const idx = group.indices[0];
+                                    return (
+                                        <PalletItem
+                                            key={group.fieldIds[0]}
+                                            index={idx}
+                                            removePallet={removePallet}
+                                            destinationId={watchedDestinationId}
+                                            freightRates={freightRates}
+                                        />
+                                    );
+                                }
+
+                                const isExpanded = expandedGroupKeys.has(group.key);
+
+                                return (
+                                    <PalletGroupCard
+                                        key={group.key}
+                                        dims={group.dims}
+                                        count={group.indices.length}
+                                        isExpanded={isExpanded}
+                                        onToggle={() => togglePalletGroup(group.key)}
+                                        onDuplicate={() => duplicatePalletGroup(group.dims)}
+                                        onRemoveGroup={() => removePalletGroup(group.indices)}
+                                        totalChargeableWeight={group.totalChargeableWeight}
+                                        totalFreight={group.totalFreight}
+                                    >
+                                        {isExpanded
+                                            ? group.indices.map((idx, i) => (
+                                                  <PalletItem
+                                                      key={group.fieldIds[i]}
+                                                      index={idx}
+                                                      removePallet={removePallet}
+                                                      destinationId={watchedDestinationId}
+                                                      freightRates={freightRates}
+                                                  />
+                                              ))
+                                            : null}
+                                    </PalletGroupCard>
+                                );
+                            })}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -2328,7 +2510,7 @@ function ShippingCalculatorPageContent() {
                             </div>
 
                             {/* Right side: Cost Summary */}
-                            <div className="space-y-4 p-6 glass rounded-2xl border border-blue-100 shadow-xl h-fit sticky top-6 overflow-hidden">
+                            <div className="space-y-4 p-6 glass rounded-2xl border border-blue-100 shadow-xl h-fit sticky top-4 self-start overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/30 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none"></div>
                                 <h3 className="font-extrabold text-xl mb-4 text-blue-900 border-b border-blue-100 pb-2 relative z-10">
                                     Quotation Summary
