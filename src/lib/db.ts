@@ -377,6 +377,8 @@ export interface Quotation {
 
   /** Document checklist preset: cannabis | hemp | kratom | general */
   commodity_type?: CommodityType;
+  /** Customer asked us to provide Phytosanitary certificate service */
+  phyto_required?: boolean | null;
 }
 
 export interface DocumentSubmission {

@@ -376,7 +376,8 @@ export async function createCustomerQuoteRequest(
   pallets: { length: number; width: number; height: number; weight: number; quantity: number }[],
   requestedDestination: string,
   notes?: string,
-  commodity: CommodityType = 'cannabis'
+  commodity: CommodityType = 'cannabis',
+  phytoRequired: boolean = false,
 ): Promise<{ success: boolean; quotationId?: string; error?: string }> {
   try {
     await loadSession();
@@ -415,6 +416,7 @@ export async function createCustomerQuoteRequest(
         requested_destination: requestedDestination,
         notes: notes || null,
         commodity_type: commodity,
+        phyto_required: phytoRequired,
         // Pre-fill company from customer's registered company (staff can change at approval)
         company_id: companyId,
         // Fields that staff will fill in later

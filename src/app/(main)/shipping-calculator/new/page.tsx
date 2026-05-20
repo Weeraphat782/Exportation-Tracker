@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm, FormProvider, useFieldArray, useFormContext, SubmitHandler, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Trash, Minus, Loader2, Zap, Layers, Check, Leaf } from 'lucide-react';
 import {
     calculateVolumeWeight,
     // getTotalVolumeWeight, // Removed unused import
@@ -1726,6 +1726,12 @@ function ShippingCalculatorPageContent() {
                             {existingQuotation.notes && (
                                 <p className="text-sm text-orange-600 mt-2 bg-orange-100 rounded px-3 py-1.5">
                                     <strong>Customer Note:</strong> {existingQuotation.notes}
+                                </p>
+                            )}
+                            {existingQuotation.phyto_required && (
+                                <p className="text-sm text-emerald-700 mt-2 bg-emerald-100 rounded px-3 py-1.5 flex items-center gap-2">
+                                    <Leaf className="w-4 h-4 shrink-0" />
+                                    <span><strong>Phytosanitary service requested</strong> — add this to your quote.</span>
                                 </p>
                             )}
                         </div>

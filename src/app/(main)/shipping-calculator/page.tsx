@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, ScrollText } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, Link2Off, ScrollText, UserCircle2, Leaf } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import {
@@ -829,9 +829,43 @@ export default function ShippingCalculatorPage() {
                 )}
                 {isColumnVisible('status') && (
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
-                      {getStatusText(quotation.status)}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
+                        {getStatusText(quotation.status)}
+                      </Badge>
+                      {quotation.customer_user_id && (
+                        <span
+                          className="inline-flex items-center justify-center text-emerald-600"
+                          title="Quote originated from a customer request"
+                        >
+                          <UserCircle2 className="w-4 h-4" />
+                        </span>
+                      )}
+                      {quotation.phyto_required && (
+                        <span
+                          className="inline-flex items-center justify-center text-emerald-700"
+                          title="Customer requested Phytosanitary Certificate service"
+                        >
+                          <Leaf className="w-4 h-4" />
+                        </span>
+                      )}
+                      {quotation.opportunity_id ? (
+                        <Link
+                          href={`/opportunities/${quotation.opportunity_id}`}
+                          className="inline-flex items-center justify-center text-violet-600 hover:text-violet-800 transition-colors"
+                          title="Linked to opportunity — click to open"
+                        >
+                          <Link2 className="w-4 h-4" />
+                        </Link>
+                      ) : (
+                        <span
+                          className="inline-flex items-center justify-center text-gray-300"
+                          title="Not linked to any opportunity"
+                        >
+                          <Link2Off className="w-4 h-4" />
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                 )}
                 {isColumnVisible('net_weight') && (

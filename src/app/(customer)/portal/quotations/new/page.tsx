@@ -111,6 +111,7 @@ export default function NewQuoteRequestPage() {
     const [pallets, setPallets] = useState<PalletInput[]>([createEmptyPallet()]);
     const [requestedDestination, setRequestedDestination] = useState('');
     const [notes, setNotes] = useState('');
+    const [phytoRequired, setPhytoRequired] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [submittedQuotationId, setSubmittedQuotationId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -209,7 +210,8 @@ export default function NewQuoteRequestPage() {
                 palletData,
                 requestedDestination,
                 notes || undefined,
-                commodity
+                commodity,
+                phytoRequired
             );
 
             if (result.success && result.quotationId) {
@@ -525,6 +527,34 @@ export default function NewQuoteRequestPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-gray-100 p-5">
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                                <Leaf className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div className="flex-1">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={phytoRequired}
+                                        onChange={(e) => setPhytoRequired(e.target.checked)}
+                                        className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <div>
+                                        <div className="text-sm font-bold text-gray-900">
+                                            Need Phytosanitary Certificate service?
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Tick if you want us to arrange the Phytosanitary Certificate
+                                            (plant health certificate required by many destinations).
+                                            Additional fees may apply — we&apos;ll include this in your quote.
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="bg-white rounded-xl border border-gray-100 p-5">

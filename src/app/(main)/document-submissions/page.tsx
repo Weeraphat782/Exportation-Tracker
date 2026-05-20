@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react';
+import { Download, Eye, CheckCircle, XCircle, FileText, Search, Trash2, ChevronDown, ChevronUp, ExternalLink, Loader2, UserCircle2, Leaf } from 'lucide-react';
 import { getDocumentSubmissions, getQuotations, getPendingApprovalQuotations, updateDocumentSubmission, deleteDocumentSubmission, Quotation as DbQuotation } from '@/lib/db';
 import { formatFileSize, resolveDocumentFileUrl, mapWithConcurrency } from '@/lib/storage';
 import { Input } from '@/components/ui/input';
@@ -613,12 +613,28 @@ export default function DocumentSubmissionsPage() {
                 <CardHeader className="bg-muted/50 py-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <CardTitle className="text-xl flex items-center gap-2">
+                      <CardTitle className="text-xl flex items-center gap-2 flex-wrap">
                         {headerCompany} - {headerDestination}
                         {isPendingApproval && (
                           <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
                             Awaiting approval
                           </Badge>
+                        )}
+                        {quotationInfo?.customer_user_id && (
+                          <span
+                            className="inline-flex items-center justify-center text-emerald-600"
+                            title="Quote originated from a customer request"
+                          >
+                            <UserCircle2 className="w-5 h-5" />
+                          </span>
+                        )}
+                        {quotationInfo?.phyto_required && (
+                          <span
+                            className="inline-flex items-center justify-center text-emerald-700"
+                            title="Customer requested Phytosanitary service"
+                          >
+                            <Leaf className="w-5 h-5" />
+                          </span>
                         )}
                       </CardTitle>
                       <CardDescription>

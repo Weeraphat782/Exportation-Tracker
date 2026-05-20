@@ -7,7 +7,7 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt, ShieldCheck, CheckCircle } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt, ShieldCheck, CheckCircle, UserCircle2, Leaf } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -286,6 +286,22 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                                     }`}>
                                                                     {quote.status.toUpperCase()}
                                                                 </span>
+                                                                {quote.customer_user_id && (
+                                                                    <span
+                                                                        className="inline-flex items-center justify-center text-emerald-600"
+                                                                        title="Quote originated from a customer request"
+                                                                    >
+                                                                        <UserCircle2 className="w-4 h-4" />
+                                                                    </span>
+                                                                )}
+                                                                {quote.phyto_required && (
+                                                                    <span
+                                                                        className="inline-flex items-center justify-center text-emerald-700"
+                                                                        title="Customer requested Phytosanitary service"
+                                                                    >
+                                                                        <Leaf className="w-4 h-4" />
+                                                                    </span>
+                                                                )}
                                                                 {(() => {
                                                                     const comm = normalizeCommodityType(quote.commodity_type);
                                                                     const meta = COMMODITY_META[comm];

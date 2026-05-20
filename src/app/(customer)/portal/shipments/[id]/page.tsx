@@ -857,6 +857,14 @@ export default function ShipmentDetailPage() {
                         <div className="text-[10px] font-bold text-gray-400 uppercase">Destination Port</div>
                         <div className="text-sm font-semibold text-gray-900">{q.destination || 'N/A'}</div>
                     </div>
+                    {q.phyto_required && (
+                        <div className="bg-emerald-50 p-3 rounded-lg flex items-center gap-2">
+                            <Leaf className="w-3.5 h-3.5 text-emerald-600" />
+                            <div className="text-xs font-semibold text-emerald-700">
+                                Phytosanitary service requested
+                            </div>
+                        </div>
+                    )}
                     {q.notes && (
                         <div className="bg-gray-50 p-3 rounded-lg">
                             <div className="text-[10px] font-bold text-gray-400 uppercase">Notes</div>

@@ -16,11 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { getQuotationPayableTotalThb } from '@/lib/db';
+import { COMMODITY_META, normalizeCommodityType } from '@/lib/document-presets';
 
 interface KanbanCardProps {
   opportunity: Opportunity;
@@ -187,6 +188,15 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       setIsUpdatingPickupDate(false);
     }
   };
+
+  const quotes = opportunity.quotationDetails || [];
+  const hasFromCustomer = quotes.some((q) => !!q.customer_user_id);
+  const hasPhyto = quotes.some((q) => q.phyto_required);
+  const totalDocs = quotes.reduce((s, q) => s + (q.docs_count || 0), 0);
+  const allPriceConfirmed = quotes.length > 0 && quotes.every((q) => q.price_confirmed);
+  const commodities = Array.from(
+    new Set(quotes.map((q) => normalizeCommodityType(q.commodity_type ?? undefined)))
+  );
 
   return (
     <div
@@ -395,6 +405,49 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               </div>
             );
           })()}
+
+          {quotes.length > 0 && (
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              {hasFromCustomer && (
+                <span title="From customer request" className="inline-flex items-center text-emerald-600">
+                  <UserCircle2 className="w-3.5 h-3.5" />
+                </span>
+              )}
+              {hasPhyto && (
+                <span title="Phytosanitary service requested" className="inline-flex items-center text-emerald-700">
+                  <Leaf className="w-3.5 h-3.5" />
+                </span>
+              )}
+              {totalDocs > 0 && (
+                <span
+                  title={`${totalDocs} document${totalDocs > 1 ? 's' : ''} uploaded`}
+                  className="inline-flex items-center gap-0.5 text-blue-600"
+                >
+                  <FileCheck className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold">{totalDocs}</span>
+                </span>
+              )}
+              {allPriceConfirmed && (
+                <span title="Price confirmed by customer" className="inline-flex items-center text-violet-600">
+                  <BadgeCheck className="w-3.5 h-3.5" />
+                </span>
+              )}
+              {commodities.map((c) => {
+                const meta = COMMODITY_META[c];
+                const Icon = meta.icon;
+                return (
+                  <span
+                    key={c}
+                    title={meta.label}
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full border text-[9px] font-bold ${meta.badgeClass}`}
+                  >
+                    <Icon className="w-2.5 h-2.5" />
+                    {meta.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
           <div
             className="flex items-center gap-2 mb-2"
