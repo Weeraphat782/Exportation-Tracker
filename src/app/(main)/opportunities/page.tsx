@@ -463,23 +463,51 @@ export default function OpportunitiesPage() {
   };
 
   const handleWinCase = async (opportunityId: string) => {
-    // Optimistic update
-    setOpportunities(prev => prev.map(opp =>
-      opp.id === opportunityId ? { ...opp, closureStatus: 'won' } : opp
-    ));
+    const targetOpp = opportunities.find((o) => o.id === opportunityId);
+    const quotesToComplete =
+      targetOpp?.quotationDetails?.filter((q) => q.status !== 'rejected') ?? [];
+    const completeCount = quotesToComplete.length;
 
-    const { error } = await supabase
-      .from('opportunities')
-      .update({
-        closure_status: 'won'
+    // Optimistic update — won + linked quotes completed (skip rejected)
+    setOpportunities((prev) =>
+      prev.map((opp) => {
+        if (opp.id !== opportunityId) return opp;
+        return {
+          ...opp,
+          closureStatus: 'won' as const,
+          quotationDetails: opp.quotationDetails?.map((q) =>
+            q.status === 'rejected' ? q : { ...q, status: 'completed' }
+          ),
+        };
       })
-      .eq('id', opportunityId);
+    );
 
-    if (error) {
+    const [oppResult, quotesResult] = await Promise.all([
+      supabase
+        .from('opportunities')
+        .update({ closure_status: 'won' })
+        .eq('id', opportunityId),
+      supabase
+        .from('quotations')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('opportunity_id', opportunityId)
+        .neq('status', 'rejected'),
+    ]);
+
+    if (oppResult.error || quotesResult.error) {
+      if (oppResult.error) console.error('Failed to mark opportunity as won:', oppResult.error);
+      if (quotesResult.error) console.error('Failed to complete linked quotations:', quotesResult.error);
       toast.error('Failed to mark as won');
-      fetchOpportunities(); // Revert
+      fetchOpportunities();
+      return;
+    }
+
+    if (completeCount > 0) {
+      toast.success(
+        `Opportunity marked as WON! ${completeCount} quotation${completeCount === 1 ? '' : 's'} marked complete.`
+      );
     } else {
-      toast.success('Opportunity marked as WON! 🏆');
+      toast.success('Opportunity marked as WON!');
     }
   };
 
