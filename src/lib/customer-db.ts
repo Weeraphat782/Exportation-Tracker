@@ -395,6 +395,13 @@ export async function createCustomerQuoteRequest(
     const companyName = customerCompany?.name || profile?.company || '';
     const companyId = customerCompany?.id || null;
 
+    if (!companyName.trim()) {
+      return {
+        success: false,
+        error: 'Please complete your company setup before submitting a quote request.',
+      };
+    }
+
     // Explode pallets: if any row has quantity > 1, convert it to multiple rows with quantity 1
     const explodedPallets = pallets.flatMap(p => {
       const qty = Math.max(1, Math.floor(Number(p.quantity) || 1));

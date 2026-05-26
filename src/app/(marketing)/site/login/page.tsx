@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react';
 import { signInCustomerWithGoogle } from '@/lib/customer-oauth';
 import { supabase } from '@/lib/supabase';
 import { useSearchParams } from 'next/navigation';
@@ -209,6 +209,22 @@ function LoginForm() {
                   Register here
                 </Link>
               </p>
+              <div className="pt-3">
+                <a
+                  href="/manual/index.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 hover:shadow-lg"
+                  style={{
+                    background: "linear-gradient(135deg, var(--color-primary-ref) 0%, #2c6bb8 100%)",
+                    boxShadow: "0 4px 14px rgba(33,84,151,0.35)",
+                  }}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  View User Manual
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
               <div className="pt-4 border-t border-neutral-100">
                 <Link
                   href="/login"

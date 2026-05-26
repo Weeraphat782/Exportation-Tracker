@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     ArrowLeft, ArrowRight, Plus, Trash2, Package, Send,
     Loader2, CheckCircle2, AlertCircle, Upload, Check, Eye, Leaf,
-    ChevronUp, ChevronDown, FileText,
+    ChevronUp, ChevronDown, FileText, Building2,
 } from 'lucide-react';
 import { createCustomerQuoteRequest, submitCustomerDocument } from '@/lib/customer-db';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
@@ -343,6 +343,24 @@ export default function NewQuoteRequestPage() {
             goToShipment();
         }
     };
+
+    if (profile && !profile.company) {
+        return (
+            <div className="max-w-md mx-auto bg-white rounded-2xl border p-6 text-center">
+                <Building2 className="w-10 h-10 mx-auto text-[#215497] mb-3" />
+                <h2 className="text-lg font-bold text-gray-900">Set up your company first</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                    We need your company details on the quote before our team can prepare a price.
+                </p>
+                <Link
+                    href="/portal/setup"
+                    className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#215497] hover:bg-[#1a4278] text-white text-sm font-semibold rounded-lg"
+                >
+                    Go to setup <ArrowRight className="w-4 h-4" />
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-3xl mx-auto space-y-6">

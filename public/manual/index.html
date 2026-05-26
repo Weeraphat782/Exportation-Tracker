@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMG Experience Customer Portal — User Manual</title>
+  <style>
+    :root {
+      --brand-blue: #1e3a5f;
+      --brand-green: #10b981;
+      --brand-green-dark: #059669;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --warning-bg: #fffbeb;
+      --warning-border: #f59e0b;
+      --info-bg: #eff6ff;
+      --info-border: #3b82f6;
+      --sidebar-width: 280px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    a { color: var(--brand-green-dark); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--brand-blue);
+      color: #fff;
+      padding: 1.5rem 1rem 2rem;
+    }
+
+    .sidebar h1 {
+      font-size: 1.05rem;
+      line-height: 1.35;
+      margin: 0 0 0.25rem;
+      font-weight: 700;
+    }
+
+    .sidebar .subtitle {
+      font-size: 0.8rem;
+      opacity: 0.75;
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar nav a {
+      display: block;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .sidebar nav a:hover,
+    .sidebar nav a.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+
+    .sidebar nav .section-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.55;
+      margin: 1rem 0 0.35rem 0.65rem;
+    }
+
+    main {
+      padding: 2rem 2.5rem 4rem;
+      max-width: 920px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, var(--brand-blue) 0%, #2d5a87 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 2rem 2.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .hero h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.75rem;
+    }
+
+    .hero p { margin: 0; opacity: 0.9; }
+
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    section h2 {
+      margin: 0 0 1rem;
+      font-size: 1.35rem;
+      color: var(--brand-blue);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--brand-green);
+    }
+
+    section h3 {
+      margin: 1.5rem 0 0.65rem;
+      font-size: 1.05rem;
+      color: #374151;
+    }
+
+    section h4 {
+      margin: 1rem 0 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    ol.steps, ul.checklist {
+      padding-left: 1.35rem;
+    }
+
+    ol.steps > li {
+      margin-bottom: 0.85rem;
+    }
+
+    ol.steps > li > strong {
+      color: var(--brand-blue);
+    }
+
+    .callout {
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin: 1rem 0;
+      font-size: 0.92rem;
+    }
+
+    .callout.info {
+      background: var(--info-bg);
+      border-left: 4px solid var(--info-border);
+    }
+
+    .callout.warning {
+      background: var(--warning-bg);
+      border-left: 4px solid var(--warning-border);
+    }
+
+    .callout.tip {
+      background: #ecfdf5;
+      border-left: 4px solid var(--brand-green);
+    }
+
+    figure {
+      margin: 1.25rem 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fafafa;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    figcaption {
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge.required { background: #fee2e2; color: #991b1b; }
+    .badge.optional { background: #e5e7eb; color: #374151; }
+    .badge.status { background: #fef3c7; color: #92400e; }
+
+    .step-indicator {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    .step-indicator span {
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .step-indicator span.active {
+      background: var(--brand-green);
+      color: #fff;
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 1rem 0;
+      font-size: 0.82rem;
+    }
+
+    .flow .node {
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.4rem 0.65rem;
+      white-space: nowrap;
+    }
+
+    .flow .arrow { color: var(--muted); }
+
+    kbd {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.85em;
+      font-family: inherit;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+      main { padding: 1.25rem; }
+    }
+
+    @media print {
+      .sidebar { display: none; }
+      .layout { display: block; }
+      section { break-inside: avoid; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>OMG Experience</h1>
+      <p class="subtitle">Customer Portal User Manual</p>
+      <nav>
+        <div class="section-label">Getting started</div>
+        <a href="#overview">Overview</a>
+        <a href="#requirements">Before you begin</a>
+        <a href="#login">1. Sign in with Google</a>
+        <a href="#company-setup">1b. Company setup (first login)</a>
+        <a href="#portal">2. Portal dashboard</a>
+
+        <div class="section-label">Create a request</div>
+        <a href="#new-request">3. Start a new quote request</a>
+        <a href="#step-commodity">3a. Step 1 — Commodity</a>
+        <a href="#step-details">3b. Step 2 — Details</a>
+        <a href="#step-documents">3c. Step 3 — Documents</a>
+
+        <div class="section-label">After submission</div>
+        <a href="#approval">4. Wait for approval</a>
+        <a href="#statuses">Status reference</a>
+        <a href="#documents-ref">Document checklist by product</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <h2>Customer Portal User Manual</h2>
+        <p>
+          Step-by-step guide for signing in at
+          <a href="https://cargo.omgexp.com/site/login" style="color:#a7f3d0">cargo.omgexp.com</a>,
+          creating a quote request, selecting your product type, uploading export documents,
+          and tracking approval through to shipment.
+        </p>
+      </header>
+
+      <!-- OVERVIEW -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>
+          The <strong>OMG Experience Customer Portal</strong> is your export workflow hub for
+          time-sensitive, temperature-controlled, and compliance-critical air freight. After signing in,
+          you can submit a <strong>Request Quote</strong>, tell us what you are shipping, provide pallet
+          and destination details, attach export documents, and monitor progress while our team reviews
+          and approves your request.
+        </p>
+        <p>The end-to-end workflow looks like this:</p>
+        <div class="flow">
+          <span class="node">Sign in (Google)</span>
+          <span class="arrow">→</span>
+          <span class="node">Request Quote</span>
+          <span class="arrow">→</span>
+          <span class="node">Choose commodity</span>
+          <span class="arrow">→</span>
+          <span class="node">Enter details</span>
+          <span class="arrow">→</span>
+          <span class="node">Submit request</span>
+          <span class="arrow">→</span>
+          <span class="node">Upload documents</span>
+          <span class="arrow">→</span>
+          <span class="node">Pending approval</span>
+          <span class="arrow">→</span>
+          <span class="node">Quoted &amp; shipped</span>
+        </div>
+      </section>
+
+      <!-- REQUIREMENTS -->
+      <section id="requirements">
+        <h2>Before you begin</h2>
+        <ul class="checklist">
+          <li>A registered customer account linked to your Google email address.</li>
+          <li>Access to the Google account you used when registering (for <strong>Continue with Google</strong> sign-in).</li>
+          <li>Basic shipment information: destination, pallet dimensions, and weight.</li>
+          <li>Export documents ready to upload (PDF, JPG, PNG, or Excel). Maximum file size: <strong>10 MB per file</strong>.</li>
+          <li>A modern web browser (Chrome, Edge, Firefox, or Safari).</li>
+        </ul>
+        <div class="callout info">
+          <strong>First-time users:</strong> If you do not yet have an account, click
+          <strong>Register</strong> on the login page or visit
+          <a href="https://cargo.omgexp.com/site/register">cargo.omgexp.com/site/register</a>
+          to create one with Google or email before following this guide.
+        </div>
+      </section>
+
+      <!-- LOGIN -->
+      <section id="login">
+        <h2>1. Sign in with Google</h2>
+
+        <ol class="steps">
+          <li>
+            <strong>Open the login page</strong><br />
+            In your browser, go to
+            <a href="https://cargo.omgexp.com/site/login">https://cargo.omgexp.com/site/login</a>.
+          </li>
+          <li>
+            <strong>Click <em>Continue with Google</em></strong><br />
+            On the sign-in card you will see the heading <em>Welcome back</em> and the subtitle
+            <em>Sign in to your customer portal</em>. Click the white button labelled
+            <strong>Continue with Google</strong> (with the Google “G” icon).
+          </li>
+          <li>
+            <strong>Complete Google authentication</strong><br />
+            You will be redirected to Google's sign-in page. Enter your Google email address
+            (for example, <code>your.name@gmail.com</code>) and click <strong>Next</strong>.
+            Enter your Google account password on the next screen and click <strong>Next</strong> again.
+          </li>
+          <li>
+            <strong>Grant access (if prompted)</strong><br />
+            If Google asks to share your name, email, and profile with the OMG Experience portal
+            (via Supabase authentication), click <strong>Allow</strong> or <strong>Continue</strong>.
+          </li>
+          <li>
+            <strong>Land on the Customer Portal</strong><br />
+            After a brief <em>Signing in…</em> loading screen, you are redirected to
+            <code>/portal</code>. First-time users may see a <strong>Set up your company</strong> screen
+            before reaching the <strong>My Shipments</strong> dashboard (see Section 1b).
+          </li>
+        </ol>
+
+        <figure>
+          <img src="assets/01-login.png" alt="OMG Experience login page with Continue with Google button" />
+          <figcaption>Figure 1 — Customer login page at /site/login. Click <strong>Continue with Google</strong>.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="assets/02-google-email.png" alt="Google sign-in email entry screen" />
+          <figcaption>Figure 2 — Enter your Google email address and click <strong>Next</strong>.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="assets/03-google-password.png" alt="Google sign-in password entry screen" />
+          <figcaption>Figure 3 — Enter your Google password and click <strong>Next</strong> to complete sign-in.</figcaption>
+        </figure>
+
+        <div class="callout warning">
+          <strong>Security note:</strong> Never share your Google password. OMG Experience staff will never ask for it.
+          If you see <em>Login for Admin / Staff</em>, that link is for internal staff only — customer users should
+          always use the <strong>Continue with Google</strong> button on this page.
+        </div>
+
+        <h3>Alternative: Sign in with email</h3>
+        <p>
+          Below the Google button, you can also sign in using the <strong>OR EMAIL</strong> section by entering
+          your registered email and password, then clicking <strong>Sign In →</strong>. Google sign-in is
+          recommended if your account was created with Google.
+        </p>
+      </section>
+
+      <!-- COMPANY SETUP -->
+      <section id="company-setup">
+        <h2>1b. Company setup (first login only)</h2>
+        <p>
+          If this is your first time signing in, you will be taken to <strong>Set up your company</strong>
+          at <code>/portal/setup</code> before you can use the portal. This information appears on your
+          quotations and shipping documents.
+        </p>
+        <ol class="steps">
+          <li><strong>Review pre-filled fields</strong> — your full name and contact email are populated from your account.</li>
+          <li><strong>Enter Company Name</strong> — your registered business name (required).</li>
+          <li><strong>Enter Address</strong> — your full company address (required).</li>
+          <li><strong>Optionally fill</strong> Tax ID / VAT number and phone number.</li>
+          <li><strong>Click Continue to Portal →</strong> to save and open the My Shipments dashboard.</li>
+        </ol>
+
+        <figure>
+          <img src="assets/04b-company-setup.png" alt="Set up your company form on first login" />
+          <figcaption>Figure 4 — First-time company setup screen after Google sign-in.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="assets/04c-company-setup-filled.png" alt="Company setup form filled in" />
+          <figcaption>Figure 5 — Fill in company name, address, and optional fields, then click <strong>Continue to Portal</strong>.</figcaption>
+        </figure>
+      </section>
+
+      <!-- PORTAL -->
+      <section id="portal">
+        <h2>2. Portal dashboard</h2>
+        <p>
+          After login, you arrive at <strong>My Shipments</strong> — your home dashboard at
+          <code>https://cargo.omgexp.com/portal</code>.
+        </p>
+
+        <figure>
+          <img src="assets/04-portal-dashboard.png" alt="Customer portal My Shipments dashboard" />
+          <figcaption>Figure 6 — My Shipments dashboard with sidebar navigation, summary cards, and pending quote requests.</figcaption>
+        </figure>
+
+        <h3>Left sidebar navigation</h3>
+        <table>
+          <thead>
+            <tr><th>Menu item</th><th>URL</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>My Shipments</strong></td>
+              <td><code>/portal</code></td>
+              <td>View all your quote requests and shipments, search by quotation number or destination, and track status.</td>
+            </tr>
+            <tr>
+              <td><strong>Request Quote</strong></td>
+              <td><code>/portal/quotations/new</code></td>
+              <td>Start a new export quote request (the main workflow in this manual).</td>
+            </tr>
+            <tr>
+              <td><strong>My Profile</strong></td>
+              <td><code>/portal/profile</code></td>
+              <td>View and update your account profile details.</td>
+            </tr>
+            <tr>
+              <td><strong>Sign Out</strong></td>
+              <td>—</td>
+              <td>Securely end your session.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Dashboard summary cards</h3>
+        <p>At the top of My Shipments, four cards give you a quick count of your activity:</p>
+        <ul class="checklist">
+          <li><strong>Total</strong> — all shipments linked to your account.</li>
+          <li><strong>In Progress</strong> — active requests being processed.</li>
+          <li><strong>Shipped</strong> — consignments that have departed.</li>
+          <li><strong>Delivered</strong> — completed deliveries.</li>
+        </ul>
+        <p>
+          Use the search bar to filter by <em>quotation number</em> or <em>destination</em>.
+          Click the green <strong>+ Request Quote</strong> button (top-right) at any time to create a new request.
+        </p>
+      </section>
+
+      <!-- NEW REQUEST -->
+      <section id="new-request">
+        <h2>3. Start a new quote request</h2>
+        <p>
+          To create a new export request, either click <strong>Request Quote</strong> in the left sidebar
+          or the green <strong>+ Request Quote</strong> button on the dashboard. Both open the
+          <strong>Request a Quote</strong> wizard at <code>/portal/quotations/new</code>.
+        </p>
+
+        <div class="step-indicator">
+          <span class="active">1. Commodity</span>
+          <span class="active">2. Details</span>
+          <span class="active">3. Documents</span>
+        </div>
+
+        <p>
+          The wizard has three steps shown as a progress bar at the top:
+          <strong>Commodity</strong> → <strong>Details</strong> → <strong>Documents</strong>.
+          Complete each step in order. You can go back using the <strong>← Back</strong> button on later steps.
+        </p>
+      </section>
+
+      <!-- STEP 1 -->
+      <section id="step-commodity">
+        <h2>3a. Step 1 — Commodity (choose your product)</h2>
+        <p>
+          The first screen asks <strong>“What are you shipping?”</strong> with the instruction:
+          <em>Select the type of product you plan to export. This helps us prepare the right document checklist.</em>
+        </p>
+
+        <figure>
+          <img src="assets/05-request-quote-start.png" alt="Request a Quote wizard step 1 commodity selection" />
+          <figcaption>Figure 7 — Step 1: choose from Cannabis, Hemp, Kratom, or General export categories.</figcaption>
+        </figure>
+
+        <p>Click one of the four product cards:</p>
+        <table>
+          <thead>
+            <tr><th>Product</th><th>Description</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Cannabis</strong></td>
+              <td>Medical-grade cannabis flowers, extracts, biomass</td>
+              <td>Includes GACP certification options and full TK-form document checklist.</td>
+            </tr>
+            <tr>
+              <td><strong>Hemp</strong></td>
+              <td>Industrial hemp &amp; CBD products (Hemp Letter included)</td>
+              <td>Requires Hemp Letter among export documents.</td>
+            </tr>
+            <tr>
+              <td><strong>Kratom</strong></td>
+              <td>Kratom products for export</td>
+              <td>Includes permits, TK forms, and shipping documents.</td>
+            </tr>
+            <tr>
+              <td><strong>General</strong></td>
+              <td>General export shipments</td>
+              <td>Simplified document checklist for non-specialised cargo.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <ol class="steps">
+          <li>Review the four product options and click the card that matches your shipment.</li>
+          <li>The selected card will highlight with a coloured border and checkmark.</li>
+          <li>Click the green <strong>Next →</strong> button at the bottom to proceed to Step 2.</li>
+        </ol>
+
+        <figure>
+          <img src="assets/07-step1-commodity-selected.png" alt="Step 1 with Hemp product selected" />
+          <figcaption>Figure 8 — Hemp selected as an example. Click <strong>Next →</strong> to continue.</figcaption>
+        </figure>
+
+        <div class="callout tip">
+          Your product choice determines which documents appear in Step 3. Choose carefully — if unsure,
+          select the closest match or email <a href="mailto:cargo@omgexp.com">cargo@omgexp.com</a> before submitting.
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section id="step-details">
+        <h2>3b. Step 2 — Details (shipment information)</h2>
+        <p>
+          Step 2 is titled <strong>Enter shipment details</strong>. Fill in all required fields marked with
+          a red asterisk (<span style="color:#ef4444">*</span>).
+        </p>
+
+        <h3>Shipping destination <span class="badge required">Required</span></h3>
+        <p>
+          In the field labelled <strong>Shipping Destination (Where to?) *</strong>, enter where the cargo
+          is going. Example placeholder: <em>e.g. Bangkok to Tokyo / Warehouse Address</em>.
+          This field is mandatory — you cannot submit without it.
+        </p>
+
+        <h3>Pallet dimensions</h3>
+        <p>
+          The blue <em>How it works</em> info box explains:
+          <em>Enter your pallet dimensions. After submit, you can attach export documents right away —
+          or skip and upload later from your shipment page.</em>
+        </p>
+        <p>For each pallet, provide:</p>
+        <table>
+          <thead>
+            <tr><th>Field</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Length</strong></td><td>Pallet length (cm).</td></tr>
+            <tr><td><strong>Width</strong></td><td>Pallet width (cm).</td></tr>
+            <tr><td><strong>Height</strong></td><td>Pallet height (cm).</td></tr>
+            <tr><td><strong>Weight (kg)</strong></td><td>Total weight of the pallet in kilograms.</td></tr>
+            <tr><td><strong>Quantity</strong></td><td>Number of identical pallets (defaults to 1).</td></tr>
+          </tbody>
+        </table>
+        <ul class="checklist">
+          <li>At least <strong>one pallet</strong> is required.</li>
+          <li>Click <strong>+ Add Pallet</strong> to add more pallets for multi-pallet shipments.</li>
+          <li>Click the remove (×) button on a pallet row if you have more than one and need to delete it.</li>
+        </ul>
+
+        <h3>Additional notes <span class="badge optional">Optional</span></h3>
+        <p>
+          Use the <strong>Additional Notes</strong> text area for special requirements, preferred shipping dates,
+          or any other instructions. Placeholder text:
+          <em>Any special requirements, preferred shipping dates, or other notes…</em>
+        </p>
+
+        <h3>Optional service checkboxes</h3>
+        <p>Depending on your product type, you may also see:</p>
+        <ul class="checklist">
+          <li>
+            <strong>Has Data Logger (attach MSDS)</strong> — tick if your shipment includes a temperature data logger.
+            Upload the MSDS (Material Safety Data Sheet) in Step 3.
+          </li>
+          <li>
+            <strong>Need Phytosanitary Certificate service?</strong> — tick if you want OMG Experience to arrange
+            the plant health certificate required by many destinations. Additional fees may apply and will be included in your quote.
+          </li>
+          <li>
+            <strong>Using GACP from another farm</strong> / <em>Check if purchased from another farm</em> —
+            tick if your GACP certificate comes from a different farm (Cannabis/Hemp products).
+          </li>
+          <li>
+            <strong>Thai GACP or GACP Certificate</strong> — upload your certification document in Step 3 when applicable.
+          </li>
+        </ul>
+
+        <div class="callout warning">
+          If any required field is empty, the form shows <em>Please fill in all required fields.</em>
+          and highlights missing items. Complete everything before submitting.
+        </div>
+
+        <figure>
+          <img src="assets/08-step2-details-empty.png" alt="Step 2 shipment details form empty" />
+          <figcaption>Figure 9 — Step 2: enter shipping destination, pallet dimensions, and optional notes.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="assets/09-step2-details-filled.png" alt="Step 2 shipment details form filled in" />
+          <figcaption>Figure 10 — Completed details ready for submission.</figcaption>
+        </figure>
+
+        <h3>Submit the request</h3>
+        <p>When all required fields are complete, submit from the bottom of Step 2:</p>
+        <ol class="steps">
+          <li>Review your destination, pallet dimensions, and notes.</li>
+          <li>Click the green <strong>Submit Quote Request</strong> button (send icon).</li>
+          <li>The button shows <strong>Submitting…</strong> while your request is saved.</li>
+          <li>On success, a toast confirms <strong>Quote request submitted!</strong> and the wizard advances to Step 3.</li>
+        </ol>
+
+        <div class="callout info">
+          After submission, your request enters the <strong>Pending Approval</strong> queue.
+          Our logistics team reviews your commodity type, destination, pallet data, and any uploaded documents
+          before issuing a formal quote.
+        </div>
+
+        <h3>What if submission fails?</h3>
+        <ul class="checklist">
+          <li><em>Please fill in all required fields.</em> — complete missing pallet or destination data.</li>
+          <li><em>Shipping Destination is required</em> — enter a destination before submitting.</li>
+          <li><em>At least one pallet is required</em> — add pallet dimensions.</li>
+          <li><em>A quotation with these details already exists</em> — check My Shipments for a duplicate.</li>
+          <li><em>Failed to submit request.</em> — check your internet connection and retry.</li>
+        </ul>
+      </section>
+
+      <!-- STEP 3 -->
+      <section id="step-documents">
+        <h2>3c. Step 3 — Documents (upload export files)</h2>
+        <p>
+          After submitting Step 2, you see a confirmation: <strong>Quote received!</strong> with the message
+          <em>Want to attach your export documents now?</em> Step 3 is labelled
+          <strong>Attach documents (optional)</strong>.
+        </p>
+
+        <p>
+          The page shows a <strong>Document checklist for [your product]</strong> organised into sections.
+          Each document type has a <strong>Choose file…</strong> upload area. You can upload multiple files
+          per document type.
+        </p>
+
+        <h3>Accepted file formats and limits</h3>
+        <ul class="checklist">
+          <li>Accepted formats: <strong>.pdf, .jpg, .jpeg, .png, .xlsx, .xls</strong></li>
+          <li>Maximum size: <strong>10 MB per file</strong></li>
+          <li>Files over 10 MB are rejected with an error message showing the file name.</li>
+        </ul>
+
+        <h3>How to upload</h3>
+        <ol class="steps">
+          <li>Scroll through each document section in the checklist.</li>
+          <li>Click <strong>Choose file…</strong> (or the upload area) next to each required document type.</li>
+          <li>Select one or more files from your computer. Selected files appear listed under each type.</li>
+          <li>Repeat for all documents you have ready.</li>
+          <li>
+            When files are selected, click <strong>Upload [N] file(s) &amp; continue</strong> to upload them all.
+            A success toast confirms: <em>Uploaded N file(s)</em>.
+          </li>
+          <li>
+            Alternatively, click <strong>Skip for now</strong> if you are not ready to upload.
+            You can upload documents later from your shipment detail page.
+          </li>
+          <li>Click <strong>Done — view my shipment</strong> to go to the shipment record.</li>
+        </ol>
+
+        <div class="callout tip">
+          You do not have to upload every document immediately. Our team can review your request while you
+          gather remaining files. However, uploading documents early helps speed up approval.
+        </div>
+
+        <figure>
+          <img src="assets/10-step3-quote-received.png" alt="Step 3 quote received confirmation and document upload" />
+          <figcaption>Figure 11 — After submit: <strong>Quote received!</strong> Upload documents now or click <strong>Skip for now</strong>.</figcaption>
+        </figure>
+
+        <figure>
+          <img src="assets/12-step3-documents-scrolled.png" alt="Document upload sections scrolled to show more types" />
+          <figcaption>Figure 12 — Document checklist by product type. Click <strong>Choose file…</strong> or drag-and-drop to upload each document.</figcaption>
+        </figure>
+      </section>
+
+      <!-- APPROVAL -->
+      <section id="approval">
+        <h2>4. Wait for approval and track progress</h2>
+        <p>
+          After submitting your quote request, return to <strong>My Shipments</strong> (<code>/portal</code>)
+          to monitor status. Your new request appears in the list — initially under
+          <strong>Pending Quote Requests</strong> with status <strong>Pending Approval</strong>.
+        </p>
+
+        <h3>What happens during review</h3>
+        <ol class="steps">
+          <li>
+            <strong>Staff review</strong> — OMG Experience staff review your commodity selection, destination,
+            pallet specifications, and uploaded documents. Status shows <em>Awaiting staff review</em>.
+          </li>
+          <li>
+            <strong>Pricing</strong> — once approved for quoting, status moves to <em>Awaiting Pricing</em>.
+            A note may appear: <em>Staff will set rate soon</em> or
+            <em>Destination &amp; pricing will be set by our team — you can still upload documents anytime.</em>
+          </li>
+          <li>
+            <strong>Document review</strong> — if documents are missing, status may show
+            <strong>Pending Documents</strong>. Upload remaining files from the shipment detail page.
+          </li>
+          <li>
+            <strong>Confirmation</strong> — once approved and priced, the status progresses through booking,
+            preparation, and shipping stages (see status reference below).
+          </li>
+        </ol>
+
+        <h3>How to check your status</h3>
+        <ol class="steps">
+          <li>Go to <strong>My Shipments</strong> from the sidebar (see Figure 6).</li>
+          <li>Look for your request in the <strong>Pending Quote Requests</strong> section.</li>
+          <li>Each card shows the quotation number, destination, <strong>Pending Approval</strong> badge, and last updated date.</li>
+          <li>Click <strong>Open &amp; upload documents</strong> or the shipment card to open its detail page (Figure 13).</li>
+          <li>Use the search bar to find a specific quotation by number or destination.</li>
+        </ol>
+
+        <div class="callout tip">
+          You can upload or replace documents at any time from the shipment detail page — even while waiting
+          for approval. This helps our team complete their review faster.
+        </div>
+
+        <h3>Cancelling a request</h3>
+        <p>
+          If you need to withdraw a pending request, open the shipment and use the cancel option.
+          You will be asked to confirm: <em>Cancel this quote request? This cannot be undone.</em>
+        </p>
+
+        <figure>
+          <img src="assets/14-shipment-detail.png" alt="Shipment detail page with pending approval status and document upload" />
+          <figcaption>Figure 13 — Shipment detail page: status timeline, document checklist, and upload areas while awaiting team review.</figcaption>
+        </figure>
+      </section>
+
+      <!-- STATUSES -->
+      <section id="statuses">
+        <h2>Status reference</h2>
+        <p>Your shipment moves through these stages from submission to delivery:</p>
+
+        <div class="flow">
+          <span class="node">Pending Approval</span>
+          <span class="arrow">→</span>
+          <span class="node">Awaiting Pricing</span>
+          <span class="arrow">→</span>
+          <span class="node">Pending Documents</span>
+          <span class="arrow">→</span>
+          <span class="node">Pending Booking</span>
+          <span class="arrow">→</span>
+          <span class="node">Booking Requested</span>
+          <span class="arrow">→</span>
+          <span class="node">Preparing</span>
+          <span class="arrow">→</span>
+          <span class="node">Waiting for Pick Up</span>
+          <span class="arrow">→</span>
+          <span class="node">Shipped</span>
+          <span class="arrow">→</span>
+          <span class="node">Delivered</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Status</th><th>What it means</th><th>Your action</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge status">Pending Approval</span></td>
+              <td>Your quote request has been submitted and is awaiting staff review.</td>
+              <td>Wait for review. Upload any missing documents.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Awaiting Pricing</span></td>
+              <td>Approved for quoting; team is preparing your rate.</td>
+              <td>Wait for pricing. Destination may show as <em>Destination TBD</em> until set.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Pending Documents</span></td>
+              <td>Required export documents are still needed.</td>
+              <td>Open the shipment and upload missing files.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Pending Booking</span></td>
+              <td>Quote confirmed; awaiting flight booking.</td>
+              <td>No action needed — team is arranging transport.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Booking Requested</span></td>
+              <td>Air freight space has been requested with the carrier.</td>
+              <td>Monitor for updates.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">AWB Received</span></td>
+              <td>Air Waybill number received from the airline.</td>
+              <td>Note the AWB for tracking.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Preparing</span></td>
+              <td>Shipment is being prepared for collection or departure.</td>
+              <td>Ensure cargo is ready for pick-up.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Waiting for Pick Up</span></td>
+              <td>Cargo is ready and awaiting carrier collection.</td>
+              <td>Be available for handover.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Shipped</span></td>
+              <td>Cargo has departed on the booked flight.</td>
+              <td>Track via shipment detail page.</td>
+            </tr>
+            <tr>
+              <td><span class="badge status">Delivered</span></td>
+              <td>Shipment completed successfully.</td>
+              <td>Archive records as needed.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>
+          Dashboard summary cards group these statuses: <strong>Total</strong>,
+          <strong>In Progress</strong> (active stages), <strong>Shipped</strong>, and
+          <strong>Delivered</strong>. Delivered shipments are hidden by default — toggle to view them.
+        </p>
+      </section>
+
+      <!-- DOCUMENT REFERENCE -->
+      <section id="documents-ref">
+        <h2>Document checklist by product</h2>
+        <p>
+          The documents shown in Step 3 depend on your selected commodity. Below is a reference of
+          document categories and types you may be asked to upload.
+        </p>
+
+        <h3>Cannabis</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Document types</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Company Information</strong></td>
+              <td>Company Registration, Company Declaration, ID Card Copy</td>
+            </tr>
+            <tr>
+              <td><strong>Permits &amp; TK Forms</strong></td>
+              <td>TK 10, TK 10 (ENG), TK 11, TK 11 (ENG), TK 31, TK 31 (ENG), TK 32, Import Permit, Export Permit</td>
+            </tr>
+            <tr>
+              <td><strong>Shipping Documents</strong></td>
+              <td>Purchase Order, Commercial Invoice, Packing List, COA, MSDS</td>
+            </tr>
+            <tr>
+              <td><strong>GACP Certification</strong></td>
+              <td>Thai GACP or GACP Certificate; Thai GACP Certificate (Farm), Farm Purchase Order, Farm Commercial Invoice (if using another farm's GACP)</td>
+            </tr>
+            <tr>
+              <td><strong>Additional Documents</strong></td>
+              <td>Additional File (any supporting documents)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Hemp</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Document types</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Company Information</strong></td>
+              <td>Company Registration, Company Declaration, ID Card Copy</td>
+            </tr>
+            <tr>
+              <td><strong>Permits &amp; TK Forms</strong></td>
+              <td>TK 10, TK 10 (ENG), TK 11, TK 11 (ENG), TK 31, TK 31 (ENG), TK 32, Import Permit, Export Permit</td>
+            </tr>
+            <tr>
+              <td><strong>Shipping Documents</strong></td>
+              <td>Purchase Order, Commercial Invoice, Packing List, COA, MSDS, <strong>Hemp Letter</strong></td>
+            </tr>
+            <tr>
+              <td><strong>GACP Certification</strong></td>
+              <td>Thai GACP or GACP Certificate (if applicable)</td>
+            </tr>
+            <tr>
+              <td><strong>Additional Documents</strong></td>
+              <td>Additional File</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Kratom</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Document types</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Company Information</strong></td>
+              <td>Company Registration, ID Card Copy</td>
+            </tr>
+            <tr>
+              <td><strong>Permits &amp; Forms</strong></td>
+              <td>Import Permit, Export Permit</td>
+            </tr>
+            <tr>
+              <td><strong>Shipping Documents</strong></td>
+              <td>Purchase Order, Commercial Invoice, Packing List</td>
+            </tr>
+            <tr>
+              <td><strong>Additional Documents</strong></td>
+              <td>Additional File</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>General</h3>
+        <table>
+          <thead><tr><th>Section</th><th>Document types</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Company Information</strong></td>
+              <td>Company Registration, ID Card Copy</td>
+            </tr>
+            <tr>
+              <td><strong>Shipping Documents</strong></td>
+              <td>Purchase Order, Commercial Invoice, Packing List</td>
+            </tr>
+            <tr>
+              <td><strong>Additional Documents</strong></td>
+              <td>Additional File</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <table>
+          <thead>
+            <tr><th>Problem</th><th>Likely cause</th><th>Solution</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Google sign-in blocked or rejected</td>
+              <td>Browser automation, incorrect credentials, or account not registered</td>
+              <td>Use a normal browser (not automated). Verify your Google email/password. Register first at <a href="https://cargo.omgexp.com/site/register">/site/register</a>.</td>
+            </tr>
+            <tr>
+              <td><em>This account is not registered as a customer</em></td>
+              <td>Account exists but is a staff account</td>
+              <td>Use the staff login at <code>/login</code> instead, or register a customer account.</td>
+            </tr>
+            <tr>
+              <td>Redirected back to login after signing in</td>
+              <td>Session expired or cookies blocked</td>
+              <td>Enable cookies for cargo.omgexp.com. Clear cache and sign in again.</td>
+            </tr>
+            <tr>
+              <td>File upload fails</td>
+              <td>File too large or wrong format</td>
+              <td>Ensure each file is under 10 MB and in PDF, JPG, PNG, or Excel format.</td>
+            </tr>
+            <tr>
+              <td><em>Storage upload failed</em></td>
+              <td>Network interruption during upload</td>
+              <td>Check your connection and retry the upload from the shipment page.</td>
+            </tr>
+            <tr>
+              <td>Shipment not visible on dashboard</td>
+              <td>Not yet assigned to your account</td>
+              <td>New accounts may see: <em>Your shipments will appear here once our team assigns quotations to your account.</em> Email <a href="mailto:cargo@omgexp.com">cargo@omgexp.com</a> if your submitted request does not appear within 24 hours.</td>
+            </tr>
+            <tr>
+              <td>Status stuck on Pending Approval</td>
+              <td>Review in progress or missing documents</td>
+              <td>Upload all required documents. Email <a href="mailto:cargo@omgexp.com">cargo@omgexp.com</a> with your quotation number if waiting more than 2 business days.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Need help?</h3>
+        <p>
+          Get in touch with us by contacting
+          <a href="mailto:cargo@omgexp.com">cargo@omgexp.com</a>.
+        </p>
+      </section>
+
+      <footer>
+        <p>
+          OMG Experience Customer Portal User Manual ·
+          <a href="https://cargo.omgexp.com/site/login">cargo.omgexp.com</a> ·
+          © 2026 OMG Experience Co., Ltd.
+        </p>
+        <p>Document version 1.0 · Generated May 2026</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // Highlight active nav link on scroll
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.sidebar nav a');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            navLinks.forEach((link) => {
+              link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+            });
+          }
+        });
+      },
+      { rootMargin: '-20% 0px -60% 0px' }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+  </script>
+</body>
+</html>

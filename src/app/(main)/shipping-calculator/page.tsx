@@ -795,7 +795,13 @@ export default function ShippingCalculatorPage() {
               <TableRow key={quotation.id}>
                 {isColumnVisible('date') && <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>}
                 {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.quotation_no || quotation.id.slice(0, 8)}</TableCell>}
-                {isColumnVisible('company') && <TableCell className="text-xs sm:text-sm">{quotation.company_name}</TableCell>}
+                {isColumnVisible('company') && (
+                  <TableCell className="text-xs sm:text-sm">
+                    {quotation.company_name || (
+                      <span className="text-gray-400 italic">— (no company)</span>
+                    )}
+                  </TableCell>
+                )}
                 {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
                 {isColumnVisible('destination') && (
                   <TableCell className="text-xs sm:text-sm">

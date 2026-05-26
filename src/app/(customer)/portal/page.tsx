@@ -6,7 +6,7 @@ import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Inbox, Loader2, FileText,
     Search, ArrowRight, Eye, Clock, PlusCircle, X,
-    ChevronDown, ChevronUp,
+    ChevronDown, ChevronUp, BookOpen,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { getCustomerQuotations, getCustomerPendingRequests, cancelCustomerQuoteRequest } from '@/lib/customer-db';
@@ -232,7 +232,19 @@ export default function MyShipmentsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">My Shipments</h1>
                     <p className="text-sm text-gray-500 mt-1">Track and manage all your shipments, {displayName}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <a
+                        href="/manual/index.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-xl hover:opacity-90 hover:shadow-lg transition-all"
+                        style={{
+                            background: "linear-gradient(135deg, #215497 0%, #2c6bb8 100%)",
+                            boxShadow: "0 4px 14px rgba(33,84,151,0.35)",
+                        }}
+                    >
+                        <BookOpen className="w-4 h-4" /> User Manual
+                    </a>
                     <Link
                         href="/portal/quotations/new"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"

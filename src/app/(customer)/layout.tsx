@@ -171,8 +171,8 @@ function AuthRedirect() {
       return;
     }
 
-    // First-time Gmail users: redirect to setup only on first load (dashboard root)
-    if (profile && !profile.company && pathname === '/portal') {
+    // First-time Gmail users: redirect to setup on any portal route except setup itself
+    if (profile && !profile.company && pathname.startsWith('/portal') && pathname !== '/portal/setup') {
       window.location.href = '/portal/setup';
       return;
     }
