@@ -111,6 +111,7 @@ export function QuotationPreviewContent({
       | 'delivery_cost'
       | 'additional_charges'
       | 'taxable_lines'
+      | 'wht_enabled'
     > => ({
       total_freight_cost: Number(totalFreightCost) || 0,
       clearance_cost: Number(clearanceCost) || 0,
@@ -118,6 +119,10 @@ export function QuotationPreviewContent({
       delivery_cost: Number(deliveryCost) || 0,
       additional_charges: quotationData.additional_charges ?? [],
       taxable_lines: quotationData.taxable_lines,
+      wht_enabled:
+        quotationData.wht_enabled !== undefined
+          ? quotationData.wht_enabled
+          : (quotationData as { whtEnabled?: boolean }).whtEnabled,
     }),
     [
       totalFreightCost,
@@ -126,6 +131,8 @@ export function QuotationPreviewContent({
       quotationData.delivery_service_required,
       quotationData.additional_charges,
       quotationData.taxable_lines,
+      quotationData.wht_enabled,
+      (quotationData as { whtEnabled?: boolean }).whtEnabled,
     ]
   );
 
@@ -297,10 +304,19 @@ export function QuotationPreviewContent({
                     <td className="py-2 text-right tabular-nums">—</td>
                     <td className="py-2 text-right tabular-nums">{formatNumber(vatBreakdown.vat_amount)}</td>
                   </tr>
+                  {vatBreakdown.wht_amount > 0 && (
+                    <tr className="border-b">
+                      <td className="py-2 text-left text-slate-600 pr-3 sm:pr-4">Tax 3.00% (WHT)</td>
+                      <td className="py-2 text-right tabular-nums">—</td>
+                      <td className="py-2 text-right tabular-nums text-red-700">
+                        ({formatNumber(vatBreakdown.wht_amount)})
+                      </td>
+                    </tr>
+                  )}
                   <tr className="font-bold text-base border-t border-slate-300">
                     <td className="py-2 text-left pr-3 sm:pr-4">GRAND TOTAL (incl. VAT)</td>
                     <td className="py-2 text-right tabular-nums" colSpan={2}>
-                      {formatNumber(vatBreakdown.grand_total_with_vat)} THB
+                      {formatNumber(vatBreakdown.net_payable)} THB
                     </td>
                   </tr>
                 </tbody>

@@ -12,6 +12,7 @@ import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 import {
   deleteProformaInvoice,
   getProformaInvoices,
+  getProformaPayableTotal,
   type ProformaInvoiceListItem,
 } from '@/lib/db';
 import { toast } from 'sonner';
@@ -168,7 +169,7 @@ export default function ProformaInvoicesListPage() {
                       </TableCell>
                       <TableCell>{r.customer_name || r.company_name || '—'}</TableCell>
                       <TableCell>{proformaStatusBadge(r.status)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(r.grand_total)} THB</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatMoney(getProformaPayableTotal(r))} THB</TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
                           <Button variant="outline" size="sm" asChild>

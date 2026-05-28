@@ -37,6 +37,8 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
                         total_cost: q.total_cost ?? 0,
                         vat_amount: q.vat_amount ?? null,
                         grand_total_with_vat: null,
+                        wht_amount: q.wht_amount ?? null,
+                        wht_enabled: q.wht_enabled,
                     }) > 0
                 )
                 .reduce(
@@ -46,6 +48,8 @@ export function KanbanColumn({ stage, opportunities, onEdit, onDelete, onWinCase
                             total_cost: q.total_cost ?? 0,
                             vat_amount: q.vat_amount ?? null,
                             grand_total_with_vat: null,
+                            wht_amount: q.wht_amount ?? null,
+                            wht_enabled: q.wht_enabled,
                         }),
                     0
                 );

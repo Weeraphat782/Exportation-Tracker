@@ -350,6 +350,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                   total_cost: q.total_cost ?? 0,
                   vat_amount: q.vat_amount ?? null,
                   grand_total_with_vat: null,
+                  wht_amount: q.wht_amount ?? null,
+                  wht_enabled: q.wht_enabled,
                 });
                 return linePayable > 0;
               }) || [];
@@ -362,6 +364,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                       total_cost: q.total_cost ?? 0,
                       vat_amount: q.vat_amount ?? null,
                       grand_total_with_vat: null,
+                      wht_amount: q.wht_amount ?? null,
+                      wht_enabled: q.wht_enabled,
                     }),
                   0
                 )
@@ -391,6 +395,8 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                             total_cost: q.total_cost ?? 0,
                             vat_amount: q.vat_amount ?? null,
                             grand_total_with_vat: null,
+                            wht_amount: q.wht_amount ?? null,
+                            wht_enabled: q.wht_enabled,
                           }).toLocaleString()}{' '}
                           THB
                         </span>

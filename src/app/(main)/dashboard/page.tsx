@@ -196,6 +196,8 @@ interface ExportQuotation {
   customer_name: string | null;
   total_cost: number | null;
   vat_amount: number | null;
+  wht_amount: number | null;
+  wht_enabled: boolean | null;
   total_freight_cost: number | null;
   clearance_cost: number | null;
   delivery_cost: number | null;
@@ -388,7 +390,7 @@ export default function DashboardPage() {
 
         try {
           // Get top companies by export volume - with error handling
-          let companiesQuery = supabase.from('quotations').select('company_name, total_cost, vat_amount');
+          let companiesQuery = supabase.from('quotations').select('company_name, total_cost, vat_amount, wht_amount, wht_enabled');
           if (userId) {
             companiesQuery = companiesQuery.eq('user_id', userId);
           }
@@ -406,6 +408,8 @@ export default function DashboardPage() {
                 total_cost: quotation.total_cost ?? 0,
                 vat_amount: quotation.vat_amount ?? null,
                 grand_total_with_vat: null,
+                wht_amount: quotation.wht_amount ?? null,
+                wht_enabled: quotation.wht_enabled,
               });
 
               if (!companyStats[company_name]) {
@@ -548,7 +552,7 @@ export default function DashboardPage() {
 
         // NEW: Financial Metrics by Month
         try {
-          let financialQuery = supabase.from('quotations').select('created_at, total_cost, vat_amount');
+          let financialQuery = supabase.from('quotations').select('created_at, total_cost, vat_amount, wht_amount, wht_enabled');
           if (userId) {
             financialQuery = financialQuery.eq('user_id', userId);
           }
@@ -569,6 +573,8 @@ export default function DashboardPage() {
                 total_cost: item.total_cost ?? 0,
                 vat_amount: item.vat_amount ?? null,
                 grand_total_with_vat: null,
+                wht_amount: item.wht_amount ?? null,
+                wht_enabled: item.wht_enabled,
               });
 
               if (!monthlyMetrics[monthYear]) {
@@ -699,6 +705,8 @@ export default function DashboardPage() {
           customer_name,
           total_cost,
           vat_amount,
+          wht_amount,
+          wht_enabled,
           total_freight_cost,
           clearance_cost,
           delivery_cost,
@@ -780,6 +788,8 @@ export default function DashboardPage() {
             total_cost: q.total_cost ?? 0,
             vat_amount: q.vat_amount ?? null,
             grand_total_with_vat: null,
+            wht_amount: q.wht_amount ?? null,
+            wht_enabled: q.wht_enabled,
           }),
           'Quotation ID': q.id
         };

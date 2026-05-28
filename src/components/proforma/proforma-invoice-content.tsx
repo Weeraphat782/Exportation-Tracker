@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import type { ProformaInvoice, Quotation } from '@/lib/db';
+import { getProformaPayableTotal, type ProformaInvoice, type Quotation } from '@/lib/db';
 
 function formatNumber(num: number | string | undefined | null) {
   if (num === undefined || num === null) return '0.00';
@@ -246,10 +246,19 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
                     <td className="py-2 text-right tabular-nums">—</td>
                     <td className="py-2 text-right tabular-nums">{formatNumber(proforma.vat)}</td>
                   </tr>
+                  {(proforma.wht_amount ?? 0) > 0 && proforma.wht_enabled !== false && (
+                    <tr className="border-b">
+                      <td className="py-2 text-left text-slate-600 pr-4">Tax 3.00% (WHT)</td>
+                      <td className="py-2 text-right tabular-nums">—</td>
+                      <td className="py-2 text-right tabular-nums text-red-700">
+                        ({formatNumber(proforma.wht_amount)})
+                      </td>
+                    </tr>
+                  )}
                   <tr className="font-bold text-base border-t border-slate-300">
                     <td className="py-2 text-left pr-4">GRAND TOTAL (incl. VAT)</td>
                     <td className="py-2 text-right tabular-nums" colSpan={2}>
-                      {formatNumber(proforma.grand_total)} THB
+                      {formatNumber(getProformaPayableTotal(proforma))} THB
                     </td>
                   </tr>
                 </tbody>

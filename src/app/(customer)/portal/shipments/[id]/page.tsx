@@ -508,6 +508,7 @@ export default function ShipmentDetailPage() {
             delivery_cost: totals.deliveryCost,
             additional_charges: quotation.additional_charges ?? [],
             taxable_lines: quotation.taxable_lines,
+            wht_enabled: quotation.wht_enabled,
         });
     }, [quotation, totals, isPricingPending]);
 
@@ -516,7 +517,7 @@ export default function ShipmentDetailPage() {
         if (quotation.price_confirmed) {
             return getQuotationPayableTotalThb(quotation);
         }
-        return liveVatBreakdown?.grand_total_with_vat ?? totals.totalCost;
+        return liveVatBreakdown?.net_payable ?? totals.totalCost;
     }, [quotation, totals, liveVatBreakdown, isPricingPending]);
 
     const subtotalExclVat = totals?.totalCost ?? 0;
@@ -527,6 +528,16 @@ export default function ShipmentDetailPage() {
             return quotation.vat_amount != null ? Number(quotation.vat_amount) : 0;
         }
         return liveVatBreakdown?.vat_amount ?? 0;
+    }, [quotation, totals, liveVatBreakdown, isPricingPending]);
+
+    const whtLineAmount = useMemo(() => {
+        if (!quotation || !totals || isPricingPending) return 0;
+        if (quotation.price_confirmed) {
+            return quotation.wht_enabled !== false && quotation.wht_amount != null
+                ? Number(quotation.wht_amount)
+                : 0;
+        }
+        return liveVatBreakdown?.wht_amount ?? 0;
     }, [quotation, totals, liveVatBreakdown, isPricingPending]);
 
     // ---- Pallet handlers ----
@@ -960,6 +971,14 @@ export default function ShipmentDetailPage() {
                         <div className="px-5 py-3 flex justify-between items-center border-t border-gray-50">
                             <span className="text-sm text-gray-600">VAT 7%</span>
                             <span className="text-sm font-bold text-gray-900">{formatMoneyThb(vatLineAmount)}</span>
+                        </div>
+                    )}
+                    {whtLineAmount > 0 && (
+                        <div className="px-5 py-3 flex justify-between items-center border-t border-gray-50">
+                            <span className="text-sm text-gray-600">Tax 3% (WHT)</span>
+                            <span className="text-sm font-bold text-red-600">
+                                ({formatMoneyThb(whtLineAmount)})
+                            </span>
                         </div>
                     )}
                     <div className="px-5 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center">

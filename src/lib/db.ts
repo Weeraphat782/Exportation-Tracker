@@ -99,6 +99,12 @@ export interface QuotationTaxableLinesForm {
 }
 
 export const QUOTATION_VAT_RATE = 0.07;
+export const QUOTATION_WHT_RATE = 0.03;
+
+/** Default true when column is null (legacy rows). */
+export function quotationWhtEnabled(wht_enabled: boolean | null | undefined): boolean {
+  return wht_enabled !== false;
+}
 
 function quotationRoundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -155,12 +161,16 @@ export function computeQuotationVatBreakdown(params: {
   delivery_amount: number;
   additional_amounts: number[];
   taxable_lines: QuotationTaxableLines | null | undefined;
+  /** Default true — 3% WHT on VAT-taxable subtotal, deducted from grand total. */
+  wht_enabled?: boolean | null;
 }): {
   vat_base: number;
   non_vat_base: number;
   subtotal_pre_vat: number;
   vat_amount: number;
   grand_total_with_vat: number;
+  wht_amount: number;
+  net_payable: number;
 } {
   const tl = params.taxable_lines ?? {};
   let vatBase = 0;
@@ -181,7 +191,19 @@ export function computeQuotationVatBreakdown(params: {
   const subtotal_pre_vat = quotationRoundMoney(vat_base + non_vat_base);
   const vat_amount = quotationRoundMoney(vat_base * QUOTATION_VAT_RATE);
   const grand_total_with_vat = quotationRoundMoney(subtotal_pre_vat + vat_amount);
-  return { vat_base, non_vat_base, subtotal_pre_vat, vat_amount, grand_total_with_vat };
+  const wht_amount = quotationWhtEnabled(params.wht_enabled)
+    ? quotationRoundMoney(vat_base * QUOTATION_WHT_RATE)
+    : 0;
+  const net_payable = quotationRoundMoney(grand_total_with_vat - wht_amount);
+  return {
+    vat_base,
+    non_vat_base,
+    subtotal_pre_vat,
+    vat_amount,
+    grand_total_with_vat,
+    wht_amount,
+    net_payable,
+  };
 }
 
 /** Rows for staff UI: split each charge into VAT vs non-VAT portions. */
@@ -265,6 +287,7 @@ export function getQuotationVatBreakdownFromQuote(
     | 'delivery_cost'
     | 'additional_charges'
     | 'taxable_lines'
+    | 'wht_enabled'
   >
 ): ReturnType<typeof computeQuotationVatBreakdown> {
   const charges = Array.isArray(q.additional_charges) ? q.additional_charges : [];
@@ -289,16 +312,22 @@ export function getQuotationVatBreakdownFromQuote(
     delivery_amount: q.delivery_service_required ? Number(q.delivery_cost) || 0 : 0,
     additional_amounts: filteredAmounts,
     taxable_lines,
+    wht_enabled: q.wht_enabled,
   });
 }
 
-/** Total amount payable (pre-VAT subtotal + VAT), same accounting relation as Proforma `grand_total`. */
+/** Net payable (subtotal + VAT − WHT when enabled). */
 export function getQuotationPayableTotalThb(
-  q: Pick<Quotation, 'total_cost' | 'vat_amount' | 'grand_total_with_vat'>
+  q: Pick<Quotation, 'total_cost' | 'vat_amount' | 'grand_total_with_vat' | 'wht_amount' | 'wht_enabled'>
 ): number {
   const tc = Number(q.total_cost) || 0;
   const va = q.vat_amount != null && !Number.isNaN(Number(q.vat_amount)) ? Number(q.vat_amount) : 0;
-  return quotationRoundMoney(tc + va);
+  const preWht = quotationRoundMoney(tc + va);
+  const wht =
+    quotationWhtEnabled(q.wht_enabled) && q.wht_amount != null && !Number.isNaN(Number(q.wht_amount))
+      ? Number(q.wht_amount)
+      : 0;
+  return quotationRoundMoney(preWht - wht);
 }
 
 export interface Quotation {
@@ -374,6 +403,10 @@ export interface Quotation {
   vat_amount?: number | null;
   /** total_cost + vat_amount */
   grand_total_with_vat?: number | null;
+  /** Apply 3% WHT on VAT-taxable subtotal (default true). */
+  wht_enabled?: boolean | null;
+  /** 3% of VAT-taxable base when wht_enabled; deducted from payable total. */
+  wht_amount?: number | null;
 
   /** Document checklist preset: cannabis | hemp | kratom | general */
   commodity_type?: CommodityType;
@@ -437,6 +470,8 @@ export interface ProformaInvoice {
   subtotal: number | null;
   vat: number | null;
   grand_total: number | null;
+  wht_enabled?: boolean | null;
+  wht_amount?: number | null;
   status: 'draft' | 'sent' | 'signed' | 'cancelled';
   share_token: string | null;
   created_at: string;
@@ -1171,7 +1206,9 @@ export async function saveQuotation(quotationData: NewQuotationData): Promise<Qu
       manual_rate: quotationData.manual_rate || null,
       taxable_lines: quotationData.taxable_lines ?? null,
       vat_amount: quotationData.vat_amount ?? null,
-      grand_total_with_vat: quotationData.grand_total_with_vat ?? null
+      grand_total_with_vat: quotationData.grand_total_with_vat ?? null,
+      wht_enabled: quotationData.wht_enabled ?? true,
+      wht_amount: quotationData.wht_amount ?? null,
     };
 
     const { data, error } = await supabase
@@ -1908,10 +1945,15 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function computeProformaTotals(lineItems: ProformaLineItem[]): {
+export function computeProformaTotals(
+  lineItems: ProformaLineItem[],
+  wht_enabled?: boolean | null
+): {
   subtotal: number;
   vat: number;
   grand_total: number;
+  wht_amount: number;
+  net_payable: number;
 } {
   const subtotal = roundMoney(
     lineItems.reduce((s, i) => s + (Number(i.amount) || 0), 0)
@@ -1924,7 +1966,19 @@ export function computeProformaTotals(lineItems: ProformaLineItem[]): {
   );
   const vat = roundMoney(taxableBase * 0.07);
   const grand_total = roundMoney(subtotal + vat);
-  return { subtotal, vat, grand_total };
+  const wht_amount = quotationWhtEnabled(wht_enabled) ? roundMoney(taxableBase * QUOTATION_WHT_RATE) : 0;
+  const net_payable = roundMoney(grand_total - wht_amount);
+  return { subtotal, vat, grand_total, wht_amount, net_payable };
+}
+
+/** Net payable for proforma (grand_total − WHT). */
+export function getProformaPayableTotal(p: Pick<ProformaInvoice, 'grand_total' | 'wht_amount' | 'wht_enabled'>): number {
+  const gt = Number(p.grand_total) || 0;
+  const wht =
+    quotationWhtEnabled(p.wht_enabled) && p.wht_amount != null && !Number.isNaN(Number(p.wht_amount))
+      ? Number(p.wht_amount)
+      : 0;
+  return roundMoney(gt - wht);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1949,6 +2003,8 @@ function mapProformaRow(row: any): ProformaInvoice {
     subtotal: row.subtotal != null ? Number(row.subtotal) : null,
     vat: row.vat != null ? Number(row.vat) : null,
     grand_total: row.grand_total != null ? Number(row.grand_total) : null,
+    wht_enabled: row.wht_enabled === false ? false : true,
+    wht_amount: row.wht_amount != null ? Number(row.wht_amount) : null,
   } as ProformaInvoice;
 }
 
@@ -2118,7 +2174,8 @@ export async function createProformaInvoice(
     const fromQuote = buildProformaDefaultsFromQuote(q);
     const { line_items: ovLineItems, ...restOverrides } = overrides ?? {};
     const line_items = ovLineItems ?? fromQuote.line_items;
-    const { subtotal, vat, grand_total } = computeProformaTotals(line_items);
+    const wht_enabled = overrides?.wht_enabled ?? quotationWhtEnabled(q.wht_enabled);
+    const { subtotal, vat, grand_total, wht_amount } = computeProformaTotals(line_items, wht_enabled);
 
     const row = {
       quotation_id: quotationId,
@@ -2142,6 +2199,8 @@ export async function createProformaInvoice(
       subtotal,
       vat,
       grand_total,
+      wht_enabled,
+      wht_amount,
     };
 
     const { data, error } = await supabase.from('proforma_invoices').insert([row]).select('*').single();
@@ -2181,8 +2240,18 @@ export async function updateProformaInvoice(
       nextLineItems = patch.line_items;
     }
 
-    const totals =
-      nextLineItems !== undefined ? computeProformaTotals(nextLineItems) : null;
+    const whtForTotals =
+      patch.wht_enabled !== undefined ? patch.wht_enabled : undefined;
+
+    let totals: ReturnType<typeof computeProformaTotals> | null = null;
+    if (nextLineItems !== undefined) {
+      let whtForCalc = whtForTotals;
+      if (whtForCalc === undefined) {
+        const existing = await getProformaInvoiceById(id);
+        whtForCalc = existing?.wht_enabled;
+      }
+      totals = computeProformaTotals(nextLineItems, whtForCalc);
+    }
 
     const rest: Record<string, unknown> = { ...patch };
     delete rest.line_items;
@@ -2197,6 +2266,20 @@ export async function updateProformaInvoice(
       updatePayload.subtotal = totals!.subtotal;
       updatePayload.vat = totals!.vat;
       updatePayload.grand_total = totals!.grand_total;
+      updatePayload.wht_amount = totals!.wht_amount;
+      if (whtForTotals !== undefined) {
+        updatePayload.wht_enabled = quotationWhtEnabled(whtForTotals);
+      }
+    } else if (whtForTotals !== undefined) {
+      const existing = await getProformaInvoiceById(id);
+      if (existing?.line_items?.length) {
+        const recalc = computeProformaTotals(existing.line_items, whtForTotals);
+        updatePayload.wht_enabled = quotationWhtEnabled(whtForTotals);
+        updatePayload.wht_amount = recalc.wht_amount;
+      } else {
+        updatePayload.wht_enabled = quotationWhtEnabled(whtForTotals);
+        updatePayload.wht_amount = 0;
+      }
     }
 
     // NOTE: no .single() — RLS may hide the updated row on read-back and produce

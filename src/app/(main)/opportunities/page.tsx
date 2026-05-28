@@ -41,7 +41,7 @@ export default function OpportunitiesPage() {
       .select(`
         *,
         quotations(
-          id, price_confirmed, total_cost, vat_amount, quotation_no,
+          id, price_confirmed, total_cost, vat_amount, wht_amount, wht_enabled, quotation_no,
           customer_user_id, phyto_required, commodity_type, status,
           document_submissions(count)
         ),
@@ -90,6 +90,8 @@ export default function OpportunitiesPage() {
           price_confirmed?: boolean;
           total_cost?: number;
           vat_amount?: number | null;
+          wht_amount?: number | null;
+          wht_enabled?: boolean | null;
           quotation_no?: string;
           customer_user_id?: string | null;
           phyto_required?: boolean | null;
@@ -117,6 +119,8 @@ export default function OpportunitiesPage() {
               price_confirmed: q.price_confirmed ?? false,
               total_cost: q.total_cost,
               vat_amount: q.vat_amount,
+              wht_amount: q.wht_amount,
+              wht_enabled: q.wht_enabled,
               quotation_no: q.quotation_no,
               customer_user_id: q.customer_user_id ?? null,
               phyto_required: !!q.phyto_required,

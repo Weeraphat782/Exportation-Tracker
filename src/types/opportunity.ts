@@ -44,6 +44,8 @@ export interface Opportunity {
         price_confirmed?: boolean;
         total_cost?: number;
         vat_amount?: number | null;
+        wht_amount?: number | null;
+        wht_enabled?: boolean | null;
         quotation_no?: string;
         customer_user_id?: string | null;
         phyto_required?: boolean;

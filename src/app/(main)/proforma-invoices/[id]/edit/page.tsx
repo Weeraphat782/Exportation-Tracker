@@ -82,6 +82,7 @@ export default function EditProformaPage() {
   const [chargeableWeight, setChargeableWeight] = useState('');
   const [airportDestination, setAirportDestination] = useState('');
   const [lineItems, setLineItems] = useState<ProformaLineItem[]>([{ description: '', amount: 0 }]);
+  const [whtEnabled, setWhtEnabled] = useState(true);
 
   const [importOpen, setImportOpen] = useState(false);
   const [importSelected, setImportSelected] = useState<Record<string, boolean>>({});
@@ -133,6 +134,7 @@ export default function EditProformaPage() {
             }))
           : [{ description: '', amount: 0, taxable: true }]
       );
+      setWhtEnabled(p.wht_enabled !== false);
     } finally {
       setLoading(false);
     }
@@ -211,7 +213,10 @@ export default function EditProformaPage() {
     toast.success('Line items imported');
   };
 
-  const liveTotals = useMemo(() => computeProformaTotals(lineItems), [lineItems]);
+  const liveTotals = useMemo(
+    () => computeProformaTotals(lineItems, whtEnabled),
+    [lineItems, whtEnabled]
+  );
 
   const handleLineChange = (
     index: number,
@@ -263,6 +268,7 @@ export default function EditProformaPage() {
       amount: Number(r.amount) || 0,
       taxable: r.taxable !== false,
     })),
+    wht_enabled: whtEnabled,
   });
 
   const handleSave = async () => {
@@ -664,7 +670,11 @@ export default function EditProformaPage() {
             );
           })}
         </div>
-        <div className="flex flex-col items-end gap-1 text-sm border-t pt-4">
+        <div className="flex flex-col items-end gap-2 text-sm border-t pt-4">
+          <label className="flex items-center gap-2 cursor-pointer select-none mr-auto">
+            <Checkbox checked={whtEnabled} onCheckedChange={(v) => setWhtEnabled(v === true)} />
+            <span>Apply 3% withholding tax (on VAT-taxable amount)</span>
+          </label>
           <div>
             Subtotal:{' '}
             <strong>{liveTotals.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> THB
@@ -673,9 +683,17 @@ export default function EditProformaPage() {
             VAT 7%:{' '}
             <strong>{liveTotals.vat.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> THB
           </div>
+          {liveTotals.wht_amount > 0 && (
+            <div className="text-red-600">
+              Tax 3% (WHT):{' '}
+              <strong>
+                ({liveTotals.wht_amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) THB
+              </strong>
+            </div>
+          )}
           <div className="text-base font-bold">
             Grand total:{' '}
-            {liveTotals.grand_total.toLocaleString('en-US', { minimumFractionDigits: 2 })} THB
+            {liveTotals.net_payable.toLocaleString('en-US', { minimumFractionDigits: 2 })} THB
           </div>
         </div>
       </div>

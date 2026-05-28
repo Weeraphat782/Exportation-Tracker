@@ -109,6 +109,7 @@ const quotationFormSchema = z.object({
         delivery: z.boolean(),
         additional: z.array(z.boolean()),
     }),
+    whtEnabled: z.boolean().optional(),
 });
 
 // Define the type based on the schema
@@ -733,6 +734,7 @@ function ShippingCalculatorPageContent() {
                 delivery: true,
                 additional: [true],
             },
+            whtEnabled: true,
         },
         mode: 'onChange',
     });
@@ -854,6 +856,7 @@ function ShippingCalculatorPageContent() {
     const watchedDeliveryVehicle = watch('deliveryVehicleType');
     const watchedProductId = watch('productId');
     const watchedTaxableLines = useWatch({ control, name: 'taxableLines' });
+    const watchedWhtEnabled = useWatch({ control, name: 'whtEnabled' });
     const watchedClearanceCost = useWatch({ control, name: 'clearanceCost' });
     const watchedAdditionalCharges = useWatch({ control, name: 'additionalCharges' });
     const watchedPallets = useWatch({ control, name: 'pallets' }) ?? [];
@@ -951,6 +954,7 @@ function ShippingCalculatorPageContent() {
             delivery_amount: watchedDeliveryRequired ? calculationResult.deliveryCost : 0,
             additional_amounts: filtered.map((c) => Number(c.amount) || 0),
             taxable_lines: taxable_map,
+            wht_enabled: watchedWhtEnabled !== false,
         });
     }, [
         calculationResult,
@@ -958,6 +962,7 @@ function ShippingCalculatorPageContent() {
         watchedClearanceCost,
         watchedAdditionalCharges,
         watchedDeliveryRequired,
+        watchedWhtEnabled,
     ]);
 
     const vatDisplayRows = React.useMemo(() => {
@@ -1185,6 +1190,7 @@ function ShippingCalculatorPageContent() {
                             isManualRate: typedExistingQuotation.is_manual_rate ?? false,
                             manualRate: Number(typedExistingQuotation.manual_rate) || 0,
                             internalRemark: typedExistingQuotation.internal_remark || '',
+                            whtEnabled: typedExistingQuotation.wht_enabled !== false,
                         });
 
                         // Set the ref to prevent initial sync if products are already loaded
@@ -1607,6 +1613,7 @@ function ShippingCalculatorPageContent() {
             delivery_amount: formData.deliveryServiceRequired ? calcResult.deliveryCost : 0,
             additional_amounts,
             taxable_lines,
+            wht_enabled: formData.whtEnabled !== false,
         });
 
         // Construct the full data object matching NewQuotationData with snake_case field names
@@ -1649,6 +1656,8 @@ function ShippingCalculatorPageContent() {
             taxable_lines,
             vat_amount: vatComputed.vat_amount,
             grand_total_with_vat: vatComputed.grand_total_with_vat,
+            wht_enabled: formData.whtEnabled !== false,
+            wht_amount: vatComputed.wht_amount,
         };
         return dataForDB;
     };
@@ -2616,16 +2625,46 @@ function ShippingCalculatorPageContent() {
                                                         THB
                                                     </span>
                                                 </div>
+                                                {quotationVatBreakdown.wht_amount > 0 && (
+                                                    <div className="flex justify-between text-slate-700">
+                                                        <span>Tax 3% (WHT)</span>
+                                                        <span className="font-bold tabular-nums text-red-600">
+                                                            (
+                                                            {quotationVatBreakdown.wht_amount.toLocaleString(undefined, {
+                                                                minimumFractionDigits: 2,
+                                                                maximumFractionDigits: 2,
+                                                            })}
+                                                            ) THB
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between text-slate-800 font-semibold mt-1">
                                                     <span>Grand total (incl. VAT)</span>
                                                     <span className="tabular-nums">
-                                                        {quotationVatBreakdown.grand_total_with_vat.toLocaleString(undefined, {
+                                                        {quotationVatBreakdown.net_payable.toLocaleString(undefined, {
                                                             minimumFractionDigits: 2,
                                                             maximumFractionDigits: 2,
                                                         })}{' '}
                                                         THB
                                                     </span>
                                                 </div>
+                                                <FormField
+                                                    control={control}
+                                                    name="whtEnabled"
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200">
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={field.value !== false}
+                                                                    onCheckedChange={(v) => field.onChange(v === true)}
+                                                                />
+                                                            </FormControl>
+                                                            <FormLabel className="!mt-0 text-[11px] font-medium text-slate-600 cursor-pointer">
+                                                                Apply 3% withholding tax (on VAT-taxable amount)
+                                                            </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             </div>
                                         )}
 
@@ -2651,7 +2690,7 @@ function ShippingCalculatorPageContent() {
                                                     </p>
                                                     <div className="flex justify-between items-baseline">
                                                         <span className="text-3xl font-black tabular-nums">
-                                                            {(quotationVatBreakdown.grand_total_with_vat ?? calculationResult.finalTotalCost).toLocaleString(undefined, {
+                                                            {(quotationVatBreakdown.net_payable ?? calculationResult.finalTotalCost).toLocaleString(undefined, {
                                                                 minimumFractionDigits: 2,
                                                                 maximumFractionDigits: 2,
                                                             })}
