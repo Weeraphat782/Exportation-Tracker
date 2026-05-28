@@ -692,7 +692,7 @@ export default function EditProformaPage() {
             </div>
           )}
           <div className="text-base font-bold">
-            Grand total:{' '}
+            NET TO PAY:{' '}
             {liveTotals.net_payable.toLocaleString('en-US', { minimumFractionDigits: 2 })} THB
           </div>
         </div>

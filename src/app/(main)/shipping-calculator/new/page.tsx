@@ -2639,7 +2639,7 @@ function ShippingCalculatorPageContent() {
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between text-slate-800 font-semibold mt-1">
-                                                    <span>Grand total (incl. VAT)</span>
+                                                    <span>NET TO PAY</span>
                                                     <span className="tabular-nums">
                                                         {quotationVatBreakdown.net_payable.toLocaleString(undefined, {
                                                             minimumFractionDigits: 2,
@@ -2686,7 +2686,7 @@ function ShippingCalculatorPageContent() {
                                                         THB
                                                     </p>
                                                     <p className="text-xs text-blue-100 font-medium uppercase tracking-wider">
-                                                        GRAND TOTAL (incl. VAT)
+                                                        NET TO PAY
                                                     </p>
                                                     <div className="flex justify-between items-baseline">
                                                         <span className="text-3xl font-black tabular-nums">

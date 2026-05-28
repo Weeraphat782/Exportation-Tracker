@@ -256,7 +256,7 @@ export function ProformaInvoiceContent({ proforma, quote, mode }: ProformaInvoic
                     </tr>
                   )}
                   <tr className="font-bold text-base border-t border-slate-300">
-                    <td className="py-2 text-left pr-4">GRAND TOTAL (incl. VAT)</td>
+                    <td className="py-2 text-left pr-4">NET TO PAY</td>
                     <td className="py-2 text-right tabular-nums" colSpan={2}>
                       {formatNumber(getProformaPayableTotal(proforma))} THB
                     </td>

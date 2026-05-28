@@ -148,7 +148,7 @@ export default function ProformaInvoicesListPage() {
                     <TableHead className="whitespace-nowrap">Quotation No.</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Grand Total</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Net to Pay</TableHead>
                     <TableHead className="text-right w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

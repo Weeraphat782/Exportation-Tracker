@@ -314,7 +314,7 @@ export function QuotationPreviewContent({
                     </tr>
                   )}
                   <tr className="font-bold text-base border-t border-slate-300">
-                    <td className="py-2 text-left pr-3 sm:pr-4">GRAND TOTAL (incl. VAT)</td>
+                    <td className="py-2 text-left pr-3 sm:pr-4">NET TO PAY</td>
                     <td className="py-2 text-right tabular-nums" colSpan={2}>
                       {formatNumber(vatBreakdown.net_payable)} THB
                     </td>

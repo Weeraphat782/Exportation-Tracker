@@ -982,7 +982,7 @@ export default function ShipmentDetailPage() {
                         </div>
                     )}
                     <div className="px-5 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center">
-                        <span className="text-xs font-black text-emerald-100 uppercase tracking-widest">Grand total (incl. VAT)</span>
+                        <span className="text-xs font-black text-emerald-100 uppercase tracking-widest">Net to Pay</span>
                         <span className="text-xl font-black text-white">{formatMoneyThb(payableTotalThb)}</span>
                     </div>
                 </div>
