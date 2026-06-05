@@ -7,14 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Mail, Search, Plus, FileText } from 'lucide-react';
-import { getQuotations, Quotation, getQuotationPayableTotalThb } from '@/lib/db';
+import { Mail, Search, Plus, FileText, Link2, Loader2 } from 'lucide-react';
+import { getQuotations, Quotation, getQuotationPayableTotalThb, generateBookingShareToken } from '@/lib/db';
 import { toast } from 'sonner';
 
 export default function EmailBookingListPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [copyingId, setCopyingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadQuotations = async () => {
@@ -83,6 +84,31 @@ export default function EmailBookingListPage() {
     }
   };
 
+  const getBookingStatusBadge = (q: Quotation) => {
+    const bs = q.booking_status || 'draft';
+    if (bs === 'sent') {
+      return <Badge variant="secondary">Link sent</Badge>;
+    }
+    return <Badge variant="outline">Draft</Badge>;
+  };
+
+  const handleCopyBookingLink = async (quotation: Quotation) => {
+    setCopyingId(quotation.id);
+    try {
+      const token =
+        quotation.booking_share_token || (await generateBookingShareToken(quotation.id));
+      if (!token) {
+        toast.error('Could not generate link — open booking page and save details first');
+        return;
+      }
+      const url = `${window.location.origin}/booking/${token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Booking link copied');
+    } finally {
+      setCopyingId(null);
+    }
+  };
+
   const getStatusText = (status: string) => {
     switch (status) {
       case 'accepted':
@@ -111,7 +137,7 @@ export default function EmailBookingListPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Email Booking</h1>
-          <p className="text-muted-foreground">Create booking emails from accepted quotations</p>
+          <p className="text-muted-foreground">Prepare booking details and share Air Freight booking links</p>
         </div>
         <Button asChild>
           <Link href="/shipping-calculator">
@@ -176,6 +202,7 @@ export default function EmailBookingListPage() {
                     <TableHead>Destination</TableHead>
                     <TableHead>Weight (KG)</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Booking</TableHead>
                     <TableHead>Total Cost (incl. VAT)</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -198,9 +225,23 @@ export default function EmailBookingListPage() {
                           {getStatusText(quotation.status)}
                         </Badge>
                       </TableCell>
+                      <TableCell>{getBookingStatusBadge(quotation)}</TableCell>
                       <TableCell>{formatCurrency(getQuotationPayableTotalThb(quotation))}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopyBookingLink(quotation)}
+                            disabled={copyingId === quotation.id}
+                          >
+                            {copyingId === quotation.id ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <Link2 className="h-4 w-4 mr-1" />
+                            )}
+                            Link
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -208,7 +249,7 @@ export default function EmailBookingListPage() {
                           >
                             <Link href={`/email-booking/${quotation.id}`}>
                               <Mail className="h-4 w-4 mr-1" />
-                              Create Email
+                              Booking
                             </Link>
                           </Button>
 

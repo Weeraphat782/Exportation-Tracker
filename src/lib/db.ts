@@ -412,6 +412,15 @@ export interface Quotation {
   commodity_type?: CommodityType;
   /** Customer asked us to provide Phytosanitary certificate service */
   phyto_required?: boolean | null;
+
+  /** Public Air Freight booking link token (separate from share_token) */
+  booking_share_token?: string | null;
+  /** Staff-entered booking request fields (airline, routing, etc.) */
+  booking_details?: import('./email-templates').EmailBookingData | Record<string, unknown> | null;
+  /** Air Freight team response from public booking page */
+  booking_air_freight?: import('./email-templates').BookingAirFreightResponse | Record<string, unknown> | null;
+  booking_status?: 'draft' | 'sent' | 'confirmed' | string | null;
+  booking_confirmed_at?: string | null;
 }
 
 export interface DocumentSubmission {
@@ -1422,6 +1431,70 @@ export async function generateShareToken(quotationId: string): Promise<string | 
 /**
  * ดึง quotation จาก share token (สำหรับ public tracking — ไม่ต้อง auth)
  */
+export type BookingStatus = 'draft' | 'sent' | 'confirmed';
+
+/**
+ * Generate or return existing booking_share_token for Air Freight public link.
+ */
+export async function generateBookingShareToken(quotationId: string): Promise<string | null> {
+  try {
+    const { data: existing } = await supabase
+      .from('quotations')
+      .select('booking_share_token')
+      .eq('id', quotationId)
+      .single();
+
+    if (existing?.booking_share_token) {
+      return existing.booking_share_token;
+    }
+
+    const token = crypto.randomUUID();
+
+    const { error } = await supabase
+      .from('quotations')
+      .update({ booking_share_token: token })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error generating booking share token:', error);
+      return null;
+    }
+
+    return token;
+  } catch (err) {
+    console.error('Error in generateBookingShareToken:', err);
+    return null;
+  }
+}
+
+/**
+ * Persist staff booking form fields and mark booking as sent.
+ */
+export async function saveBookingDetails(
+  quotationId: string,
+  details: import('./email-templates').EmailBookingData
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('quotations')
+      .update({
+        booking_details: details,
+        booking_status: 'sent',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', quotationId);
+
+    if (error) {
+      console.error('Error saving booking details:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Error in saveBookingDetails:', err);
+    return false;
+  }
+}
+
 export async function getQuotationByShareToken(token: string): Promise<(Quotation & { documents?: DocumentSubmission[] }) | null> {
   try {
     const { data, error } = await supabase

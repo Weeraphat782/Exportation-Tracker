@@ -7,10 +7,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Copy, Mail, Send, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Copy, Mail, Send, Download, Printer, Link2, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getQuotationById, Quotation, getQuotationPayableTotalThb } from '@/lib/db';
-import { generateBookingEmailFromQuotation, formatBookingEmail, generateEmailSubject, EmailBookingData } from '@/lib/email-templates';
+import {
+  getQuotationById,
+  Quotation,
+  getQuotationPayableTotalThb,
+  generateBookingShareToken,
+  saveBookingDetails,
+} from '@/lib/db';
+import {
+  mergeBookingDetailsFromQuotation,
+  formatBookingEmail,
+  generateEmailSubject,
+  EmailBookingData,
+} from '@/lib/email-templates';
+import { Badge } from '@/components/ui/badge';
 
 
 export default function EmailBookingPage() {
@@ -23,6 +35,8 @@ export default function EmailBookingPage() {
   const [emailData, setEmailData] = useState<EmailBookingData>({});
   const [emailContent, setEmailContent] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [linkLoading, setLinkLoading] = useState(false);
 
   useEffect(() => {
     const loadQuotation = async () => {
@@ -33,8 +47,10 @@ export default function EmailBookingPage() {
         if (quotationData) {
           setQuotation(quotationData);
 
-          // Generate initial email data from quotation
-          const initialEmailData = generateBookingEmailFromQuotation(quotationData);
+          const initialEmailData = mergeBookingDetailsFromQuotation(
+            quotationData,
+            quotationData.booking_details as EmailBookingData | null
+          );
           setEmailData(initialEmailData);
 
           // Generate email content and subject
@@ -74,6 +90,53 @@ export default function EmailBookingPage() {
 
     setEmailContent(content);
     setEmailSubject(subject);
+  };
+
+  const getBookingStatusBadge = () => {
+    const status = quotation?.booking_status || 'draft';
+    if (status === 'sent') return <Badge variant="secondary">Link sent</Badge>;
+    return <Badge variant="outline">Draft</Badge>;
+  };
+
+  const handleSaveBookingDetails = async () => {
+    if (!quotation) return;
+    setSaving(true);
+    try {
+      const ok = await saveBookingDetails(quotation.id, emailData);
+      if (ok) {
+        toast.success('Booking details saved');
+        const refreshed = await getQuotationById(quotationId);
+        if (refreshed) setQuotation(refreshed);
+      } else {
+        toast.error('Failed to save booking details');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCopyBookingLink = async () => {
+    if (!quotation) return;
+    setLinkLoading(true);
+    try {
+      const saved = await saveBookingDetails(quotation.id, emailData);
+      if (!saved) {
+        toast.error('Save booking details before generating link');
+        return;
+      }
+      const token = await generateBookingShareToken(quotation.id);
+      if (!token) {
+        toast.error('Could not generate booking link');
+        return;
+      }
+      const url = `${window.location.origin}/booking/${token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Booking link copied to clipboard');
+      const refreshed = await getQuotationById(quotationId);
+      if (refreshed) setQuotation(refreshed);
+    } finally {
+      setLinkLoading(false);
+    }
   };
 
   const handleCopyEmail = () => {
@@ -203,9 +266,22 @@ export default function EmailBookingPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Email Booking</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold">Email Booking</h1>
+              {getBookingStatusBadge()}
+            </div>
             <p className="text-muted-foreground">Quotation: {quotation.quotation_no || quotation.id.slice(0, 8)}</p>
           </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleSaveBookingDetails} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save details
+          </Button>
+          <Button onClick={handleCopyBookingLink} disabled={linkLoading}>
+            {linkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />}
+            Copy booking link
+          </Button>
         </div>
       </div>
 
@@ -218,7 +294,7 @@ export default function EmailBookingPage() {
               Email Details
             </CardTitle>
             <CardDescription>
-              Fill in the details for your booking email. Fields marked with data from quotation will be pre-filled.
+              Fill booking details here, then use <strong>Copy booking link</strong> to send Air Freight a shareable page (documents + response form). Email copy is optional below.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

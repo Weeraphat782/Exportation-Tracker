@@ -1,5 +1,16 @@
 import { Quotation } from './db';
 
+/** Air Freight team response submitted via public booking link */
+export interface BookingAirFreightResponse {
+  mawb?: string;
+  flight_no?: string;
+  carrier?: string;
+  booked_date?: string;
+  remarks?: string;
+  responder_name?: string;
+  submitted_at?: string;
+}
+
 export interface EmailBookingData {
   recipientName?: string;
   senderName?: string;
@@ -17,6 +28,16 @@ export interface EmailBookingData {
   shipper?: string;
   consignee?: string;
   routing?: string;
+}
+
+/** Merge persisted booking_details over quotation defaults */
+export function mergeBookingDetailsFromQuotation(
+  quotation: Quotation,
+  saved?: EmailBookingData | Record<string, unknown> | null
+): EmailBookingData {
+  const base = generateBookingEmailFromQuotation(quotation);
+  if (!saved || typeof saved !== 'object') return base;
+  return { ...base, ...(saved as Partial<EmailBookingData>) };
 }
 
 export function generateBookingEmailFromQuotation(quotation: Quotation, additionalData?: Partial<EmailBookingData>): EmailBookingData {
