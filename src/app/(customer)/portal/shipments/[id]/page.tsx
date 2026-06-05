@@ -31,6 +31,7 @@ import {
     type Pallet,
 } from '@/lib/db';
 import type { FreightRate, CompanyDocument } from '@/lib/customer-db';
+import { DocumentCheckCard } from '@/components/portal/document-check-card';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'react-hot-toast';
 import {
@@ -1204,6 +1205,12 @@ export default function ShipmentDetailPage() {
                     </div>
                 );
             })()}
+
+            {/* ===== DOCUMENT CHECK (pre-booking) ===== */}
+            <DocumentCheckCard
+                quotationId={q.id}
+                uploadedTypes={documents.map(d => d.document_type).filter(Boolean) as string[]}
+            />
 
             {/* ===== DOCUMENTS UPLOAD (Collapsed) ===== */}
             <div id="documents">

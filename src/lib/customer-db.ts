@@ -790,3 +790,68 @@ export async function deleteCompanyDocument(
     return { success: false, error: err instanceof Error ? err.message : 'Unexpected error' };
   }
 }
+
+// ============================================================
+// Customer self document check (pre-booking)
+// ============================================================
+
+export interface CustomerDocCheckResponse {
+  success: boolean;
+  overallStatus: 'PASS' | 'WARNING' | 'FAIL';
+  checks: Array<{
+    name: string;
+    status: 'PASS' | 'WARNING' | 'FAIL';
+    details: string;
+    message: string;
+  }>;
+  extractedByDocument: Array<{
+    name: string;
+    file_name: string;
+    fields: Array<{ label: string; value: string }>;
+  }>;
+  documents: Array<{
+    name: string;
+    file_name: string;
+    critical_issues: string[];
+    warnings: string[];
+  }>;
+  requiredDocs: Array<{ type: string; name: string; primary: boolean; uploaded: boolean }>;
+  checksRemaining: number;
+  checkedAt: string;
+}
+
+export type CustomerDocCheckResult =
+  | { ok: true; data: CustomerDocCheckResponse }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Run the automated pre-booking document check for a shipment the customer owns.
+ * The server fills in the rule and selects all uploaded documents automatically.
+ */
+export async function runCustomerDocumentCheck(quotationId: string): Promise<CustomerDocCheckResult> {
+  try {
+    const ready = await loadSession();
+    if (!ready) return { ok: false, status: 401, error: 'Session expired. Please sign in again.' };
+
+    const { data: { session } } = await queryClient.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return { ok: false, status: 401, error: 'Session expired. Please sign in again.' };
+
+    const res = await fetch('/api/portal/document-check', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ quotation_id: quotationId }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: data?.error || 'Could not run the document check.' };
+    }
+    return { ok: true, data: data as CustomerDocCheckResponse };
+  } catch (err) {
+    return { ok: false, status: 0, error: err instanceof Error ? err.message : 'Network error' };
+  }
+}
