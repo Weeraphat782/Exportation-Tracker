@@ -22,8 +22,7 @@ export const dynamic = 'force-dynamic';
 // Tunable cost-control defaults for customer self-checks.
 const DAILY_CAP = 5;
 const COOLDOWN_MS = 60_000;
-// TEMP: daily cap disabled for testing. Set back to true to re-enable.
-const ENFORCE_DAILY_CAP = false;
+const ENFORCE_DAILY_CAP = true;
 
 function getVisionModel(): string {
   return process.env.GEMINI_VISION_MODEL || 'gemini-3.1-flash-lite-preview';
