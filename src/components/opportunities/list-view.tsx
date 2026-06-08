@@ -34,6 +34,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
+import { DatePickerField } from '@/components/ui/date-picker-field';
 
 interface ListViewProps {
   opportunities: Opportunity[];
@@ -44,7 +45,7 @@ interface ListViewProps {
   onRefresh?: () => void;
 }
 
-/** Inline editable date cell (payment / pickup) — saves directly to opportunities */
+/** Inline editable date cell (payment / pickup) using a DD/MM/YYYY calendar picker */
 function EditableDateCell({
   opportunityId,
   initial,
@@ -63,7 +64,7 @@ function EditableDateCell({
     setValue(initial);
   }, [initial]);
 
-  const save = async (date: string) => {
+  const commit = async (date: string) => {
     const previous = value;
     setValue(date);
     setSaving(true);
@@ -85,22 +86,7 @@ function EditableDateCell({
 
   return (
     <div className="flex items-center gap-1">
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => save(e.target.value)}
-        className="h-7 w-[130px] rounded border border-gray-200 px-1.5 text-xs focus:border-blue-400 focus:outline-none"
-      />
-      {value && !saving && (
-        <button
-          type="button"
-          onClick={() => save('')}
-          title="Clear"
-          className="text-gray-400 hover:text-red-500"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
+      <DatePickerField value={value} onChange={commit} disabled={saving} />
       {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}
     </div>
   );
