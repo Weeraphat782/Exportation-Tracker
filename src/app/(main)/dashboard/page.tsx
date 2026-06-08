@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileCheck, Building, Globe, DollarSign, ZoomIn, ZoomOut } from 'lucide-react';
@@ -326,36 +326,41 @@ export default function DashboardPage() {
     }
   }, [countryDistribution, worldMapData]);
 
-  useEffect(() => {
-    const fetchShipmentStatus = async (userId: string | undefined) => {
-      try {
-        setIsLoadingShipments(true);
-        let opQuery = supabase.from('opportunities').select(`
-          id, topic, customer_name, stage, closure_status,
-          payment_date, pickup_date, created_at,
-          quotations(id, quotation_no, company_name, total_cost, vat_amount, wht_amount, wht_enabled, awb_number, status)
-        `);
-        if (userId) {
-          opQuery = opQuery.eq('owner_id', userId);
-        }
-        const { data: opData, error: opError } = await opQuery.order('created_at', { ascending: false });
-        if (opError) throw opError;
-        setShipmentRows(
-          mapOpportunitiesToShipmentRows((opData ?? []) as RawOpportunityForShipment[])
-        );
-      } catch (shipmentErr) {
-        const e = shipmentErr as { message?: string; details?: string; hint?: string; code?: string };
-        console.error('Error fetching shipment status:', e?.message || e, {
-          details: e?.details,
-          hint: e?.hint,
-          code: e?.code,
-        });
-        setShipmentRows([]);
-      } finally {
-        setIsLoadingShipments(false);
+  const fetchShipmentStatus = useCallback(async (userId: string | undefined) => {
+    try {
+      setIsLoadingShipments(true);
+      let opQuery = supabase.from('opportunities').select(`
+        id, topic, customer_name, stage, closure_status,
+        payment_date, pickup_date, created_at,
+        quotations(id, quotation_no, company_name, total_cost, vat_amount, wht_amount, wht_enabled, awb_number, status)
+      `);
+      if (userId) {
+        opQuery = opQuery.eq('owner_id', userId);
       }
-    };
+      const { data: opData, error: opError } = await opQuery.order('created_at', { ascending: false });
+      if (opError) throw opError;
+      setShipmentRows(
+        mapOpportunitiesToShipmentRows((opData ?? []) as RawOpportunityForShipment[])
+      );
+    } catch (shipmentErr) {
+      const e = shipmentErr as { message?: string; details?: string; hint?: string; code?: string };
+      console.error('Error fetching shipment status:', e?.message || e, {
+        details: e?.details,
+        hint: e?.hint,
+        code: e?.code,
+      });
+      setShipmentRows([]);
+    } finally {
+      setIsLoadingShipments(false);
+    }
+  }, []);
 
+  const refreshShipments = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    await fetchShipmentStatus(user?.id);
+  }, [fetchShipmentStatus]);
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
@@ -559,7 +564,7 @@ export default function DashboardPage() {
 
     fetchDashboardData();
     fetchCompanies();
-  }, []);
+  }, [fetchShipmentStatus]);
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -755,7 +760,11 @@ export default function DashboardPage() {
       </div>
       {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
 
-      <ShipmentStatusBoard rows={shipmentRows} isLoading={isLoadingShipments} />
+      <ShipmentStatusBoard
+        rows={shipmentRows}
+        isLoading={isLoadingShipments}
+        onPaymentUpdated={refreshShipments}
+      />
 
       {SHOW_LEGACY && (
       <div className="mb-8">

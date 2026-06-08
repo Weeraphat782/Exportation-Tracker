@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   Banknote,
+  Loader2,
   Package,
   Plane,
   Truck,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,6 +41,7 @@ import {
 interface ShipmentStatusBoardProps {
   rows: ShipmentStatusRow[];
   isLoading?: boolean;
+  onPaymentUpdated?: () => void | Promise<void>;
 }
 
 type FilterKey = 'all' | ShipmentOpStatus;
@@ -103,12 +107,33 @@ function KpiCard({
   );
 }
 
-export function ShipmentStatusBoard({ rows, isLoading }: ShipmentStatusBoardProps) {
+export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: ShipmentStatusBoardProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(5);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
   const summary = useMemo(() => summarizeShipmentRows(rows), [rows]);
+
+  const handlePaymentDateChange = async (opportunityId: string, date: string) => {
+    setSavingPaymentId(opportunityId);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ payment_date: date || null })
+        .eq('id', opportunityId);
+      if (error) throw error;
+      toast.success(date ? 'Payment date saved' : 'Payment date cleared');
+      setEditingPaymentId(null);
+      await onPaymentUpdated?.();
+    } catch (err) {
+      console.error('Error updating payment date:', err);
+      toast.error('Could not save payment date');
+    } finally {
+      setSavingPaymentId(null);
+    }
+  };
 
   const filteredRows = useMemo(() => {
     if (filter === 'all') return rows;
@@ -266,13 +291,64 @@ export function ShipmentStatusBoard({ rows, isLoading }: ShipmentStatusBoardProp
                           <TableCell className="text-right font-semibold text-sm">
                             {formatThb(row.amountThb)}
                           </TableCell>
-                          <TableCell>
-                            {row.paymentDate ? (
-                              <span className="text-xs font-medium text-emerald-700">
+                          <TableCell
+                            onClick={(e) => e.stopPropagation()}
+                            className="align-middle"
+                          >
+                            {editingPaymentId === row.id ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="date"
+                                    autoFocus
+                                    className="bg-white border border-amber-200 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-amber-500 outline-none"
+                                    value={row.paymentDate || ''}
+                                    disabled={savingPaymentId === row.id}
+                                    onChange={(e) => handlePaymentDateChange(row.id, e.target.value)}
+                                  />
+                                  {savingPaymentId === row.id && (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600 shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {row.paymentDate && (
+                                    <button
+                                      type="button"
+                                      className="text-[10px] text-amber-700 hover:text-amber-900 underline"
+                                      disabled={savingPaymentId === row.id}
+                                      onClick={() => handlePaymentDateChange(row.id, '')}
+                                    >
+                                      Clear
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="text-[10px] text-gray-500 hover:text-gray-700"
+                                    disabled={savingPaymentId === row.id}
+                                    onClick={() => setEditingPaymentId(null)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : row.paymentDate ? (
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+                                onClick={() => setEditingPaymentId(row.id)}
+                                title="Edit payment date"
+                              >
                                 {formatDate(row.paymentDate)}
-                              </span>
+                              </button>
                             ) : (
-                              <Badge variant="warning">Unpaid</Badge>
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                                onClick={() => setEditingPaymentId(row.id)}
+                              >
+                                <Banknote className="h-3 w-3" />
+                                Set paid date
+                              </button>
                             )}
                           </TableCell>
                           <TableCell>
