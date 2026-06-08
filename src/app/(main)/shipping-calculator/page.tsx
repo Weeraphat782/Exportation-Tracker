@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +60,8 @@ export default function ShippingCalculatorPage() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [keepFilter, setKeepFilter] = useState(false);
+  const filterSaveReadyRef = useRef(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
   const [completedDate, setCompletedDate] = useState<Date>(new Date());
@@ -82,6 +84,33 @@ export default function ShippingCalculatorPage() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [newPresetName, setNewPresetName] = useState('');
 
+
+  // Hydrate keep-filter preference from localStorage
+  useEffect(() => {
+    const savedKeepFilter = localStorage.getItem('calc_keepFilter');
+    if (savedKeepFilter === '1') {
+      setKeepFilter(true);
+      const savedSearch = localStorage.getItem('calc_searchTerm');
+      if (savedSearch) {
+        setSearchTerm(savedSearch);
+      }
+    }
+  }, []);
+
+  // Persist search term when keep-filter is enabled
+  useEffect(() => {
+    if (!filterSaveReadyRef.current) {
+      filterSaveReadyRef.current = true;
+      return;
+    }
+    if (keepFilter) {
+      localStorage.setItem('calc_keepFilter', '1');
+      localStorage.setItem('calc_searchTerm', searchTerm);
+    } else {
+      localStorage.setItem('calc_keepFilter', '0');
+      localStorage.removeItem('calc_searchTerm');
+    }
+  }, [keepFilter, searchTerm]);
 
   // Load column presets from Supabase
   useEffect(() => {
@@ -1208,15 +1237,30 @@ export default function ShippingCalculatorPage() {
           </div>
 
           {/* Search Input */}
-          <div className="relative mt-4">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by ID, Company, or Customer..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 w-full sm:w-1/2 lg:w-1/3 text-sm"
-            />
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <div className="relative flex-1 min-w-[200px] sm:max-w-[33%]">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by ID, Company, or Customer..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full text-sm"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="keep-filter"
+                checked={keepFilter}
+                onCheckedChange={(checked) => setKeepFilter(checked as boolean)}
+              />
+              <Label
+                htmlFor="keep-filter"
+                className="text-xs font-medium cursor-pointer text-gray-600 whitespace-nowrap"
+              >
+                Keep filter
+              </Label>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">

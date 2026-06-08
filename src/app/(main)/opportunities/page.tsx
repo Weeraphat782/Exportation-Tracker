@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KanbanBoard } from '@/components/opportunities/kanban-board';
 import { ListView } from '@/components/opportunities/list-view';
 import { Button } from '@/components/ui/button';
@@ -196,10 +196,39 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [keepFilter, setKeepFilter] = useState(false);
+  const filterSaveReadyRef = useRef(false);
   const [showWon, setShowWon] = useState<boolean>(false);
   const [showLost, setShowLost] = useState<boolean>(false);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+
+  // Hydrate keep-filter preference from localStorage
+  useEffect(() => {
+    const savedKeepFilter = localStorage.getItem('opp_keepFilter');
+    if (savedKeepFilter === '1') {
+      setKeepFilter(true);
+      const savedCompany = localStorage.getItem('opp_selectedCompany');
+      if (savedCompany) {
+        setSelectedCompany(savedCompany);
+      }
+    }
+  }, []);
+
+  // Persist company filter when keep-filter is enabled
+  useEffect(() => {
+    if (!filterSaveReadyRef.current) {
+      filterSaveReadyRef.current = true;
+      return;
+    }
+    if (keepFilter) {
+      localStorage.setItem('opp_keepFilter', '1');
+      localStorage.setItem('opp_selectedCompany', selectedCompany);
+    } else {
+      localStorage.setItem('opp_keepFilter', '0');
+      localStorage.removeItem('opp_selectedCompany');
+    }
+  }, [keepFilter, selectedCompany]);
 
   // Auto-switch to list view on mobile
   useEffect(() => {
@@ -618,6 +647,19 @@ export default function OpportunitiesPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="keep-filter"
+                checked={keepFilter}
+                onCheckedChange={(checked) => setKeepFilter(checked as boolean)}
+              />
+              <Label
+                htmlFor="keep-filter"
+                className="text-xs font-medium cursor-pointer text-gray-600 whitespace-nowrap"
+              >
+                Keep filter
+              </Label>
+            </div>
           </div>
 
           {/* Won/Lost Filters */}
