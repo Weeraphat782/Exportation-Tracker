@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, Link2Off, ScrollText, UserCircle2, Leaf } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, Link2Off, ScrollText, UserCircle2, Leaf, Bookmark, BookmarkX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import {
@@ -496,6 +496,10 @@ export default function ShippingCalculatorPage() {
     }
   };
 
+  const isBooking = (q: Quotation) =>
+    Boolean(q.opportunity_id) ||
+    q.is_booking === true;
+
   const handleCopySignLink = async (quotationId: string) => {
     const token = await generateShareToken(quotationId);
     if (!token) {
@@ -737,6 +741,34 @@ export default function ShippingCalculatorPage() {
     }
   };
 
+  const handleToggleBookingFlag = async (id: string, markAsBooking: boolean) => {
+    const previousQuotations = [...quotations];
+    setQuotations(prev =>
+      prev.map(q =>
+        q.id === id ? { ...q, is_booking: markAsBooking } : q
+      )
+    );
+
+    try {
+      const result = await updateQuotation(id, { is_booking: markAsBooking });
+
+      if (result) {
+        toast.success(markAsBooking ? 'Marked as Booking' : 'Booking flag removed', {
+          description: markAsBooking
+            ? 'This quotation is now shown as Booking.'
+            : 'Manual booking flag has been cleared.',
+        });
+      } else {
+        setQuotations(previousQuotations);
+        toast.error('Failed to update booking flag');
+      }
+    } catch (error) {
+      console.error('Error updating booking flag:', error);
+      setQuotations(previousQuotations);
+      toast.error('An error occurred');
+    }
+  };
+
   const handleSubmitQuotation = async (id: string) => {
     // Optimistic UI update
     const previousQuotations = [...quotations];
@@ -751,7 +783,7 @@ export default function ShippingCalculatorPage() {
 
       if (result) {
         toast.success('Quotation Submitted', {
-          description: 'Quotation moved to Active list.'
+          description: 'Quotation moved to Booking list.'
         });
       } else {
         // Revert on failure
@@ -868,6 +900,11 @@ export default function ShippingCalculatorPage() {
                       <Badge variant={getStatusBadgeVariant(quotation.status)} className="text-xs">
                         {getStatusText(quotation.status)}
                       </Badge>
+                      {quotation.status !== 'draft' && isBooking(quotation) && (
+                        <Badge variant="orange" className="text-xs">
+                          Booking
+                        </Badge>
+                      )}
                       {quotation.customer_user_id && (
                         <span
                           className="inline-flex items-center justify-center text-emerald-600"
@@ -1034,6 +1071,20 @@ export default function ShippingCalculatorPage() {
                           <DropdownMenuItem onClick={() => handleSubmitQuotation(quotation.id)}>
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Submit (Make Active)
+                          </DropdownMenuItem>
+                        )}
+
+                        {/* Mark / Unmark as Booking (manual flag) */}
+                        {!isBooking(quotation) && (
+                          <DropdownMenuItem onClick={() => handleToggleBookingFlag(quotation.id, true)}>
+                            <Bookmark className="h-4 w-4 mr-2" />
+                            Mark as Booking
+                          </DropdownMenuItem>
+                        )}
+                        {quotation.is_booking === true && (
+                          <DropdownMenuItem onClick={() => handleToggleBookingFlag(quotation.id, false)}>
+                            <BookmarkX className="h-4 w-4 mr-2" />
+                            Unmark Booking
                           </DropdownMenuItem>
                         )}
 
@@ -1285,15 +1336,24 @@ export default function ShippingCalculatorPage() {
           ) : (
             <Tabs defaultValue="drafts" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="drafts" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="drafts"
+                  className="flex items-center gap-2 data-[state=active]:bg-yellow-100 data-[state=active]:text-yellow-800 data-[state=active]:border-yellow-200"
+                >
                   <FileArchive className="h-4 w-4" />
-                  Drafts ({filteredDraftQuotations.length})
+                  Quoting ({filteredDraftQuotations.length})
                 </TabsTrigger>
-                <TabsTrigger value="active" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="active"
+                  className="flex items-center gap-2 data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800 data-[state=active]:border-orange-200"
+                >
                   <FileText className="h-4 w-4" />
-                  Active ({filteredActiveQuotations.length})
+                  Booking ({filteredActiveQuotations.length})
                 </TabsTrigger>
-                <TabsTrigger value="completed" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="completed"
+                  className="flex items-center gap-2 data-[state=active]:bg-green-100 data-[state=active]:text-green-800 data-[state=active]:border-green-200"
+                >
                   <CheckCircle className="h-4 w-4" />
                   Completed ({filteredCompletedQuotations.length})
                 </TabsTrigger>

@@ -336,6 +336,8 @@ export interface Quotation {
   user_id: string;
   company_id: string;
   opportunity_id?: string | null; // Added field
+  /** Staff manual flag: quotation is in booking phase */
+  is_booking?: boolean | null;
   product_id?: string | null; // Added field
   customer_name: string;
   contact_person: string;

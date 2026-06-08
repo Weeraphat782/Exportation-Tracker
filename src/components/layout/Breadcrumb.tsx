@@ -4,6 +4,10 @@ import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 import Link from 'next/link';
 
+const LABEL_OVERRIDES: Record<string, string> = {
+  opportunities: 'Booking',
+};
+
 const Breadcrumb = () => {
   const pathname = usePathname();
 
@@ -11,7 +15,7 @@ const Breadcrumb = () => {
     if (!pathname) return [];
     const parts = pathname.split('/').filter(Boolean);
     return parts.map((part, index) => ({
-      label: part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' '),
+      label: LABEL_OVERRIDES[part] ?? part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' '),
       href: '/' + parts.slice(0, index + 1).join('/'),
       isLast: index === parts.length - 1
     }));

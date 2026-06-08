@@ -583,7 +583,7 @@ export default function OpportunitiesPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">Opportunities</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">Booking</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your sales pipeline and track potential deals.
           </p>
