@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, FileCheck, Building, Globe, Clock, DollarSign, ZoomIn, ZoomOut } from 'lucide-react';
+import { FileCheck, Building, Globe, DollarSign, ZoomIn, ZoomOut } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 import {
-  PieChart, Pie, Cell, CartesianGrid, Tooltip as RechartsTooltip,
+  CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 } from 'recharts';
 import dynamic from 'next/dynamic';
@@ -35,9 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getCompanies, Company, getQuotationPayableTotalThb } from '@/lib/db';
-
-// Define colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+import { ShipmentStatusBoard } from '@/components/dashboard/shipment-status-board';
+import {
+  mapOpportunitiesToShipmentRows,
+  type RawOpportunityForShipment,
+  type ShipmentStatusRow,
+} from '@/lib/shipment-status';
 
 // Color scale for map - bolder colors with more contrast
 const COLOR_RANGE = [
@@ -54,20 +57,13 @@ const MAP_COLORS = {
   markers: "#ff4500"
 };
 
-interface DashboardStats {
-  totalQuotations: number;
-  totalDocuments: number;
-}
+/** Set true to show legacy dashboard sections (charts, map, quick tools). */
+const SHOW_LEGACY = false;
 
 interface CompanyStats {
   company_name: string;
   count: number;
   total_value: number;
-}
-
-interface StatusStats {
-  status: string;
-  count: number;
 }
 
 interface CountryStats {
@@ -79,12 +75,6 @@ interface FinancialMetrics {
   month: string;
   total_revenue: number;
   avg_shipment_value: number;
-}
-
-// Chart data types
-interface ChartDataItem {
-  name: string;
-  value: number;
 }
 
 // Map data with country codes for WorldMap
@@ -209,16 +199,13 @@ interface ExportQuotation {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalQuotations: 0,
-    totalDocuments: 0
-  });
   const [topCompanies, setTopCompanies] = useState<CompanyStats[]>([]);
-  const [statusBreakdown, setStatusBreakdown] = useState<StatusStats[]>([]);
   const [countryDistribution, setCountryDistribution] = useState<CountryStats[]>([]);
   const [worldMapData, setWorldMapData] = useState<MapData[]>([]);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [shipmentRows, setShipmentRows] = useState<ShipmentStatusRow[]>([]);
+  const [isLoadingShipments, setIsLoadingShipments] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Excel Export State
@@ -340,6 +327,35 @@ export default function DashboardPage() {
   }, [countryDistribution, worldMapData]);
 
   useEffect(() => {
+    const fetchShipmentStatus = async (userId: string | undefined) => {
+      try {
+        setIsLoadingShipments(true);
+        let opQuery = supabase.from('opportunities').select(`
+          id, topic, customer_name, stage, closure_status,
+          payment_date, pickup_date, created_at,
+          quotations(id, quotation_no, company_name, total_cost, vat_amount, wht_amount, wht_enabled, awb_number, status)
+        `);
+        if (userId) {
+          opQuery = opQuery.eq('owner_id', userId);
+        }
+        const { data: opData, error: opError } = await opQuery.order('created_at', { ascending: false });
+        if (opError) throw opError;
+        setShipmentRows(
+          mapOpportunitiesToShipmentRows((opData ?? []) as RawOpportunityForShipment[])
+        );
+      } catch (shipmentErr) {
+        const e = shipmentErr as { message?: string; details?: string; hint?: string; code?: string };
+        console.error('Error fetching shipment status:', e?.message || e, {
+          details: e?.details,
+          hint: e?.hint,
+          code: e?.code,
+        });
+        setShipmentRows([]);
+      } finally {
+        setIsLoadingShipments(false);
+      }
+    };
+
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
@@ -348,45 +364,7 @@ export default function DashboardPage() {
         const { data: { user } } = await supabase.auth.getUser();
         const userId = user?.id;
 
-        // Get total quotations (filtered by user if available)
-        let quotationsQuery = supabase.from('quotations').select('*', { count: 'exact', head: true });
-        if (userId) {
-          quotationsQuery = quotationsQuery.eq('user_id', userId);
-        }
-        const { count: totalQuotations, error: quotationsError } = await quotationsQuery;
-
-        if (quotationsError) throw quotationsError;
-
-        // Get total documents (through quotations that belong to user)
-        let documentsCount = 0;
-        if (userId) {
-          // First get user's quotation IDs
-          const { data: userQuotations } = await supabase
-            .from('quotations')
-            .select('id')
-            .eq('user_id', userId);
-          
-          if (userQuotations && userQuotations.length > 0) {
-            const quotationIds = userQuotations.map(q => q.id);
-            const { count } = await supabase
-              .from('document_submissions')
-              .select('*', { count: 'exact', head: true })
-              .in('quotation_id', quotationIds);
-            documentsCount = count || 0;
-          }
-        } else {
-          const { count } = await supabase
-            .from('document_submissions')
-            .select('*', { count: 'exact', head: true });
-          documentsCount = count || 0;
-        }
-        const totalDocuments = documentsCount;
-
-        // Update basic stats
-        setStats({
-          totalQuotations: totalQuotations || 0,
-          totalDocuments: totalDocuments || 0
-        });
+        void fetchShipmentStatus(userId);
 
         try {
           // Get top companies by export volume - with error handling
@@ -434,39 +412,6 @@ export default function DashboardPage() {
         } catch (companyError) {
           console.error('Error fetching company statistics:', companyError);
           // Don't fail the entire dashboard for this section
-        }
-
-        // NEW: Status Breakdown
-        try {
-          let statusQuery = supabase.from('quotations').select('status');
-          if (userId) {
-            statusQuery = statusQuery.eq('user_id', userId);
-          }
-          const { data: statusData, error: statusError } = await statusQuery;
-
-          if (statusError) throw statusError;
-
-          if (statusData && statusData.length > 0) {
-            const statusStats: Record<string, StatusStats> = {};
-
-            statusData.forEach(item => {
-              const status = item.status || 'Unknown';
-
-              if (!statusStats[status]) {
-                statusStats[status] = {
-                  status,
-                  count: 0
-                };
-              }
-
-              statusStats[status].count += 1;
-            });
-
-            const statusArray = Object.values(statusStats).sort((a, b) => b.count - a.count);
-            setStatusBreakdown(statusArray);
-          }
-        } catch (statusError) {
-          console.error('Error fetching status breakdown:', statusError);
         }
 
         // NEW: Country Distribution
@@ -619,34 +564,6 @@ export default function DashboardPage() {
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'THB' }).format(amount);
-  };
-
-  // Simple pie chart component
-  const renderPieChart = (data: ChartDataItem[]) => {
-    return (
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ name, percent }: { name: string; percent: number }) =>
-              `${name}: ${(percent * 100).toFixed(0)}%`
-            }
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <RechartsTooltip formatter={(value: number) => `Count: ${value}`} />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
-    );
   };
 
   // Line chart for financial data
@@ -838,36 +755,9 @@ export default function DashboardPage() {
       </div>
       {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Quotations</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? '...' : stats.totalQuotations}
-            </div>
-            <p className="text-xs text-muted-foreground">All quotations in the system</p>
-          </CardContent>
-        </Card>
+      <ShipmentStatusBoard rows={shipmentRows} isLoading={isLoadingShipments} />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-            <FileCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? '...' : stats.totalDocuments}
-            </div>
-            <p className="text-xs text-muted-foreground">Submitted documents</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Tools */}
+      {SHOW_LEGACY && (
       <div className="mb-8">
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
           <CardHeader>
@@ -898,11 +788,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-
-      {/* Financial Metrics */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div className="xl:col-span-2">
+      {SHOW_LEGACY && (
+      <div className="mb-8">
           <Card className="h-full">
             <CardHeader>
               <div className="flex items-center">
@@ -921,10 +810,12 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+      </div>
+      )}
 
-        {/* Excel Export Tool */}
-        <div>
+      {/* Completed Shipments Report (Excel) */}
+      {SHOW_LEGACY && (
+      <div className="mb-8 max-w-md">
           <Card className="h-full border-emerald-100 bg-emerald-50/30">
             <CardHeader>
               <div className="flex items-center">
@@ -1057,34 +948,11 @@ export default function DashboardPage() {
               </p>
             </CardContent>
           </Card>
-        </div>
       </div>
+      )}
 
-
-
-      {/* Status & Country Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Quotation Status Breakdown */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center">
-              <Clock className="h-5 w-5 mr-2" />
-              <CardTitle>Quotation Status Breakdown</CardTitle>
-            </div>
-            <CardDescription>Distribution of quotation statuses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-center py-10">Loading status data...</p>
-            ) : statusBreakdown.length === 0 ? (
-              <p className="text-center py-10">No status data available</p>
-            ) : (
-              renderPieChart(statusBreakdown.map(item => ({ name: item.status, value: item.count })))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Country Distribution - Interactive Map */}
+      {SHOW_LEGACY && (
+      <div className="mb-8">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1393,8 +1261,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      {/* Top Companies */}
+      {SHOW_LEGACY && (
       <div className="mb-8">
         <Card>
           <CardHeader>
@@ -1480,7 +1349,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      {/* Document Checklist Generator Dialog */}
+      )}
+
+      {SHOW_LEGACY && (
       <Dialog open={isGeneratorOpen} onOpenChange={setIsGeneratorOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1570,6 +1441,7 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 } 

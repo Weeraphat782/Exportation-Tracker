@@ -210,20 +210,19 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   const handleSaveAwb = async () => {
     if (!targetQuotation?.id) return;
     const value = draftAwb.trim();
-    if (!value) {
-      toast.error('Enter an AWB number');
-      return;
-    }
     const previous = awbNumber;
     setAwbNumber(value);
     setIsUpdatingAwb(true);
     try {
       const { error } = await supabase
         .from('quotations')
-        .update({ awb_number: value, awb_number_source: 'manual' })
+        .update({
+          awb_number: value || null,
+          awb_number_source: value ? 'manual' : null,
+        })
         .eq('id', targetQuotation.id);
       if (error) throw error;
-      toast.success('AWB number saved');
+      toast.success(value ? 'AWB number saved' : 'AWB number cleared');
       setShowAwbInput(false);
     } catch (err) {
       console.error('Error saving AWB:', err);
