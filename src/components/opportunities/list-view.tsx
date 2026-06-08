@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Opportunity, STAGE_LABELS, STAGE_COLORS } from '@/types/opportunity';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, Trash, CheckCircle, XCircle, FileText, ExternalLink } from 'lucide-react';
+import {
+  MoreHorizontal,
+  Edit,
+  Trash,
+  CheckCircle,
+  XCircle,
+  FileText,
+  ExternalLink,
+  Loader2,
+  Plus,
+  X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { getFileUrl } from '@/lib/storage';
+import { toast } from 'sonner';
 
 interface ListViewProps {
   opportunities: Opportunity[];
@@ -27,6 +41,222 @@ interface ListViewProps {
   onDelete?: (id: string) => void;
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
+  onRefresh?: () => void;
+}
+
+/** Inline editable date cell (payment / pickup) — saves directly to opportunities */
+function EditableDateCell({
+  opportunityId,
+  initial,
+  column,
+  successLabel,
+}: {
+  opportunityId: string;
+  initial: string;
+  column: 'payment_date' | 'pickup_date';
+  successLabel: string;
+}) {
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setValue(initial);
+  }, [initial]);
+
+  const save = async (date: string) => {
+    const previous = value;
+    setValue(date);
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ [column]: date || null })
+        .eq('id', opportunityId);
+      if (error) throw error;
+      toast.success(date ? `${successLabel} saved` : `${successLabel} cleared`);
+    } catch (err) {
+      console.error(`Error updating ${column}:`, err);
+      setValue(previous);
+      toast.error(`Could not save ${successLabel.toLowerCase()}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => save(e.target.value)}
+        className="h-7 w-[130px] rounded border border-gray-200 px-1.5 text-xs focus:border-blue-400 focus:outline-none"
+      />
+      {value && !saving && (
+        <button
+          type="button"
+          onClick={() => save('')}
+          title="Clear"
+          className="text-gray-400 hover:text-red-500"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}
+    </div>
+  );
+}
+
+/** Inline AWB editor + view file — saves to the first linked quotation */
+function AwbCell({ opp }: { opp: Opportunity }) {
+  const target = opp.quotationDetails?.[0];
+  const [awb, setAwb] = useState(target?.awb_number || '');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loadingFile, setLoadingFile] = useState(false);
+
+  useEffect(() => {
+    setAwb(target?.awb_number || '');
+  }, [target?.awb_number]);
+
+  if (!target?.id) {
+    return <span className="text-xs text-gray-400 italic">—</span>;
+  }
+
+  const save = async () => {
+    const value = draft.trim();
+    const previous = awb;
+    setAwb(value);
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('quotations')
+        .update({
+          awb_number: value || null,
+          awb_number_source: value ? 'manual' : null,
+        })
+        .eq('id', target.id);
+      if (error) throw error;
+      toast.success(value ? 'AWB number saved' : 'AWB number cleared');
+      setEditing(false);
+    } catch (err) {
+      console.error('Error saving AWB:', err);
+      setAwb(previous);
+      toast.error('Could not save AWB number');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const viewFile = async () => {
+    const path = target.awb_file_url;
+    if (!path) return;
+    setLoadingFile(true);
+    try {
+      const url = path.startsWith('http') ? path : await getFileUrl(path, 'r2', 'documents');
+      if (!url) throw new Error('No URL');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('Error opening AWB file:', err);
+      toast.error('Could not open AWB file');
+    } finally {
+      setLoadingFile(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          placeholder="AWB no."
+          className="h-7 w-[120px] rounded border border-gray-200 px-1.5 text-xs focus:border-blue-400 focus:outline-none"
+        />
+        <Button size="sm" className="h-7 px-2 text-xs" onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+        </Button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {awb ? (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(awb);
+            setEditing(true);
+          }}
+          title="Edit AWB number"
+          className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 border border-indigo-100"
+        >
+          {awb}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft('');
+            setEditing(true);
+          }}
+          className="flex items-center gap-1 rounded border border-dashed border-gray-300 px-1.5 py-0.5 text-xs text-gray-500 hover:border-blue-400 hover:text-blue-600"
+        >
+          <Plus className="h-3 w-3" /> AWB
+        </button>
+      )}
+      {target.awb_file_url && (
+        <button
+          type="button"
+          onClick={viewFile}
+          title="View AWB file"
+          className="flex items-center gap-0.5 text-xs text-blue-600 hover:text-blue-800"
+        >
+          {loadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Clickable quotation-number chips that open the preview */
+function QuoteChips({ opp }: { opp: Opportunity }) {
+  const router = useRouter();
+  const details = opp.quotationDetails || [];
+
+  if (details.length === 0) {
+    return <span className="text-xs text-gray-400 italic">No quotes</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {details.map((q, index) => (
+        <button
+          key={q.id}
+          type="button"
+          onClick={() => router.push(`/shipping-calculator/preview?id=${q.id}`)}
+          title="Open quotation preview"
+          className="flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-xs font-bold text-green-700 hover:bg-green-100 border border-green-200"
+        >
+          <ExternalLink className="h-3 w-3" />
+          {q.quotation_no || `Quote ${index + 1}`}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCase }: ListViewProps) {
@@ -40,14 +270,10 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
     });
   };
 
-  const handleViewQuotation = (quotationId: string) => {
-    router.push(`/shipping-calculator/preview?id=${quotationId}`);
-  };
-
   return (
     <div className="space-y-4">
       {/* Desktop Table - Hidden on Mobile */}
-      <div className="hidden md:block rounded-md border bg-white overflow-hidden shadow-sm">
+      <div className="hidden md:block rounded-md border bg-white overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50">
@@ -59,6 +285,9 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
               <TableHead>Stage</TableHead>
               <TableHead className="text-center">Prob.</TableHead>
               <TableHead>Close Date</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Pickup</TableHead>
+              <TableHead>AWB</TableHead>
               <TableHead>Quotations</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
@@ -66,7 +295,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
           <TableBody>
             {opportunities.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                   No opportunities found
                 </TableCell>
               </TableRow>
@@ -146,32 +375,34 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                     {formatDate(opp.closeDate)}
                   </TableCell>
 
+                  {/* Payment Date (editable) */}
+                  <TableCell onClick={(e) => e.stopPropagation()} className="align-middle">
+                    <EditableDateCell
+                      opportunityId={opp.id}
+                      initial={opp.paymentDate || ''}
+                      column="payment_date"
+                      successLabel="Payment date"
+                    />
+                  </TableCell>
+
+                  {/* Pickup Date (editable) */}
+                  <TableCell onClick={(e) => e.stopPropagation()} className="align-middle">
+                    <EditableDateCell
+                      opportunityId={opp.id}
+                      initial={opp.pickupDate || ''}
+                      column="pickup_date"
+                      successLabel="Pickup date"
+                    />
+                  </TableCell>
+
+                  {/* AWB (editable + view file) */}
+                  <TableCell onClick={(e) => e.stopPropagation()} className="align-middle">
+                    <AwbCell opp={opp} />
+                  </TableCell>
+
                   {/* Quotations */}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    {opp.quotationIds && opp.quotationIds.length > 0 ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-green-700 font-bold bg-green-50 hover:bg-green-100 border border-green-200">
-                            <FileText className="mr-1 h-3 w-3" />
-                            {opp.quotationIds.length} Quote{opp.quotationIds.length > 1 ? 's' : ''}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {opp.quotationIds.map((qId, index) => (
-                            <DropdownMenuItem
-                              key={qId}
-                              onClick={() => handleViewQuotation(qId)}
-                              className="cursor-pointer"
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Quotation {index + 1}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <span className="text-xs text-gray-400 italic">No quotes</span>
-                    )}
+                  <TableCell onClick={(e) => e.stopPropagation()} className="align-middle">
+                    <QuoteChips opp={opp} />
                   </TableCell>
 
                   {/* Actions */}
@@ -298,15 +529,35 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] text-gray-400 block uppercase font-bold tracking-tight">Quotations</span>
-                  <div className="flex justify-end mt-0.5">
-                    {opp.quotationIds && opp.quotationIds.length > 0 ? (
-                      <div className="bg-emerald-50 text-emerald-700 text-[10px] font-black px-1.5 py-0.5 rounded border border-emerald-100">
-                        {opp.quotationIds.length} QUOTES
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 italic">No quotes</span>
-                    )}
+                  <div className="flex justify-end mt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <QuoteChips opp={opp} />
                   </div>
+                </div>
+              </div>
+
+              {/* Mobile editable fields */}
+              <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Payment</span>
+                  <EditableDateCell
+                    opportunityId={opp.id}
+                    initial={opp.paymentDate || ''}
+                    column="payment_date"
+                    successLabel="Payment date"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Pickup</span>
+                  <EditableDateCell
+                    opportunityId={opp.id}
+                    initial={opp.pickupDate || ''}
+                    column="pickup_date"
+                    successLabel="Pickup date"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">AWB</span>
+                  <AwbCell opp={opp} />
                 </div>
               </div>
 
@@ -340,6 +591,3 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
     </div>
   );
 }
-
-
-

@@ -237,6 +237,16 @@ export default function OpportunitiesPage() {
     }
   }, [keepFilter, selectedCompany]);
 
+  // Hydrate saved view mode (desktop only — mobile is forced to list below)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth < 768) return;
+    const saved = localStorage.getItem('opp_viewMode');
+    if (saved === 'kanban' || saved === 'list') {
+      setViewMode(saved);
+    }
+  }, []);
+
   // Auto-switch to list view on mobile
   useEffect(() => {
     const handleResize = () => {
@@ -624,7 +634,15 @@ export default function OpportunitiesPage() {
         <div className="flex flex-wrap items-center gap-3 md:gap-6">
           {/* View Toggle - Hidden on very small screens, though we could just keep it */}
           <div className="hidden sm:block">
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <Tabs
+              value={viewMode}
+              onValueChange={(v) => {
+                setViewMode(v as ViewMode);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('opp_viewMode', v);
+                }
+              }}
+            >
               <TabsList className="grid w-[180px] grid-cols-2 h-9 p-1">
                 <TabsTrigger value="kanban" className="text-xs flex items-center gap-1.5">
                   <LayoutGrid className="h-3.5 w-3.5" />
@@ -750,6 +768,7 @@ export default function OpportunitiesPage() {
                   onDelete={handleDeleteOpportunity}
                   onWinCase={handleWinCase}
                   onLoseCase={handleLoseCase}
+                  onRefresh={fetchOpportunities}
                 />
               </div>
             );
