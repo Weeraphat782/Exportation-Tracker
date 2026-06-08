@@ -298,6 +298,25 @@ export async function mapWithConcurrency<T, R>(
 }
 
 /** Resolve a stored path or legacy URL to a browser-openable URL. */
+/**
+ * Download an object directly from R2 (server-side only) and return base64.
+ * Avoids re-fetching a presigned URL over HTTP, which R2 can reject with 400.
+ */
+export async function downloadR2ObjectAsBase64(path: string): Promise<string> {
+  if (!path) throw new Error('Missing R2 object path');
+  const key = path.startsWith('http')
+    ? new URL(path).pathname.replace(/^\/+/, '').replace(`${R2_BUCKET}/`, '')
+    : path;
+  const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+  const response = await r2Client.send(command);
+  const body = response.Body as { transformToByteArray?: () => Promise<Uint8Array> };
+  if (!body?.transformToByteArray) {
+    throw new Error('Empty R2 object body');
+  }
+  const bytes = await body.transformToByteArray();
+  return Buffer.from(bytes).toString('base64');
+}
+
 export async function resolveDocumentFileUrl(params: {
   file_path?: string | null;
   file_url?: string | null;

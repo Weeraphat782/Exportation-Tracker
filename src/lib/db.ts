@@ -377,10 +377,12 @@ export interface Quotation {
   customer_user_id?: string | null; // Assigned customer user ID
   quotation_no?: string; // Auto-generated quotation number
 
-  // AWB & Customs Declaration - uploaded by staff
+  // AWB & Customs Declaration - uploaded by staff or air freight
   awb_file_url?: string | null;
   awb_file_name?: string | null;
   awb_uploaded_at?: string | null;
+  awb_number?: string | null;
+  awb_number_source?: 'gemini' | 'manual' | 'airfreight' | string | null;
   customs_declaration_file_url?: string | null;
   customs_declaration_file_name?: string | null;
   customs_declaration_uploaded_at?: string | null;

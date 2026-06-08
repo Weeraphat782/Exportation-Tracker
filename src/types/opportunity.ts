@@ -26,6 +26,7 @@ export interface Opportunity {
     createdAt: string;
     updatedAt: string;
     pickupDate?: string;
+    paymentDate?: string;
 
     // Optional fields
     vehicleType?: string;
@@ -52,6 +53,8 @@ export interface Opportunity {
         commodity_type?: 'cannabis' | 'hemp' | 'kratom' | 'general' | null;
         status?: string;
         docs_count?: number;
+        awb_number?: string | null;
+        awb_file_url?: string | null;
     }[];
 
     // Closure status - separate from stage (card can be won/lost at any stage)

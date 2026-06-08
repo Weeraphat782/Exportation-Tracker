@@ -16,11 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { getQuotationPayableTotalThb } from '@/lib/db';
+import { getFileUrl } from '@/lib/storage';
 import { COMMODITY_META, normalizeCommodityType } from '@/lib/document-presets';
 
 interface KanbanCardProps {
@@ -54,6 +55,15 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   const [isUpdatingPhyto, setIsUpdatingPhyto] = useState(false);
   const [pickupDate, setPickupDate] = useState(opportunity.pickupDate || '');
   const [isUpdatingPickupDate, setIsUpdatingPickupDate] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(opportunity.paymentDate || '');
+  const [isUpdatingPaymentDate, setIsUpdatingPaymentDate] = useState(false);
+  const [showPaymentInput, setShowPaymentInput] = useState(false);
+  const targetQuotation = opportunity.quotationDetails?.[0];
+  const [awbNumber, setAwbNumber] = useState(targetQuotation?.awb_number || '');
+  const [draftAwb, setDraftAwb] = useState('');
+  const [isUpdatingAwb, setIsUpdatingAwb] = useState(false);
+  const [showAwbInput, setShowAwbInput] = useState(false);
+  const [isLoadingAwbFile, setIsLoadingAwbFile] = useState(false);
   const [noteHover, setNoteHover] = useState(false);
   const noteRef = useRef<HTMLDivElement>(null);
   const [notePos, setNotePos] = useState({ top: 0, left: 0, showBelow: false });
@@ -71,6 +81,14 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   useEffect(() => {
     setPickupDate(opportunity.pickupDate || '');
   }, [opportunity.pickupDate]);
+
+  useEffect(() => {
+    setPaymentDate(opportunity.paymentDate || '');
+  }, [opportunity.paymentDate]);
+
+  useEffect(() => {
+    setAwbNumber(targetQuotation?.awb_number || '');
+  }, [targetQuotation?.awb_number, targetQuotation?.id]);
 
   // Cleanup leave timeout on unmount
   useEffect(() => () => {
@@ -186,6 +204,72 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       toast.error('Could not save pickup date');
     } finally {
       setIsUpdatingPickupDate(false);
+    }
+  };
+
+  const handleSaveAwb = async () => {
+    if (!targetQuotation?.id) return;
+    const value = draftAwb.trim();
+    if (!value) {
+      toast.error('Enter an AWB number');
+      return;
+    }
+    const previous = awbNumber;
+    setAwbNumber(value);
+    setIsUpdatingAwb(true);
+    try {
+      const { error } = await supabase
+        .from('quotations')
+        .update({ awb_number: value, awb_number_source: 'manual' })
+        .eq('id', targetQuotation.id);
+      if (error) throw error;
+      toast.success('AWB number saved');
+      setShowAwbInput(false);
+    } catch (err) {
+      console.error('Error saving AWB:', err);
+      setAwbNumber(previous);
+      toast.error('Could not save AWB number');
+    } finally {
+      setIsUpdatingAwb(false);
+    }
+  };
+
+  const handleViewAwbFile = async () => {
+    const path = targetQuotation?.awb_file_url;
+    if (!path) return;
+    setIsLoadingAwbFile(true);
+    try {
+      const url = path.startsWith('http') ? path : await getFileUrl(path, 'r2', 'documents');
+      if (!url) throw new Error('No URL');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('Error opening AWB file:', err);
+      toast.error('Could not open AWB file');
+    } finally {
+      setIsLoadingAwbFile(false);
+    }
+  };
+
+  const handlePaymentDateChange = async (date: string) => {
+    setPaymentDate(date);
+    setIsUpdatingPaymentDate(true);
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ payment_date: date || null })
+        .eq('id', opportunity.id);
+
+      if (error) throw error;
+      toast.success(date ? 'Payment date saved' : 'Payment date cleared');
+      if (date) {
+        setShowPaymentInput(false);
+      }
+    } catch (err) {
+      console.error('Error updating payment date:', err);
+      setPaymentDate(opportunity.paymentDate || '');
+      toast.error('Could not save payment date');
+    } finally {
+      setIsUpdatingPaymentDate(false);
     }
   };
 
@@ -413,6 +497,27 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           })()}
 
           {quotes.length > 0 && (
+            <div
+              className="flex items-center gap-1.5 mb-1.5 flex-wrap"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {quotes.map((q, i) => (
+                <button
+                  key={q.id}
+                  type="button"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                  onClick={() => router.push(`/shipping-calculator/preview?id=${q.id}`)}
+                  title="View quotation"
+                >
+                  <FileText className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-[120px]">{q.quotation_no || `Quote #${i + 1}`}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {quotes.length > 0 && (
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               {hasFromCustomer && (
                 <span title="From customer request" className="inline-flex items-center text-emerald-600">
@@ -505,6 +610,184 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               </span>
             </div>
           ) : null}
+
+          {/* Payment Date - available on all stages */}
+          <div
+            className="mt-1 mb-2"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {paymentDate && !showPaymentInput ? (
+              <button
+                type="button"
+                className="w-full flex items-center gap-1.5 text-[10px] bg-emerald-50/50 border border-emerald-100 rounded-md px-2 py-1 hover:bg-emerald-100/60 transition-colors text-left"
+                onClick={() => setShowPaymentInput(true)}
+              >
+                <span className="font-bold text-emerald-800 uppercase">Paid:</span>
+                <span className="text-emerald-700 font-semibold">
+                  {new Date(paymentDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </button>
+            ) : showPaymentInput ? (
+              <div className="p-1.5 bg-amber-50/50 border border-amber-100 rounded-md">
+                <Label htmlFor={`payment-${opportunity.id}`} className="text-[10px] uppercase font-bold text-amber-800 mb-1 block">
+                  Payment Date
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    id={`payment-${opportunity.id}`}
+                    className="bg-white border border-amber-200 rounded px-1.5 py-0.5 text-[10px] w-full focus:ring-1 focus:ring-amber-500 outline-none"
+                    value={paymentDate}
+                    onChange={(e) => handlePaymentDateChange(e.target.value)}
+                    disabled={isUpdatingPaymentDate}
+                  />
+                  {isUpdatingPaymentDate && <Loader2 className="h-3 w-3 animate-spin text-amber-600 shrink-0" />}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    className="text-[10px] text-amber-700 hover:text-amber-900 underline"
+                    onClick={() => handlePaymentDateChange('')}
+                    disabled={isUpdatingPaymentDate}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[10px] text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowPaymentInput(false)}
+                    disabled={isUpdatingPaymentDate}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full h-7 text-[10px] font-bold bg-amber-50/50 border-amber-200 text-amber-800 hover:bg-amber-100 hover:text-amber-900"
+                onClick={() => setShowPaymentInput(true)}
+              >
+                <Banknote className="h-3 w-3 mr-1" />
+                Pending Payment
+              </Button>
+            )}
+          </div>
+
+          {/* AWB number — first linked quotation */}
+          {targetQuotation && (
+            <div
+              className="mt-1 mb-2"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {awbNumber && !showAwbInput ? (
+                <div className="w-full flex items-center gap-1.5 text-[10px] bg-orange-50/80 border border-orange-200 rounded-md px-2 py-1">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 min-w-0 flex-1 hover:opacity-80 transition-opacity text-left"
+                    onClick={() => {
+                      setDraftAwb(awbNumber);
+                      setShowAwbInput(true);
+                    }}
+                    title="Edit AWB number"
+                  >
+                    <Plane className="h-3 w-3 text-orange-700 shrink-0" />
+                    <span className="font-bold text-orange-800 uppercase">AWB:</span>
+                    <span className="text-orange-900 font-semibold truncate">{awbNumber}</span>
+                  </button>
+                  {targetQuotation.awb_file_url && (
+                    <button
+                      type="button"
+                      className="ml-auto shrink-0 flex items-center gap-0.5 font-semibold text-orange-700 hover:text-orange-900 disabled:opacity-50"
+                      onClick={handleViewAwbFile}
+                      disabled={isLoadingAwbFile}
+                      title="View AWB file"
+                    >
+                      {isLoadingAwbFile ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <FileText className="h-3 w-3" />
+                      )}
+                      <span>View</span>
+                    </button>
+                  )}
+                </div>
+              ) : showAwbInput ? (
+                <div className="p-1.5 bg-orange-50/80 border border-orange-200 rounded-md">
+                  <Label htmlFor={`awb-${opportunity.id}`} className="text-[10px] uppercase font-bold text-orange-800 mb-1 block">
+                    AWB Number
+                  </Label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      id={`awb-${opportunity.id}`}
+                      placeholder="e.g. 123-45678901"
+                      className="bg-white border border-orange-200 rounded px-1.5 py-0.5 text-[10px] w-full focus:ring-1 focus:ring-orange-500 outline-none"
+                      value={draftAwb}
+                      onChange={(e) => setDraftAwb(e.target.value)}
+                      disabled={isUpdatingAwb}
+                    />
+                    {isUpdatingAwb && <Loader2 className="h-3 w-3 animate-spin text-orange-600 shrink-0" />}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      type="button"
+                      className="text-[10px] font-semibold text-orange-800 hover:text-orange-950"
+                      onClick={handleSaveAwb}
+                      disabled={isUpdatingAwb}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[10px] text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowAwbInput(false)}
+                      disabled={isUpdatingAwb}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-7 text-[10px] font-bold bg-orange-50/50 border-orange-200 text-orange-800 hover:bg-orange-100 hover:text-orange-900"
+                    onClick={() => {
+                      setDraftAwb('');
+                      setShowAwbInput(true);
+                    }}
+                  >
+                    <Plane className="h-3 w-3 mr-1" />
+                    Add AWB
+                  </Button>
+                  {targetQuotation.awb_file_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] font-semibold bg-orange-50/50 border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-900"
+                      onClick={handleViewAwbFile}
+                      disabled={isLoadingAwbFile}
+                      title="View AWB file"
+                    >
+                      {isLoadingAwbFile ? (
+                        <Loader2 className="h-3 w-3" />
+                      ) : (
+                        <FileText className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Compact Details - Only show key info */}
           <div className="space-y-0.5 mb-2 text-xs">
@@ -611,15 +894,15 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-56">
-                    {opportunity.quotationIds?.map((qId, index) => (
+                    {quotes.map((q, index) => (
                       <DropdownMenuItem
-                        key={qId}
+                        key={q.id}
                         className="cursor-pointer text-xs"
-                        onSelect={() => router.push(`/shipping-calculator/preview?id=${qId}`)}
+                        onSelect={() => router.push(`/shipping-calculator/preview?id=${q.id}`)}
                         onPointerDown={(e) => e.stopPropagation()}
                       >
                         <ExternalLink className="mr-2 h-3 w-3" />
-                        View Quotation #{index + 1}
+                        {q.quotation_no || `Quote #${index + 1}`}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

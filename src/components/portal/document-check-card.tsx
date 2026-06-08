@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Hourglass,
 } from 'lucide-react';
 import {
   runCustomerDocumentCheck,
@@ -69,6 +70,17 @@ export function DocumentCheckCard({ quotationId, uploadedTypes }: DocumentCheckC
     }
     setRunning(false);
   };
+
+  // Warn the customer if they try to leave/refresh while the check is running
+  useEffect(() => {
+    if (!running) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [running]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-sm">
@@ -137,6 +149,23 @@ export function DocumentCheckCard({ quotationId, uploadedTypes }: DocumentCheckC
             </>
           )}
         </button>
+        {running && (
+          <div className="mt-4 flex items-start gap-4 p-5 sm:p-6 rounded-2xl bg-amber-50 border-2 border-amber-400 shadow-lg animate-attention">
+            <div className="w-12 h-12 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+              <Hourglass className="w-6 h-6 text-white animate-pulse" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg sm:text-xl font-extrabold text-amber-900 uppercase tracking-wide flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                Please stay on this page
+              </p>
+              <p className="text-sm sm:text-base font-semibold text-amber-800 mt-1.5 leading-relaxed">
+                Do <span className="underline decoration-2 underline-offset-2">not</span> close, leave, or refresh this page.
+                We&apos;re analyzing your documents right now — this can take a little while. The results will appear here automatically when it&apos;s done.
+              </p>
+            </div>
+          </div>
+        )}
         {guidance && <p className="text-xs text-gray-500 mt-2">{guidance}</p>}
         {result && !running && (
           <p className="text-xs text-gray-400 mt-2">

@@ -13,7 +13,12 @@ import {
   Calendar,
   User,
   Route,
+  ExternalLink,
+  Upload,
+  CheckCircle2,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import type { EmailBookingData } from '@/lib/email-templates';
 import type { Pallet } from '@/lib/db';
@@ -44,6 +49,8 @@ interface BookingQuotation {
   total_volume_weight?: number | null;
   chargeable_weight?: number | null;
   booking_details?: EmailBookingData | Record<string, unknown> | null;
+  awb_number?: string | null;
+  awb_number_source?: string | null;
 }
 
 interface BookingPayload {
@@ -152,6 +159,10 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
   const [notFound, setNotFound] = useState(false);
   const [payload, setPayload] = useState<BookingPayload | null>(null);
   const [zipLoading, setZipLoading] = useState(false);
+  const [awbNumberInput, setAwbNumberInput] = useState('');
+  const [extractingAwb, setExtractingAwb] = useState(false);
+  const [submittingAwb, setSubmittingAwb] = useState(false);
+  const [awbSubmitted, setAwbSubmitted] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,6 +186,15 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (payload?.quotation?.awb_number) {
+      setAwbNumberInput(payload.quotation.awb_number);
+      if (payload.quotation.awb_number_source === 'airfreight') {
+        setAwbSubmitted(true);
+      }
+    }
+  }, [payload?.quotation?.awb_number, payload?.quotation?.awb_number_source]);
+
   const q = payload?.quotation;
   const details = (q?.booking_details || {}) as EmailBookingData;
 
@@ -188,14 +208,123 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
     }));
   }, [q?.pallets]);
 
-  const hasDocuments = useMemo(() => {
-    if (!payload) return false;
-    return (
-      payload.documents.length > 0 ||
-      !!payload.staff_files.awb_url ||
-      !!payload.staff_files.customs_url
-    );
+  const documentRows = useMemo(() => {
+    if (!payload) return [];
+    const rows: { id: string; typeLabel: string; fileName: string; url: string }[] = [];
+    for (const doc of payload.documents) {
+      if (!doc.file_url) continue;
+      rows.push({
+        id: doc.id,
+        typeLabel: doc.document_type_name || doc.document_type || 'Document',
+        fileName: doc.original_file_name || doc.file_name || doc.id,
+        url: doc.file_url,
+      });
+    }
+    if (payload.staff_files.awb_url) {
+      rows.push({
+        id: 'staff-awb',
+        typeLabel: 'Air Waybill (AWB)',
+        fileName: payload.staff_files.awb_file_name || 'awb.pdf',
+        url: payload.staff_files.awb_url,
+      });
+    }
+    if (payload.staff_files.customs_url) {
+      rows.push({
+        id: 'staff-customs',
+        typeLabel: 'Customs Declaration',
+        fileName: payload.staff_files.customs_file_name || 'customs.pdf',
+        url: payload.staff_files.customs_url,
+      });
+    }
+    return rows;
   }, [payload]);
+
+  const handleViewDocument = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleAwbFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !q?.id) return;
+
+    setExtractingAwb(true);
+    setAwbSubmitted(false);
+    try {
+      const urlRes = await fetch('/api/generate-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type || 'application/pdf',
+          quotationId: q.id,
+          documentType: 'awb',
+        }),
+      });
+      if (!urlRes.ok) throw new Error('Upload URL failed');
+      const { signedUrl, path } = await urlRes.json();
+
+      const putRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/pdf' },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('Upload failed');
+
+      const extractRes = await fetch(`/api/booking/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'extract', filePath: path, fileName: file.name }),
+      });
+      const extractData = await extractRes.json();
+      if (!extractRes.ok) {
+        throw new Error(extractData.error || 'Could not save AWB file');
+      }
+
+      setAwbNumberInput(extractData.awb_number || '');
+      if (extractData.gemini_failed || !extractData.awb_number) {
+        toast.warning('AWB file saved — please enter the AWB number manually', {
+          description: extractData.gemini_failed
+            ? 'AI could not read the number from this file.'
+            : 'No AWB number was detected in the document.',
+        });
+      } else {
+        toast.success('AWB number detected — please verify before submitting');
+      }
+      await load();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'AWB upload failed');
+    } finally {
+      setExtractingAwb(false);
+    }
+  };
+
+  const handleSubmitAwb = async () => {
+    const trimmed = awbNumberInput.trim();
+    if (!trimmed) {
+      toast.error('Enter the AWB number before submitting');
+      return;
+    }
+    setSubmittingAwb(true);
+    try {
+      const res = await fetch(`/api/booking/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', awbNumber: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submit failed');
+      setAwbSubmitted(true);
+      toast.success('AWB submitted successfully');
+      await load();
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Could not submit AWB');
+    } finally {
+      setSubmittingAwb(false);
+    }
+  };
 
   const handleDownloadAll = async () => {
     const docs = payload?.documents?.filter((d) => d.file_url) || [];
@@ -386,30 +515,136 @@ export default function PublicBookingPage({ params }: { params: Promise<{ token:
               </SectionCard>
             )}
 
-            {/* Documents — ZIP only */}
+            {/* Documents — list + ZIP */}
             <SectionCard title="Documents" icon={FileText}>
-              {!hasDocuments ? (
+              {documentRows.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-6">No documents uploaded yet.</p>
               ) : (
-                <Button
-                  type="button"
-                  className="w-full bg-[#215497] hover:bg-[#1a4378] text-white"
-                  onClick={handleDownloadAll}
-                  disabled={zipLoading}
-                >
-                  {zipLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Download className="w-4 h-4 mr-2" />
-                  )}
-                  Download all (ZIP)
-                </Button>
+                <div className="space-y-3">
+                  <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden">
+                    {documentRows.map((row) => (
+                      <li
+                        key={row.id}
+                        className="flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-slate-50/80"
+                      >
+                        <FileText className="w-4 h-4 text-[#215497] shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{row.typeLabel}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{row.fileName}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs shrink-0"
+                          onClick={() => handleViewDocument(row.url)}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                          View
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    type="button"
+                    className="w-full bg-[#215497] hover:bg-[#1a4378] text-white"
+                    onClick={handleDownloadAll}
+                    disabled={zipLoading}
+                  >
+                    {zipLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    Download all (ZIP)
+                  </Button>
+                </div>
               )}
             </SectionCard>
           </div>
 
-          {/* Right: Booking request */}
+          {/* Right: AWB + Booking request */}
           <div className="space-y-6">
+            <SectionCard title="Airway Bill (AWB)" icon={Plane}>
+              {awbSubmitted && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  AWB submitted
+                </div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="awb-upload" className="text-xs font-semibold text-slate-700 mb-2 block">
+                    Upload Air Waybill
+                  </Label>
+                  <label
+                    htmlFor="awb-upload"
+                    className={`flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed px-4 py-6 cursor-pointer transition-colors ${
+                      extractingAwb
+                        ? 'border-slate-200 bg-slate-50 opacity-60 pointer-events-none'
+                        : 'border-[#215497]/30 bg-slate-50 hover:bg-blue-50/50 hover:border-[#215497]/50'
+                    }`}
+                  >
+                    {extractingAwb ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin text-[#215497]" />
+                        <span className="text-sm font-medium text-slate-600">Reading AWB number…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-[#215497]" />
+                        <span className="text-sm font-medium text-slate-700">
+                          Choose AWB file (PDF or image)
+                        </span>
+                      </>
+                    )}
+                    <input
+                      id="awb-upload"
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp"
+                      className="sr-only"
+                      onChange={handleAwbFileSelect}
+                      disabled={extractingAwb}
+                    />
+                  </label>
+                </div>
+
+                <div className="rounded-xl border-2 border-amber-300 bg-amber-50/80 p-4 ring-2 ring-amber-200/60">
+                  <Label htmlFor="awb-number" className="text-xs font-bold uppercase tracking-wider text-amber-900 mb-2 block">
+                    AWB Number — verify before submit
+                  </Label>
+                  <Input
+                    id="awb-number"
+                    type="text"
+                    placeholder="e.g. 123-45678901"
+                    value={awbNumberInput}
+                    onChange={(e) => {
+                      setAwbNumberInput(e.target.value);
+                      setAwbSubmitted(false);
+                    }}
+                    className="bg-white border-amber-300 focus-visible:ring-amber-500 font-semibold text-slate-900"
+                  />
+                  <p className="text-[11px] text-amber-800/80 mt-2">
+                    Auto-filled after upload. Edit if needed, then submit.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  className="w-full bg-[#215497] hover:bg-[#1a4378] text-white"
+                  onClick={handleSubmitAwb}
+                  disabled={submittingAwb || extractingAwb || !awbNumberInput.trim()}
+                >
+                  {submittingAwb ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                  )}
+                  Submit AWB
+                </Button>
+              </div>
+            </SectionCard>
+
             <SectionCard title="Booking request" icon={Plane}>
               <DefItem label="Product" value={details.product} />
               <DefItem label="Airline" value={details.airline} />

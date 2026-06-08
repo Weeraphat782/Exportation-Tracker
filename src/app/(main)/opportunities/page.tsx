@@ -43,6 +43,7 @@ export default function OpportunitiesPage() {
         quotations(
           id, price_confirmed, total_cost, vat_amount, wht_amount, wht_enabled, quotation_no,
           customer_user_id, phyto_required, commodity_type, status,
+          awb_number, awb_file_url,
           document_submissions(count)
         ),
         destination:destination_id(country, port),
@@ -97,6 +98,8 @@ export default function OpportunitiesPage() {
           phyto_required?: boolean | null;
           commodity_type?: string | null;
           status?: string;
+          awb_number?: string | null;
+          awb_file_url?: string | null;
           document_submissions?: { count: number }[];
         }[];
         opportunity_products?: { product: { id: string; name: string } }[];
@@ -105,6 +108,7 @@ export default function OpportunitiesPage() {
         focus_color?: string | null;
         sort_order?: number | null;
         pickup_date?: string | null;
+        payment_date?: string | null;
       }
 
       // Map DB fields to Frontend types
@@ -127,6 +131,8 @@ export default function OpportunitiesPage() {
               commodity_type: (q.commodity_type as 'cannabis' | 'hemp' | 'kratom' | 'general' | null) ?? null,
               status: q.status,
               docs_count: q.document_submissions?.[0]?.count ?? 0,
+              awb_number: q.awb_number ?? null,
+              awb_file_url: q.awb_file_url ?? null,
             }))
           : [];
 
@@ -164,7 +170,8 @@ export default function OpportunitiesPage() {
           phytoDone: item.phyto_done === true,
           focusColor: item.focus_color || null,
           sortOrder: item.sort_order || null,
-          pickupDate: item.pickup_date || undefined
+          pickupDate: item.pickup_date || undefined,
+          paymentDate: item.payment_date || undefined
         }
       });
       setOpportunities(mapped);
