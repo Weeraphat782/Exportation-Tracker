@@ -807,12 +807,23 @@ export default function ShippingCalculatorPage() {
     if (!searchTerm) return quotationsList;
 
     const searchTermLower = searchTerm.toLowerCase();
-    return quotationsList.filter(quotation => (
-      (quotation.id?.toLowerCase().includes(searchTermLower)) ||
-      (quotation.quotation_no?.toLowerCase().includes(searchTermLower)) ||
-      (quotation.company_name?.toLowerCase().includes(searchTermLower)) ||
-      (quotation.customer_name?.toLowerCase().includes(searchTermLower))
-    ));
+    const searchDigits = searchTerm.replace(/[^0-9]/g, '');
+
+    return quotationsList.filter(quotation => {
+      const textMatch =
+        quotation.id?.toLowerCase().includes(searchTermLower) ||
+        quotation.quotation_no?.toLowerCase().includes(searchTermLower) ||
+        quotation.company_name?.toLowerCase().includes(searchTermLower) ||
+        quotation.customer_name?.toLowerCase().includes(searchTermLower);
+
+      if (textMatch) return true;
+
+      if (searchDigits) {
+        const amountDigits = String(Math.round(getQuotationPayableTotalThb(quotation)));
+        return amountDigits.includes(searchDigits);
+      }
+      return false;
+    });
   };
 
   const filteredDraftQuotations = filterQuotations(draftQuotations);
@@ -1293,7 +1304,7 @@ export default function ShippingCalculatorPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search by ID, Company, or Customer..."
+                placeholder="Search by ID, Company, Customer, or Amount..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full text-sm"
