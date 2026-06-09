@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
 import { getFileUrl } from '@/lib/storage';
+import { requireApiUser } from '@/lib/api-auth';
 import {
   checkRateLimit,
   RATE_LIMIT_WINDOW,
@@ -74,6 +74,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const auth = await requireApiUser(request);
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
     const {
       document_ids,
@@ -106,6 +111,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'user_id and rule_id are required' }, { status: 400 });
     }
 
+    if (user_id !== auth.user.id && auth.role !== 'admin') {
+      return NextResponse.json({ error: 'You can only run analysis as your own user.' }, { status: 403 });
+    }
+
     if (!checkRateLimit(user_id)) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait a few seconds before trying again.', retryAfter: Math.ceil(RATE_LIMIT_WINDOW / 1000) },
@@ -113,11 +122,27 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    const supabase = auth.supabase;
+
+    const { data: quotationAccess, error: quotationAccessError } = await supabase
+      .from('quotations')
+      .select('id, user_id, customer_user_id')
+      .eq('id', quotation_id)
+      .maybeSingle();
+
+    if (quotationAccessError || !quotationAccess) {
+      return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+    }
+
+    const canAccessQuotation =
+      quotationAccess.user_id === auth.user.id ||
+      quotationAccess.customer_user_id === auth.user.id ||
+      auth.role === 'staff' ||
+      auth.role === 'admin';
+
+    if (!canAccessQuotation) {
+      return NextResponse.json({ error: 'Access denied for this quotation.' }, { status: 403 });
+    }
 
     const { data: rule, error: ruleError } = await supabase
       .from('document_comparison_rules')
@@ -127,6 +152,10 @@ export async function POST(request: Request) {
 
     if (ruleError || !rule) {
       return NextResponse.json({ error: 'Comparison rule not found' }, { status: 404 });
+    }
+
+    if (rule.user_id && rule.user_id !== user_id && auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Access denied for this comparison rule.' }, { status: 403 });
     }
 
     const { data: settingData } = await supabase

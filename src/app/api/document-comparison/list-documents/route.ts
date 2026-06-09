@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { requireApiUser } from '@/lib/api-auth';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const quotationId = searchParams.get('quotation_id');
+    const auth = await requireApiUser(request);
+
+    if (!auth.ok) {
+      return auth.response;
+    }
 
     console.log('API: Received quotation_id:', quotationId);
 
@@ -15,22 +20,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Use Service Role Key to bypass RLS (same as other API routes in the system)
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
-
     console.log('API: Using service role client');
 
     // Get quotation details (service role bypasses RLS)
-    const { data: quotation, error: quotationError } = await supabase
+    const { data: quotation, error: quotationError } = await auth.supabase
       .from('quotations')
       .select('*')
       .eq('id', quotationId)
@@ -49,8 +42,18 @@ export async function GET(request: Request) {
       );
     }
 
+    const canAccess =
+      quotation.user_id === auth.user.id ||
+      quotation.customer_user_id === auth.user.id ||
+      auth.role === 'staff' ||
+      auth.role === 'admin';
+
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Access denied for this quotation.' }, { status: 403 });
+    }
+
     // Get all documents for this quotation (service role bypasses RLS)
-    const { data: documents, error: documentsError } = await supabase
+    const { data: documents, error: documentsError } = await auth.supabase
       .from('document_submissions')
       .select('*')
       .eq('quotation_id', quotationId)

@@ -1,31 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { requireApiUser } from '@/lib/api-auth';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
+    const requestedUserId = searchParams.get('user_id');
+    const auth = await requireApiUser(request);
 
-    if (!userId) {
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const userId = requestedUserId || auth.user.id;
+    if (userId !== auth.user.id && auth.role !== 'admin') {
       return NextResponse.json(
-        { error: 'user_id is required' },
-        { status: 400 }
+        { error: 'You can only read your own AI settings.' },
+        { status: 403 }
       );
     }
 
-    // Use Service Role Key to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
-
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from('settings')
       .select('settings_value')
       .eq('user_id', userId)
@@ -54,44 +48,45 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireApiUser(request);
+    if (!auth.ok) {
+      return auth.response;
+    }
+
     const body = await request.json();
     const { user_id, api_key } = body;
+    const userId = user_id || auth.user.id;
 
-    if (!user_id || !api_key) {
+    if (!api_key) {
       return NextResponse.json(
-        { error: 'user_id and api_key are required' },
+        { error: 'api_key is required' },
         { status: 400 }
       );
     }
 
-    console.log('Saving API key for user:', user_id);
+    if (userId !== auth.user.id && auth.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'You can only update your own AI settings.' },
+        { status: 403 }
+      );
+    }
 
-    // Use Service Role Key to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    );
+    console.log('Saving API key for user:', userId);
 
     // First, verify user exists
-    const { data: userCheck, error: userError } = await supabase
+    const { data: userCheck, error: userError } = await auth.supabase
       .from('profiles')
       .select('id')
-      .eq('id', user_id)
+      .eq('id', userId)
       .maybeSingle();
     
     console.log('User check:', { exists: !!userCheck, error: userError });
 
     // Check if setting exists
-    const { data: existing } = await supabase
+    const { data: existing } = await auth.supabase
       .from('settings')
       .select('id')
-      .eq('user_id', user_id)
+      .eq('user_id', userId)
       .eq('category', 'ai')
       .eq('settings_key', 'gemini_api_key')
       .maybeSingle();
@@ -102,7 +97,7 @@ export async function POST(request: Request) {
     if (existing && existing.id) {
       // Update existing
       console.log('Updating existing setting');
-      const result = await supabase
+      const result = await auth.supabase
         .from('settings')
         .update({
           settings_value: api_key,
@@ -120,13 +115,13 @@ export async function POST(request: Request) {
     } else {
       // Insert new - try without user_id first (allow NULL)
       console.log('Inserting new setting');
-      const result = await supabase
+      const result = await auth.supabase
         .from('settings')
         .insert({
           category: 'ai',
-          settings_key: `gemini_api_key_${user_id}`, // Make it unique per user
+          settings_key: 'gemini_api_key',
           settings_value: api_key,
-          user_id: user_id,
+          user_id: userId,
         })
         .select();
       
