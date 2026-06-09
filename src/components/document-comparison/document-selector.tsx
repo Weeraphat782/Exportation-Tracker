@@ -177,7 +177,17 @@ export function DocumentSelector({ onAnalyze, isAnalyzing }: DocumentSelectorPro
     setLoadingDocuments(true);
     try {
       console.log('Loading documents for quotation:', quotationId);
-      const response = await fetch(`/api/document-comparison/list-documents?quotation_id=${quotationId}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('Authentication session expired');
+        return;
+      }
+
+      const response = await fetch(`/api/document-comparison/list-documents?quotation_id=${quotationId}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       
       console.log('Response status:', response.status);
       

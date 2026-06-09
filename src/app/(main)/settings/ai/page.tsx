@@ -23,7 +23,14 @@ export default function AISettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const response = await fetch(`/api/settings/ai?user_id=${user.id}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/settings/ai?user_id=${user.id}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setApiKey(data.api_key || '');
@@ -47,10 +54,18 @@ export default function AISettingsPage() {
         return;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Your session expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/settings/ai', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           user_id: user.id,

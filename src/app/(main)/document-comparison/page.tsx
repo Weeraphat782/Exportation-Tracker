@@ -45,10 +45,18 @@ export default function DocumentComparisonPage() {
         return;
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError('Your session expired. Please log in again.');
+        setIsAnalyzing(false);
+        return;
+      }
+
       const response = await fetch('/api/document-comparison/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           quotation_id: quotationId,
