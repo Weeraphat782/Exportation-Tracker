@@ -47,7 +47,6 @@ export function mergeBookingDetailsFromQuotation(
   // quotation has no data for that field.
   return {
     ...merged,
-    product: base.product,
     destination: base.destination || merged.destination,
     netWeight: base.netWeight ?? merged.netWeight,
     numberOfPieces: base.numberOfPieces || merged.numberOfPieces,
@@ -57,8 +56,8 @@ export function mergeBookingDetailsFromQuotation(
 }
 
 export function generateBookingEmailFromQuotation(quotation: Quotation, additionalData?: Partial<EmailBookingData>): EmailBookingData {
-  // Product is always "Dried Cannabis Flower"
-  const product = 'Dried Cannabis Flower';
+  // Default product, but editable/overridable via saved booking_details
+  const product = additionalData?.product || 'Dried Cannabis Flower';
       
   const destination = quotation.destination || '';
   

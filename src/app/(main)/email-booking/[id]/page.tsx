@@ -325,11 +325,10 @@ export default function EmailBookingPage() {
               <Label htmlFor="product">Product</Label>
               <Input
                 id="product"
-                value="Dried Cannabis Flower"
-                disabled
-                className="bg-muted"
+                value={emailData.product || ''}
+                onChange={(e) => handleInputChange('product', e.target.value)}
+                placeholder="e.g., Dried Cannabis Flower"
               />
-              <p className="text-xs text-muted-foreground">Product is always &quot;Dried Cannabis Flower&quot;</p>
             </div>
 
             <div className="space-y-2">
