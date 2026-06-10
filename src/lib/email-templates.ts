@@ -37,7 +37,23 @@ export function mergeBookingDetailsFromQuotation(
 ): EmailBookingData {
   const base = generateBookingEmailFromQuotation(quotation);
   if (!saved || typeof saved !== 'object') return base;
-  return { ...base, ...(saved as Partial<EmailBookingData>) };
+
+  // Start from saved (preserves user-entered fields like airline, pickup, etc.)
+  const merged: EmailBookingData = { ...base, ...(saved as Partial<EmailBookingData>) };
+
+  // Quotation-derived fields must always reflect the latest quotation, so edits
+  // to the quotation (destination, weight, pallets, company) show up even when
+  // booking_details were saved previously. Fall back to saved value only when the
+  // quotation has no data for that field.
+  return {
+    ...merged,
+    product: base.product,
+    destination: base.destination || merged.destination,
+    netWeight: base.netWeight ?? merged.netWeight,
+    numberOfPieces: base.numberOfPieces || merged.numberOfPieces,
+    palletDimensions: base.palletDimensions || merged.palletDimensions,
+    shipper: base.shipper || merged.shipper,
+  };
 }
 
 export function generateBookingEmailFromQuotation(quotation: Quotation, additionalData?: Partial<EmailBookingData>): EmailBookingData {
