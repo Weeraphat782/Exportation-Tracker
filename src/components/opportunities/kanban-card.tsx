@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane, Mail } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -376,6 +376,33 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
+
+                {/* Create Email Booking — needs a linked quotation */}
+                {quotes.length === 1 && (
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onSelect={() => router.push(`/email-booking/${quotes[0].id}`)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Create Email Booking
+                  </DropdownMenuItem>
+                )}
+                {quotes.length > 1 &&
+                  quotes.map((q, i) => (
+                    <DropdownMenuItem
+                      key={`email-${q.id}`}
+                      className="cursor-pointer"
+                      onSelect={() => router.push(`/email-booking/${q.id}`)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email Booking: {q.quotation_no || `Quote #${i + 1}`}
+                    </DropdownMenuItem>
+                  ))}
+
                 <DropdownMenuItem
                   className="text-red-600 focus:text-red-600 cursor-pointer"
                   onSelect={() => {
