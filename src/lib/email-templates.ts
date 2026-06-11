@@ -28,6 +28,38 @@ export interface EmailBookingData {
   shipper?: string;
   consignee?: string;
   routing?: string;
+  /** OMG quotation code, e.g. OMG06017 */
+  quotationNo?: string;
+  /** Uppercase shipper short name for subject, e.g. HOLLYMOOD */
+  shipperShort?: string;
+  /** Public booking link shown as Document List in email body */
+  documentListUrl?: string;
+}
+
+/** Strip legal suffixes and uppercase for subject line, e.g. "Hollymood Co.,Ltd." -> "HOLLYMOOD" */
+export function deriveShipperShort(companyName?: string | null): string {
+  if (!companyName) return '';
+  let name = companyName.trim();
+  const suffixes = [
+    /\s*co\.?,?\s*ltd\.?$/i,
+    /\s*ltd\.?$/i,
+    /\s*limited$/i,
+    /\s*inc\.?$/i,
+    /\s*llc\.?$/i,
+    /\s*corp\.?$/i,
+    /\s*corporation$/i,
+    /\s*s\.r\.o\.?$/i,
+    /\s*gmbh$/i,
+    /\s*plc$/i,
+  ];
+  for (const suffix of suffixes) {
+    name = name.replace(suffix, '');
+  }
+  return name.trim().toUpperCase();
+}
+
+export function buildBookingDocumentListUrl(origin: string, token: string): string {
+  return `${origin.replace(/\/$/, '')}/booking/${token}`;
 }
 
 /** Merge persisted booking_details over quotation defaults */
@@ -52,6 +84,8 @@ export function mergeBookingDetailsFromQuotation(
     numberOfPieces: base.numberOfPieces || merged.numberOfPieces,
     palletDimensions: base.palletDimensions || merged.palletDimensions,
     shipper: base.shipper || merged.shipper,
+    quotationNo: base.quotationNo || merged.quotationNo,
+    shipperShort: base.shipperShort || merged.shipperShort,
   };
 }
 
@@ -95,7 +129,7 @@ export function generateBookingEmailFromQuotation(quotation: Quotation, addition
   return {
     recipientName: additionalData?.recipientName || '',
     senderName: additionalData?.senderName || 'Weeraphat', // Default sender name
-    product: product, // Always "Dried Cannabis Flower"
+    product: product,
     destination: destination || '',
     netWeight: actualWeight > 0 ? actualWeight : undefined, // Use actual weight
     airline: additionalData?.airline || '',
@@ -108,11 +142,18 @@ export function generateBookingEmailFromQuotation(quotation: Quotation, addition
     origin: additionalData?.origin || 'BKK',
     shipper: quotation.company_name || '',
     consignee: additionalData?.consignee || '',
-    routing: additionalData?.routing || ''
+    routing: additionalData?.routing || '',
+    quotationNo: quotation.quotation_no || additionalData?.quotationNo || '',
+    shipperShort: deriveShipperShort(quotation.company_name) || additionalData?.shipperShort || '',
+    documentListUrl: additionalData?.documentListUrl || '',
   };
 }
 
 export function formatBookingEmail(data: EmailBookingData): string {
+  const documentListBlock = data.documentListUrl
+    ? `\nDocument List : ${data.documentListUrl}\n`
+    : '\n';
+
   const template = `Dear Khun ${data.recipientName || '[Recipient Name]'}, 
 
 I would like to book the following shipment:
@@ -127,7 +168,7 @@ Prefer shipment date: ${data.preferredShipmentDate || '[Date]'}
 Please see attached all documents krub.
 
 MAWB: ${data.mawb || 'TBC'}
-DESCRIPTION OF CONTENTS, INCLUDING MODEL/MANUFACTURER: Dried Cannabis Flower
+DESCRIPTION OF CONTENTS, INCLUDING MODEL/MANUFACTURER: ${data.product || 'Dried Cannabis Flower'}
 WEIGHT: ${data.netWeight ? `${data.netWeight} KG` : '[Weight] KG'}
 NUMBER OF PIECE: ${data.numberOfPieces || '[Number] Pallets'}
 PALLET DIMENSION: ${data.palletDimensions || '[Length] × [Width] × [Height] cm'}
@@ -136,8 +177,7 @@ DESTINATION: ${data.destination || '[Destination]'}
 SHIPPER: ${data.shipper || '[Shipper Company]'}
 CONSIGNEE: ${data.consignee || '[Consignee Company]'}
 ROUTING: ${data.routing || '[Origin Code]- [Destination Code]'}
-
-
+${documentListBlock}
 Best Regards,
 ${data.senderName || 'Weeraphat'}`;
 
@@ -147,5 +187,12 @@ ${data.senderName || 'Weeraphat'}`;
 export function generateEmailSubject(data: EmailBookingData): string {
   const product = data.product || 'Shipment';
   const destination = data.destination || 'International';
-  return `Booking Request - ${product} to ${destination}`;
+  let subject = `Booking Request - ${product} to ${destination}`;
+  if (data.shipperShort) {
+    subject += ` - ${data.shipperShort}`;
+  }
+  if (data.quotationNo) {
+    subject += ` - ${data.quotationNo}`;
+  }
+  return subject;
 }

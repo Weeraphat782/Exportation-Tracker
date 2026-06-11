@@ -20,6 +20,7 @@ import {
   mergeBookingDetailsFromQuotation,
   formatBookingEmail,
   generateEmailSubject,
+  buildBookingDocumentListUrl,
   EmailBookingData,
 } from '@/lib/email-templates';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,24 @@ export default function EmailBookingPage() {
   const [saving, setSaving] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
 
+  const applyEmailPreview = (data: EmailBookingData) => {
+    setEmailData(data);
+    setEmailContent(formatBookingEmail(data));
+    setEmailSubject(generateEmailSubject(data));
+  };
+
+  const withDocumentListUrl = (
+    data: EmailBookingData,
+    token?: string | null
+  ): EmailBookingData => {
+    if (!token || typeof window === 'undefined') return data;
+    return {
+      ...data,
+      documentListUrl:
+        data.documentListUrl || buildBookingDocumentListUrl(window.location.origin, token),
+    };
+  };
+
   useEffect(() => {
     const loadQuotation = async () => {
       try {
@@ -47,18 +66,15 @@ export default function EmailBookingPage() {
         if (quotationData) {
           setQuotation(quotationData);
 
-          const initialEmailData = mergeBookingDetailsFromQuotation(
+          const merged = mergeBookingDetailsFromQuotation(
             quotationData,
             quotationData.booking_details as EmailBookingData | null
           );
-          setEmailData(initialEmailData);
-
-          // Generate email content and subject
-          const content = formatBookingEmail(initialEmailData);
-          const subject = generateEmailSubject(initialEmailData);
-
-          setEmailContent(content);
-          setEmailSubject(subject);
+          const initialEmailData = withDocumentListUrl(
+            merged,
+            quotationData.booking_share_token
+          );
+          applyEmailPreview(initialEmailData);
         } else {
           toast.error('Quotation not found');
           router.push('/shipping-calculator');
@@ -77,19 +93,10 @@ export default function EmailBookingPage() {
   }, [quotationId, router]);
 
   const handleInputChange = (field: keyof EmailBookingData, value: string | number) => {
-    const updatedData = {
+    applyEmailPreview({
       ...emailData,
-      [field]: value
-    };
-
-    setEmailData(updatedData);
-
-    // Regenerate email content
-    const content = formatBookingEmail(updatedData);
-    const subject = generateEmailSubject(updatedData);
-
-    setEmailContent(content);
-    setEmailSubject(subject);
+      [field]: value,
+    });
   };
 
   const getBookingStatusBadge = () => {
@@ -129,9 +136,13 @@ export default function EmailBookingPage() {
         toast.error('Could not generate booking link');
         return;
       }
-      const url = `${window.location.origin}/booking/${token}`;
+      const url = buildBookingDocumentListUrl(window.location.origin, token);
       await navigator.clipboard.writeText(url);
       toast.success('Booking link copied to clipboard');
+      applyEmailPreview({
+        ...emailData,
+        documentListUrl: url,
+      });
       const refreshed = await getQuotationById(quotationId);
       if (refreshed) setQuotation(refreshed);
     } finally {
