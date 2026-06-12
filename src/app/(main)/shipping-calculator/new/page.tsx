@@ -594,26 +594,52 @@ function calculateTotalFreightCost(
         return acc + (pallet.weight * (pallet.quantity || 1));
     }, 0);
 
-    // Calculate volume weight using the same formula as in PalletItem (divide by 6000 instead of volume * 167)
-    // This ensures consistency between individual pallet calculations and total calculations
-    const totalVolumeWeight = totalVolumeCm3 / 6000;
+    // Legacy aggregate volume weight (total cm³ / 6000) — kept for manual-rate billing and manual-CW display
+    const legacyAggregateVolumeWeight = totalVolumeCm3 / 6000;
+    const roundedLegacyAggregateVolumeWeight =
+        Math.abs(legacyAggregateVolumeWeight - Math.round(legacyAggregateVolumeWeight)) < 0.01
+            ? Math.round(legacyAggregateVolumeWeight)
+            : legacyAggregateVolumeWeight;
 
-    // Round the values to integers if they are close to whole numbers
-    const roundedTotalVolumeWeight = Math.abs(totalVolumeWeight - Math.round(totalVolumeWeight)) < 0.01
-        ? Math.round(totalVolumeWeight)
-        : totalVolumeWeight;
+    // Per-pallet volume weight: ceil each pallet, then sum × quantity (matches band-rate freight & customer portal)
+    const perPalletVolumeWeight = pallets.reduce((acc, pallet) => {
+        const qty = pallet.quantity || 1;
+        const volWt = calculateVolumeWeight(pallet.length, pallet.width, pallet.height);
+        return acc + volWt * qty;
+    }, 0);
 
-    // Get the chargeable weight (max of volume weight or actual weight, or manual override)
-    const totalChargeableWeight = options.isChargeableWeightManual && options.manualChargeableWeight !== undefined && options.manualChargeableWeight > 0
-        ? options.manualChargeableWeight
-        : Math.max(roundedTotalVolumeWeight, totalWeight);
+    const hasManualChargeable =
+        options.isChargeableWeightManual &&
+        options.manualChargeableWeight !== undefined &&
+        options.manualChargeableWeight > 0;
+    const hasManualRate =
+        options.isManualRate && options.manualRate !== undefined && options.manualRate > 0;
+
+    // Weight used only for manual-rate freight billing — must stay on legacy aggregate to avoid changing existing money
+    const manualRateBillingWeight = hasManualChargeable
+        ? options.manualChargeableWeight!
+        : Math.max(roundedLegacyAggregateVolumeWeight, totalWeight);
+
+    let totalVolumeWeight: number;
+    let totalChargeableWeight: number;
+
+    if (hasManualChargeable) {
+        totalChargeableWeight = options.manualChargeableWeight!;
+        totalVolumeWeight = roundedLegacyAggregateVolumeWeight;
+    } else if (hasManualRate) {
+        totalVolumeWeight = roundedLegacyAggregateVolumeWeight;
+        totalChargeableWeight = Math.max(roundedLegacyAggregateVolumeWeight, totalWeight);
+    } else {
+        totalVolumeWeight = perPalletVolumeWeight;
+        totalChargeableWeight = Math.max(perPalletVolumeWeight, totalWeight);
+    }
 
     // Calculate freight cost for each pallet using the proper rates and sum them
     let totalFreightCost = 0;
 
-    // Use manual rate override if enabled
-    if (options.isManualRate && options.manualRate !== undefined && options.manualRate > 0) {
-        totalFreightCost = Math.round(totalChargeableWeight * options.manualRate);
+    // Use manual rate override if enabled (billing weight stays on legacy aggregate)
+    if (hasManualRate) {
+        totalFreightCost = Math.round(manualRateBillingWeight * options.manualRate!);
     } 
     // Otherwise calculate based on db rates
     else if (options.freightRates && options.freightRates.length > 0 && options.destinationId) {
@@ -656,7 +682,7 @@ function calculateTotalFreightCost(
     return {
         totalVolume: totalVolumeCm3 / 1000000, // Convert to cubic meters for display
         totalWeight,
-        totalVolumeWeight: roundedTotalVolumeWeight, // Use the rounded value
+        totalVolumeWeight,
         totalActualWeight: totalWeight, // Aliasing for backward compatibility
         totalChargeableWeight,
         totalFreightCost,
