@@ -7,15 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Loader2, PlayCircle, Upload } from 'lucide-react';
 import { getQcRequestById, updateQcRequest } from '@/lib/qc-db';
-import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
 import { QcRequestPrintForm } from '@/components/qc/qc-request-print-form';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
@@ -52,7 +45,6 @@ export default function LabQcRequestDetailPage() {
   const [busy, setBusy] = useState(false);
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const [coaUrl, setCoaUrl] = useState<string | null>(null);
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -197,10 +189,12 @@ export default function LabQcRequestDetailPage() {
             {/* Documents */}
             <div className="space-y-2 border-t pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Documents</p>
-              <Button variant="outline" className="w-full" onClick={() => setInvoiceOpen(true)}>
-                <FileText className="h-4 w-4 mr-1" />
-                View Invoice
-              </Button>
+              <Link href={`/qc/requests/${id}/invoice`} className="block">
+                <Button variant="outline" className="w-full">
+                  <FileText className="h-4 w-4 mr-1" />
+                  View Invoice
+                </Button>
+              </Link>
               {coaUrl && (
                 <a href={coaUrl} target="_blank" rel="noreferrer">
                   <Button variant="outline" className="w-full">
@@ -244,15 +238,6 @@ export default function LabQcRequestDetailPage() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>QC Invoice — {request.qc_code}</DialogTitle>
-          </DialogHeader>
-          <QcInvoiceContent request={request} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
