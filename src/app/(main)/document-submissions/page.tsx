@@ -20,7 +20,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import JSZip from 'jszip';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -241,7 +240,7 @@ export default function DocumentSubmissionsPage() {
     }
   };
 
-  // Bulk download function
+  // Bulk download function — server builds ZIP (avoids browser CORS / corrupt client zips)
   const handleBulkDownload = async () => {
     if (selectedIds.size === 0) {
       toast.error('Please select documents to download');
@@ -249,53 +248,51 @@ export default function DocumentSubmissionsPage() {
     }
 
     setIsZipping(true);
-    let successfullyZipped = 0;
-    let failedZipped = 0;
-
     try {
-      const zip = new JSZip();
-      const selectedDocs = submissions.filter(s => selectedIds.has(s.id));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Please sign in again');
+        return;
+      }
 
-      // We need to fetch each file as a blob
-      await mapWithConcurrency(selectedDocs, 4, async (doc) => {
-        try {
-          const url = await resolveSubmissionUrl(doc);
-          if (!url) throw new Error('No URL');
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`Failed to fetch ${doc.file_name}`);
-          const blob = await response.blob();
-          const fileName = doc.original_file_name || doc.file_name || `file_${doc.id.substring(0, 5)}`;
-          zip.file(fileName, blob);
-          successfullyZipped++;
-        } catch (err) {
-          console.error(`Error adding ${doc.original_file_name} to zip:`, err);
-          failedZipped++;
-        }
+      const response = await fetch('/api/document-submissions/download-zip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
 
-      if (successfullyZipped === 0) {
-        throw new Error('Could not download any of the selected files (likely CORS restrictions).');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof err?.error === 'string' ? err.error : 'Bulk download failed'
+        );
       }
 
-      if (failedZipped > 0) {
-        toast.warning(`Successfully zipped ${successfullyZipped} files, but ${failedZipped} failed (likely CORS).`);
+      const blob = await response.blob();
+      if (blob.size < 22) {
+        throw new Error('Downloaded ZIP is empty or invalid');
       }
 
-      // Generate ZIP blob
-      const content = await zip.generateAsync({ type: 'blob' });
+      const warnings = response.headers.get('X-Zip-Warnings');
+      if (warnings) {
+        toast.warning(`ZIP created with warnings: ${warnings}`);
+      }
 
-      // Trigger download
-      const zipUrl = URL.createObjectURL(content);
+      const zipUrl = URL.createObjectURL(
+        new Blob([blob], { type: 'application/zip' })
+      );
       const a = document.createElement('a');
       a.href = zipUrl;
-      a.download = `documents_${new Date().getTime()}.zip`;
+      a.download = `documents_${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(zipUrl);
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 60_000);
 
       toast.success('Bulk download started');
-      console.log('Bulk download ZIP generated and triggered');
     } catch (error) {
       console.error('Bulk download failed:', error);
       toast.error(error instanceof Error ? error.message : 'Bulk download failed');

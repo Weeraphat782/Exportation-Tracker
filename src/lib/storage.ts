@@ -303,6 +303,12 @@ export async function mapWithConcurrency<T, R>(
  * Avoids re-fetching a presigned URL over HTTP, which R2 can reject with 400.
  */
 export async function downloadR2ObjectAsBase64(path: string): Promise<string> {
+  const bytes = await downloadR2ObjectAsBytes(path);
+  return Buffer.from(bytes).toString('base64');
+}
+
+/** Download an R2 object as raw bytes (server-side only). */
+export async function downloadR2ObjectAsBytes(path: string): Promise<Uint8Array> {
   if (!path) throw new Error('Missing R2 object path');
   const key = path.startsWith('http')
     ? new URL(path).pathname.replace(/^\/+/, '').replace(`${R2_BUCKET}/`, '')
@@ -313,8 +319,38 @@ export async function downloadR2ObjectAsBase64(path: string): Promise<string> {
   if (!body?.transformToByteArray) {
     throw new Error('Empty R2 object body');
   }
-  const bytes = await body.transformToByteArray();
-  return Buffer.from(bytes).toString('base64');
+  return body.transformToByteArray();
+}
+
+/** Download a stored submission file as bytes (server-side only). */
+export async function downloadSubmissionFileBytes(params: {
+  file_path?: string | null;
+  file_url?: string | null;
+  storage_provider?: 'supabase' | 'r2';
+  bucket?: string;
+}): Promise<Uint8Array> {
+  const pathOrUrl = (params.file_path || params.file_url || '').trim();
+  if (!pathOrUrl) throw new Error('Missing file path');
+
+  if (pathOrUrl.startsWith('http')) {
+    const response = await fetch(pathOrUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status}`);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  if ((params.storage_provider || 'r2') === 'r2') {
+    return downloadR2ObjectAsBytes(pathOrUrl);
+  }
+
+  const url = await getFileUrl(pathOrUrl, 'supabase', params.bucket || 'documents');
+  if (!url) throw new Error('Could not resolve file URL');
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 export async function resolveDocumentFileUrl(params: {
