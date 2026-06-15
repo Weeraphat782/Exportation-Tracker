@@ -7,13 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, ExternalLink, Loader2, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, Loader2, Package, QrCode, Trash2, Upload, Wallet } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { canDeleteQcRequest, deleteQcRequest, getQcRequestById, updateQcRequest } from '@/lib/qc-db';
 import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
+import {
+  buildQcPaymentQrPayload,
+  isQcPaymentSlipImage,
+  QC_PAYMENT_STATUS_LABELS,
+} from '@/lib/qc-types';
 import type { QcRequest } from '@/lib/qc-types';
 
 async function uploadQcFile(qcRequestId: string, file: File): Promise<string | null> {
@@ -38,6 +43,10 @@ async function uploadQcFile(qcRequestId: string, file: File): Promise<string | n
   return path as string;
 }
 
+function formatMoney(value: number | null | undefined) {
+  return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function PortalQcRequestDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -49,25 +58,38 @@ export default function PortalQcRequestDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const [coaUrl, setCoaUrl] = useState<string | null>(null);
-  const qrRef = useRef<HTMLDivElement>(null);
+  const sampleQrRef = useRef<HTMLDivElement>(null);
+  const paymentQrRef = useRef<HTMLDivElement>(null);
 
   const scanUrl =
     typeof window !== 'undefined' && request
       ? `${window.location.origin}/qc/scan/${request.qc_code}`
       : '';
 
+  const paymentQrPayload =
+    request ? buildQcPaymentQrPayload(request.qc_code, request.grand_total) : '';
+
+  const paymentMeta = request ? QC_PAYMENT_STATUS_LABELS[request.payment_status] : null;
+  const slipIsImage = isQcPaymentSlipImage(request?.payment_slip_path);
+
   const load = useCallback(async () => {
     setLoading(true);
     const data = await getQcRequestById(id);
     if (data && user && data.customer_user_id !== user.id) {
       setRequest(null);
+      setSlipUrl(null);
+      setCoaUrl(null);
     } else {
       setRequest(data);
       if (data?.payment_slip_path) {
         setSlipUrl(await getFileUrl(data.payment_slip_path, 'r2'));
+      } else {
+        setSlipUrl(null);
       }
       if (data?.coa_path) {
         setCoaUrl(await getFileUrl(data.coa_path, 'r2'));
+      } else {
+        setCoaUrl(null);
       }
     }
     setLoading(false);
@@ -112,11 +134,11 @@ export default function PortalQcRequestDetailPage() {
     }
   };
 
-  const downloadQr = () => {
-    const canvas = qrRef.current?.querySelector('canvas');
-    if (!canvas || !request) return;
+  const downloadQr = (ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
+    const canvas = ref.current?.querySelector('canvas');
+    if (!canvas) return;
     const link = document.createElement('a');
-    link.download = `${request.qc_code}-qr.png`;
+    link.download = filename;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -156,27 +178,81 @@ export default function PortalQcRequestDetailPage() {
           <QcInvoiceContent request={request} />
         </div>
 
-        {/* RIGHT — upload slip (top) + QR (bottom) */}
+        {/* RIGHT — payment first, then sample QR */}
         <div className="lg:col-span-1 order-1 lg:order-2 space-y-6 lg:sticky lg:top-6">
+          {/* Payment QR (Demo) */}
+          <Card className="border-2 border-amber-300 bg-amber-50/60 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-amber-500 p-1.5">
+                  <Wallet className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base text-amber-900">QR สำหรับจ่ายเงิน</CardTitle>
+                  <p className="text-xs text-amber-700">Payment QR</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-3">
+              <Badge className="bg-amber-500 hover:bg-amber-500 text-white">Demo only</Badge>
+              <div ref={paymentQrRef} className="rounded-md border-2 border-amber-300 p-3 bg-white">
+                <QRCodeCanvas value={paymentQrPayload} size={160} level="M" fgColor="#b45309" />
+              </div>
+              <p className="text-sm font-semibold text-amber-900">
+                {formatMoney(request.grand_total)} THB
+              </p>
+              <p className="text-[11px] text-amber-800 text-center leading-relaxed">
+                Scan to pay (demo). After transferring, upload your payment slip below.
+                The lab will not start testing until payment is verified.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full border-amber-300 text-amber-900 hover:bg-amber-100"
+                onClick={() => downloadQr(paymentQrRef, `${request.qc_code}-payment-qr.png`)}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download Payment QR
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Payment slip */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Payment Slip</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {paymentMeta && (
+                <div className="space-y-1">
+                  <Badge className={paymentMeta.badgeClass}>{paymentMeta.label}</Badge>
+                  <p className="text-xs text-slate-500">{paymentMeta.helper}</p>
+                </div>
+              )}
+
               {request.payment_slip_path && slipUrl ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <a href={slipUrl} target="_blank" rel="noreferrer">
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      View slip
-                    </Button>
-                  </a>
+                <div className="space-y-3">
+                  {slipIsImage ? (
+                    <a href={slipUrl} target="_blank" rel="noreferrer" className="block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={slipUrl}
+                        alt="Payment slip preview"
+                        className="w-full rounded-md border border-slate-200 object-contain max-h-48 bg-slate-50"
+                      />
+                    </a>
+                  ) : (
+                    <a href={slipUrl} target="_blank" rel="noreferrer">
+                      <Button variant="outline" size="sm">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View slip (PDF)
+                      </Button>
+                    </a>
+                  )}
                   <label>
                     <Button asChild variant="ghost" size="sm" disabled={uploading}>
                       <span className="cursor-pointer">
                         <Upload className="h-4 w-4 mr-1" />
-                        Replace
+                        Replace slip
                       </span>
                     </Button>
                     <input
@@ -214,37 +290,48 @@ export default function PortalQcRequestDetailPage() {
               {uploading && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <Badge>{request.status}</Badge>
-                <Badge variant="secondary">{request.payment_status}</Badge>
               </div>
             </CardContent>
           </Card>
 
-          {/* QR */}
-          <Card>
+          {/* Sample QR */}
+          <Card className="border-2 border-emerald-300 bg-emerald-50/50 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">QR Code</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-emerald-600 p-1.5">
+                  <Package className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base text-emerald-900">Sample QR</CardTitle>
+                  <p className="text-xs text-emerald-700">แปะบนถุงตัวอย่าง</p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-3">
-              <div ref={qrRef} className="rounded-md border border-slate-200 p-3 bg-white">
-                <QRCodeCanvas value={scanUrl} size={160} level="M" />
+              <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">
+                Attach to your sample
+              </Badge>
+              <div ref={sampleQrRef} className="rounded-md border-2 border-emerald-300 p-3 bg-white">
+                <QRCodeCanvas value={scanUrl} size={160} level="M" fgColor="#047857" />
               </div>
-              <p className="font-mono text-xs text-gray-500">{request.qc_code}</p>
-              <p className="text-[11px] text-gray-400 text-center">
-                Attach to the sample. Lab staff scan it to open this request; others see verification.
+              <p className="font-mono text-xs text-emerald-800">{request.qc_code}</p>
+              <p className="text-[11px] text-emerald-700 text-center leading-relaxed">
+                Print and attach to the sample bag. Lab staff scan this to open the request — not for payment.
               </p>
-              <Button variant="outline" className="w-full" onClick={downloadQr}>
+              <Button
+                variant="outline"
+                className="w-full border-emerald-300 text-emerald-900 hover:bg-emerald-100"
+                onClick={() => downloadQr(sampleQrRef, `${request.qc_code}-sample-qr.png`)}
+              >
                 <Download className="h-4 w-4 mr-1" />
-                Download QR
+                Download Sample QR
               </Button>
               <a href={scanUrl} target="_blank" rel="noreferrer" className="w-full">
-                <Button variant="ghost" className="w-full">
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Open link
+                <Button variant="ghost" className="w-full text-emerald-800">
+                  <QrCode className="h-4 w-4 mr-1" />
+                  Open sample link
                 </Button>
               </a>
-              <p className="text-[11px] text-gray-400 text-center break-all">
-                {scanUrl}
-              </p>
             </CardContent>
           </Card>
 

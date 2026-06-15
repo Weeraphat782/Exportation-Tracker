@@ -12,6 +12,7 @@ import { getQcRequestById, updateQcRequest } from '@/lib/qc-db';
 import { QcRequestPrintForm } from '@/components/qc/qc-request-print-form';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
+import { isQcPaymentSlipImage, QC_PAYMENT_STATUS_LABELS } from '@/lib/qc-types';
 import type { QcRequest } from '@/lib/qc-types';
 
 async function uploadQcFile(qcRequestId: string, file: File, documentType: string): Promise<string | null> {
@@ -54,9 +55,13 @@ export default function LabQcRequestDetailPage() {
       setLabNotes(data.lab_notes || '');
       if (data.payment_slip_path) {
         setSlipUrl(await getFileUrl(data.payment_slip_path, 'r2'));
+      } else {
+        setSlipUrl(null);
       }
       if (data.coa_path) {
         setCoaUrl(await getFileUrl(data.coa_path, 'r2'));
+      } else {
+        setCoaUrl(null);
       }
     }
     setLoading(false);
@@ -114,6 +119,10 @@ export default function LabQcRequestDetailPage() {
     return <p className="text-center py-8 text-red-500">Request not found</p>;
   }
 
+  const paymentMeta = QC_PAYMENT_STATUS_LABELS[request.payment_status];
+  const slipIsImage = isQcPaymentSlipImage(request.payment_slip_path);
+  const canMoveToProcessing = request.payment_status === 'verified';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4 print:hidden">
@@ -125,9 +134,9 @@ export default function LabQcRequestDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold font-mono">{request.qc_code}</h1>
-          <div className="flex gap-2 mt-1">
+          <div className="flex gap-2 mt-1 flex-wrap">
             <Badge>{request.status}</Badge>
-            <Badge variant="secondary">{request.payment_status}</Badge>
+            <Badge className={paymentMeta.badgeClass}>{paymentMeta.label}</Badge>
           </div>
         </div>
       </div>
@@ -148,10 +157,21 @@ export default function LabQcRequestDetailPage() {
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
               {request.status === 'new' && (
-                <Button className="w-full" onClick={moveToProcessing} disabled={busy}>
-                  <PlayCircle className="h-4 w-4 mr-1" />
-                  Move to Processing
-                </Button>
+                <>
+                  <Button
+                    className="w-full"
+                    onClick={moveToProcessing}
+                    disabled={busy || !canMoveToProcessing}
+                  >
+                    <PlayCircle className="h-4 w-4 mr-1" />
+                    Move to Processing
+                  </Button>
+                  {!canMoveToProcessing && (
+                    <p className="text-xs text-amber-700">
+                      Confirm payment first — lab cannot start testing until payment is verified.
+                    </p>
+                  )}
+                </>
               )}
               {request.status === 'processing' && (
                 <p className="text-sm text-slate-500">Currently in processing.</p>
@@ -164,25 +184,37 @@ export default function LabQcRequestDetailPage() {
             {/* Payment */}
             <div className="space-y-2 border-t pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payment</p>
+              <Badge className={paymentMeta.badgeClass}>{paymentMeta.label}</Badge>
+              <p className="text-xs text-slate-500">{paymentMeta.helper}</p>
               {request.payment_slip_path ? (
                 <>
-                  {slipUrl && (
+                  {slipUrl && slipIsImage && (
+                    <a href={slipUrl} target="_blank" rel="noreferrer" className="block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={slipUrl}
+                        alt="Payment slip preview"
+                        className="w-full rounded-md border border-slate-200 object-contain max-h-56 bg-slate-50"
+                      />
+                    </a>
+                  )}
+                  {slipUrl && !slipIsImage && (
                     <a href={slipUrl} target="_blank" rel="noreferrer">
                       <Button variant="outline" className="w-full">
                         <ExternalLink className="h-4 w-4 mr-1" />
-                        View payment slip
+                        View payment slip (PDF)
                       </Button>
                     </a>
                   )}
                   {request.payment_status !== 'verified' && (
-                    <Button className="w-full" onClick={verifyPayment} disabled={busy}>
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={verifyPayment} disabled={busy}>
                       <CheckCircle className="h-4 w-4 mr-1" />
-                      Verify Payment
+                      Confirm Payment & Start Processing
                     </Button>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-slate-500">No payment slip uploaded yet.</p>
+                <p className="text-sm text-slate-500">No payment slip uploaded yet. Waiting for customer payment.</p>
               )}
             </div>
 

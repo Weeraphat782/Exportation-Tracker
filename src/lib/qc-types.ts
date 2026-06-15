@@ -125,3 +125,41 @@ export const QC_TEST_METHOD_LABELS: Record<QcTestMethod, string> = {
   customer: 'วิธีที่ผู้ขอรับบริการกำหนด',
   other: 'อื่นๆ',
 };
+
+export type QcPaymentStatusBadgeVariant = 'default' | 'secondary' | 'outline';
+
+export const QC_PAYMENT_STATUS_LABELS: Record<
+  QcPaymentStatus,
+  { label: string; helper: string; badgeClass: string; variant: QcPaymentStatusBadgeVariant }
+> = {
+  pending: {
+    label: 'Awaiting payment',
+    helper: 'Please transfer and upload your payment slip.',
+    badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+    variant: 'outline',
+  },
+  paid: {
+    label: 'Slip uploaded — awaiting verification',
+    helper: 'Lab will verify your payment before testing begins.',
+    badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
+    variant: 'secondary',
+  },
+  verified: {
+    label: 'Payment verified',
+    helper: 'Payment confirmed. Lab testing can proceed.',
+    badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    variant: 'default',
+  },
+};
+
+/** True when the stored slip path looks like an image (inline preview). */
+export function isQcPaymentSlipImage(path: string | null | undefined): boolean {
+  if (!path) return false;
+  return /\.(jpe?g|png|webp|gif)$/i.test(path);
+}
+
+/** Demo PromptPay-style payload for the payment QR placeholder. */
+export function buildQcPaymentQrPayload(qcCode: string, grandTotal: number | null | undefined): string {
+  const amount = Number(grandTotal) || 0;
+  return `DEMO-QC-PAYMENT|${qcCode}|${amount.toFixed(2)} THB`;
+}

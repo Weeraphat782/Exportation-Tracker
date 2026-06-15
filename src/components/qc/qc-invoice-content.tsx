@@ -143,7 +143,10 @@ export function QcInvoiceContent({ request, mode = 'preview' }: QcInvoiceContent
 
         <div className="border border-slate-200 rounded-md p-4 text-sm text-slate-700">
           <p className="font-semibold mb-1">Payment</p>
-          <p className="text-slate-500">Please transfer the grand total and upload the payment slip in the portal.</p>
+          <p className="text-slate-500">
+            Scan the payment QR on the portal, transfer the grand total, then upload your payment slip.
+            The lab will verify payment before testing begins.
+          </p>
         </div>
       </CardContent>
     </Card>
