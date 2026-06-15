@@ -24,10 +24,16 @@ import {
   BookOpen,
   Plane,
   ScrollText,
+  FlaskConical,
+  ClipboardList,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
+import { supabase } from '@/lib/supabase';
+import { ROLES } from '@/lib/roles';
 
 const MENU_GROUPS = [
   {
@@ -57,6 +63,14 @@ const MENU_GROUPS = [
   }
 ];
 
+const QC_MENU_GROUP = {
+  title: 'QC LAB',
+  items: [
+    { href: '/qc/templates', icon: FlaskConical, label: 'QC Templates' },
+    { href: '/qc/requests', icon: ClipboardList, label: 'QC Requests' },
+  ],
+};
+
 const SETTINGS_ITEMS = [
   { href: '/settings/company', icon: Building, label: 'Company' },
   { href: '/settings/destination', icon: Globe, label: 'Destination' },
@@ -65,6 +79,10 @@ const SETTINGS_ITEMS = [
   { href: '/settings/ai', icon: Sparkles, label: 'AI Settings' },
   { href: '/document-comparison/rules', icon: ListChecks, label: 'Comparison Rules' },
   { href: '/settings/carrier-board', icon: Plane, label: 'Carrier board' },
+];
+
+const ADMIN_ONLY_SETTINGS = [
+  { href: '/settings/qc-lab-admins', icon: UserCog, label: 'QC Lab Admins' },
 ];
 
 interface SidebarProps {
@@ -76,7 +94,25 @@ interface SidebarProps {
 
 const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => setUserRole(data?.role ?? null));
+  }, [user]);
+
+  const isLabAdmin = userRole === ROLES.LAB_ADMIN;
+  const isAdmin = userRole === ROLES.ADMIN;
+  const menuGroups = isLabAdmin ? [QC_MENU_GROUP] : [...MENU_GROUPS, QC_MENU_GROUP];
+  const settingsItems = isAdmin ? [...SETTINGS_ITEMS, ...ADMIN_ONLY_SETTINGS] : SETTINGS_ITEMS;
+  const showSettings = !isLabAdmin;
 
   // Expand Settings when user is on any settings route (incl. carrier-board) or comparison rules
   useEffect(() => {
@@ -139,7 +175,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {MENU_GROUPS.map((group) => (
+        {menuGroups.map((group) => (
           <div key={group.title} className="mb-5">
             {!isCollapsed && (
               <div className="px-3 mb-2">
@@ -165,6 +201,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
         ))}
 
         {/* Settings */}
+        {showSettings && (
         <div className="mb-5">
           {!isCollapsed && (
             <div className="px-3 mb-2">
@@ -191,7 +228,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
 
             {!isCollapsed && settingsOpen && (
               <div className="ml-4 pl-4 border-l-2 border-gray-200 space-y-1 mt-2">
-                {SETTINGS_ITEMS.map((item) => (
+                {settingsItems.map((item) => (
                   <Link key={item.href} href={item.href}
                     className={cn(
                       "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150",
@@ -205,6 +242,7 @@ const Sidebar = ({ isCollapsed, toggleSidebar, isMobile, className }: SidebarPro
             )}
           </div>
         </div>
+        )}
       </nav>
 
       {/* Footer */}

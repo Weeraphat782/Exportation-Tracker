@@ -1,36 +1,26 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
+import { isLabAdminPath, ROLES } from '@/lib/roles';
 
-/**
- * Staff Route Guard
- * 
- * ป้องกันไม่ให้ customer เข้าถึงหน้า internal ได้
- * - ถ้า user เป็น customer → redirect ไป /portal
- * - ถ้า user เป็น staff/admin → ผ่านปกติ
- * - ถ้าไม่มี session → ปล่อยผ่าน (แต่ละหน้าจัดการ auth เอง เหมือนเดิม)
- * 
- * ⚠️ ไม่เปลี่ยนแปลง auth flow เดิมของระบบ internal
- */
 function StaffRouteGuard({ children }: { children: ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
+  const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    // Still loading auth — wait
     if (authLoading) return;
 
-    // No user — redirect to login
     if (!user) {
       window.location.href = '/login';
       return;
     }
 
-    // User exists — check role
     let cancelled = false;
 
     const checkRole = async () => {
@@ -43,16 +33,21 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
-        if (data?.role === 'customer') {
+        const role = data?.role;
+
+        if (role === ROLES.CUSTOMER) {
           window.location.href = '/portal';
           return;
         }
 
-        // Staff or admin — authorized
+        if (role === ROLES.LAB_ADMIN && !isLabAdminPath(pathname)) {
+          window.location.href = '/qc';
+          return;
+        }
+
         setAuthorized(true);
         setChecking(false);
       } catch {
-        // If profile check fails, still allow (don't lock out existing staff)
         if (!cancelled) {
           setAuthorized(true);
           setChecking(false);
@@ -62,10 +57,11 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
 
     checkRole();
 
-    return () => { cancelled = true; };
-  }, [user, authLoading]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading, pathname]);
 
-  // Show loading while auth or role check is in progress
   if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -77,7 +73,6 @@ function StaffRouteGuard({ children }: { children: ReactNode }) {
     );
   }
 
-  // Not authorized — don't render anything (redirect is in progress)
   if (!authorized) return null;
 
   return <>{children}</>;

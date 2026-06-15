@@ -1,0 +1,127 @@
+export type QcRequestStatus = 'new' | 'processing' | 'complete';
+export type QcPaymentStatus = 'pending' | 'paid' | 'verified';
+export type QcSampleType = 'solid' | 'liquid' | 'other';
+export type QcTestMethod = 'lab' | 'customer' | 'other';
+
+export interface QcLabAdminAllowlistEntry {
+  id: string;
+  email: string;
+  is_active: boolean;
+  added_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface QcTemplate {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface QcTestItem {
+  id: string;
+  template_id: string;
+  parent_id?: string | null;
+  name: string;
+  group_label?: string | null;
+  price?: number | null;
+  unit_label?: string | null;
+  min_sample_qty?: number | null;
+  test_duration?: string | null;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+  children?: QcTestItem[];
+}
+
+export interface QcSelectedItem {
+  test_item_id: string;
+  name: string;
+  group_label?: string | null;
+  unit_label?: string | null;
+  price: number;
+  qty: number;
+  subtotal: number;
+}
+
+export type QcStorageCondition = 'room' | 'cold' | 'other';
+export type QcSampleReturn = 'none' | 'with_report' | 'container_only';
+export type QcReportLanguage = 'th' | 'en';
+export type QcReportDelivery = 'pickup' | 'other';
+
+/** Lab-admin-entered fields for the FM-QC-019 request form (stored as JSONB). */
+export interface QcLabFormData {
+  lab_sample_no?: string;
+  lab_test_no?: string;
+  service_request_no?: string;
+  storage_condition?: QcStorageCondition | null;
+  storage_condition_other?: string;
+  attached_docs?: 'none' | 'yes' | null;
+  attached_docs_detail?: string;
+  sample_return?: QcSampleReturn | null;
+  report_language?: QcReportLanguage | null;
+  report_format_lab?: boolean;
+  want_raw_data?: boolean;
+  want_uncertainty?: boolean;
+  report_delivery?: QcReportDelivery | null;
+  report_delivery_other?: string;
+  signer_name?: string;
+  sign_date?: string;
+}
+
+export interface QcRequest {
+  id: string;
+  customer_user_id: string;
+  template_id: string;
+  qc_code: string;
+  share_token?: string | null;
+  status: QcRequestStatus;
+  company_name_address?: string | null;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  sample_name?: string | null;
+  lot_no?: string | null;
+  manufacturer?: string | null;
+  sample_qty?: string | null;
+  production_date?: string | null;
+  expiry_date?: string | null;
+  sampling_date?: string | null;
+  sample_type?: QcSampleType | null;
+  sample_type_other?: string | null;
+  test_method?: QcTestMethod | null;
+  test_method_other?: string | null;
+  selected_items: QcSelectedItem[];
+  subtotal?: number | null;
+  vat?: number | null;
+  grand_total?: number | null;
+  payment_status: QcPaymentStatus;
+  payment_slip_path?: string | null;
+  coa_path?: string | null;
+  lab_notes?: string | null;
+  lab_form_data?: QcLabFormData | null;
+  created_at?: string;
+  updated_at?: string;
+  qc_templates?: Pick<QcTemplate, 'name'> | null;
+}
+
+export const QC_LAB_LETTERHEAD = {
+  nameTh: 'ห้องปฏิบัติการ บริษัท สยาม เฮอเบิล เทค จำกัด',
+  formCode: 'FM-QC-019 R.05',
+} as const;
+
+export const QC_SAMPLE_TYPE_LABELS: Record<QcSampleType, string> = {
+  solid: 'ของแข็ง',
+  liquid: 'ของเหลว',
+  other: 'อื่นๆ',
+};
+
+export const QC_TEST_METHOD_LABELS: Record<QcTestMethod, string> = {
+  lab: 'วิธีของห้องปฏิบัติการ',
+  customer: 'วิธีที่ผู้ขอรับบริการกำหนด',
+  other: 'อื่นๆ',
+};

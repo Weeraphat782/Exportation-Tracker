@@ -11,12 +11,14 @@ import {
   X,
   Bell,
   PlusCircle,
+  FlaskConical,
 } from 'lucide-react';
 import { CustomerAuthProvider, useCustomerAuth } from '@/contexts/customer-auth-context';
 
 const navItems = [
   { href: '/portal', label: 'My Shipments', icon: Plane },
   { href: '/portal/quotations/new', label: 'Request Quote', icon: PlusCircle },
+  { href: '/portal/qc-requests', label: 'QC Request', icon: FlaskConical },
   { href: '/portal/profile', label: 'My Profile', icon: User },
 ];
 
@@ -58,7 +60,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
               ? pathname === '/portal' || pathname.startsWith('/portal/shipments')
               : item.href === '/portal/quotations/new'
                 ? pathname === '/portal/quotations/new'
-                : pathname === item.href || pathname.startsWith(item.href + '/');
+                : item.href === '/portal/qc-requests'
+                  ? pathname.startsWith('/portal/qc-requests')
+                  : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}

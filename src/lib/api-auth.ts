@@ -87,14 +87,44 @@ export async function requireApiUser(request: Request): Promise<ApiAuthResult> {
   };
 }
 
+import { ROLES } from '@/lib/roles';
+
 export async function requireStaffApiUser(request: Request): Promise<ApiAuthResult> {
   const auth = await requireApiUser(request);
   if (!auth.ok) return auth;
 
-  if (auth.role !== 'staff' && auth.role !== 'admin') {
+  if (auth.role !== ROLES.STAFF && auth.role !== ROLES.ADMIN) {
     return {
       ok: false,
       response: NextResponse.json({ error: 'Staff access required.' }, { status: 403 }),
+    };
+  }
+
+  return auth;
+}
+
+export async function requireLabAdminApiUser(request: Request): Promise<ApiAuthResult> {
+  const auth = await requireApiUser(request);
+  if (!auth.ok) return auth;
+
+  if (auth.role !== ROLES.LAB_ADMIN && auth.role !== ROLES.ADMIN) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Lab admin access required.' }, { status: 403 }),
+    };
+  }
+
+  return auth;
+}
+
+export async function requireAdminApiUser(request: Request): Promise<ApiAuthResult> {
+  const auth = await requireApiUser(request);
+  if (!auth.ok) return auth;
+
+  if (auth.role !== ROLES.ADMIN) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Admin access required.' }, { status: 403 }),
     };
   }
 

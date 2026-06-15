@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { signInLabAdminWithGoogle } from '@/lib/lab-oauth';
+import { ROLES } from '@/lib/roles';
 
 /**
  * If Supabase/Google misconfigure returns PKCE ?code= or ?error= to /login (staff) instead of /site/auth/callback,
@@ -32,6 +34,7 @@ function StaffLoginForm() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -77,18 +80,30 @@ function StaffLoginForm() {
           })
         );
 
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.session.user.id)
+          .single();
+
+        const role = profile?.role;
+        const redirectPath =
+          role === ROLES.LAB_ADMIN
+            ? '/qc'
+            : role === ROLES.CUSTOMER
+              ? '/portal'
+              : '/shipping-calculator';
+
         setSuccessMessage('Login successful! Redirecting...');
         setDebugInfo(
           (prev) =>
-            prev + `\nStored auth_session in localStorage.\nWill redirect to /shipping-calculator in 2 seconds...\n`
+            prev + `\nRole: ${role}\nRedirecting to ${redirectPath}...\n`
         );
 
         await new Promise((resolve) => setTimeout(resolve, 500));
-
         window.history.replaceState({}, document.title, window.location.pathname);
-
         setTimeout(() => {
-          window.location.href = `${window.location.origin}/shipping-calculator`;
+          window.location.href = `${window.location.origin}${redirectPath}`;
         }, 1500);
       } else {
         setErrorMessage('Login failed. No session returned.');
@@ -101,6 +116,17 @@ function StaffLoginForm() {
       const message = error instanceof Error ? error.message : JSON.stringify(error);
       setDebugInfo((prev) => prev + `\nUnexpected error: ${message}\n`);
       setIsLoading(false);
+    }
+  };
+
+  const handleLabGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setErrorMessage('');
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const { error } = await signInLabAdminWithGoogle(origin);
+    if (error) {
+      setErrorMessage(error);
+      setGoogleLoading(false);
     }
   };
 
@@ -154,6 +180,25 @@ function StaffLoginForm() {
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Logging in...' : 'Login'}
+                </Button>
+
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-slate-400">Lab Admin</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={googleLoading}
+                  onClick={handleLabGoogleLogin}
+                >
+                  {googleLoading ? 'Redirecting…' : 'Sign in with Google (Lab Admin)'}
                 </Button>
 
                 <div className="text-xs text-center">
