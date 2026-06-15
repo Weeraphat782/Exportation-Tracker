@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ClipboardList, Eye, Search } from 'lucide-react';
+import { ClipboardList, Eye, QrCode, Search } from 'lucide-react';
 import { getQcRequestsByStatus } from '@/lib/qc-db';
 import type { QcRequest, QcRequestStatus } from '@/lib/qc-types';
+import { QcScanDialog } from '@/components/qc/qc-scan-dialog';
 
 const STATUS_TABS: { value: QcRequestStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -23,6 +24,7 @@ export default function QcRequestsQueuePage() {
   const [requests, setRequests] = useState<QcRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [scanOpen, setScanOpen] = useState(false);
 
   const load = async (status: QcRequestStatus) => {
     setLoading(true);
@@ -47,13 +49,21 @@ export default function QcRequestsQueuePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <ClipboardList className="h-8 w-8 text-blue-600" />
-          QC Requests
-        </h1>
-        <p className="text-slate-500">Lab work queue — New, Processing, Complete</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <ClipboardList className="h-8 w-8 text-blue-600" />
+            QC Requests
+          </h1>
+          <p className="text-slate-500">Lab work queue — New, Processing, Complete</p>
+        </div>
+        <Button onClick={() => setScanOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <QrCode className="h-4 w-4 mr-1" />
+          Scan QR
+        </Button>
       </div>
+
+      <QcScanDialog open={scanOpen} onOpenChange={setScanOpen} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as QcRequestStatus)}>
         <TabsList>

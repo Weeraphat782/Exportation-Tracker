@@ -55,6 +55,7 @@
     "d3-zoom": "^3.0.0",
     "embla-carousel-react": "^8.6.0",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.487.0",
