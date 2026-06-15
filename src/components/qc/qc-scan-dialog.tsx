@@ -46,6 +46,25 @@ function resolveTarget(decoded: string): string | null {
   return null;
 }
 
+function waitForElement(id: string, timeoutMs = 3000): Promise<HTMLElement> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        resolve(el);
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error('scanner element not found'));
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
 export function QcScanDialog({ open, onOpenChange }: QcScanDialogProps) {
   const router = useRouter();
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -61,8 +80,20 @@ export function QcScanDialog({ open, onOpenChange }: QcScanDialogProps) {
     setStarting(true);
 
     let cancelled = false;
-    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
-    scannerRef.current = scanner;
+
+    const stop = async () => {
+      const scanner = scannerRef.current;
+      if (!scanner) return;
+      try {
+        if (scanner.isScanning) {
+          await scanner.stop();
+        }
+        scanner.clear();
+      } catch {
+        // ignore teardown errors
+      }
+      scannerRef.current = null;
+    };
 
     const onSuccess = (decodedText: string) => {
       if (handledRef.current) return;
@@ -79,36 +110,42 @@ export function QcScanDialog({ open, onOpenChange }: QcScanDialogProps) {
       });
     };
 
-    const stop = async () => {
+    const run = async () => {
       try {
-        if (scannerRef.current?.isScanning) {
-          await scannerRef.current.stop();
+        await waitForElement(SCANNER_ELEMENT_ID);
+        if (cancelled) return;
+
+        const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: (viewW: number, viewH: number) => {
+              const size = Math.floor(Math.min(viewW, viewH) * 0.75);
+              return { width: size, height: size };
+            },
+          },
+          onSuccess,
+          undefined
+        );
+
+        if (!cancelled) setStarting(false);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setStarting(false);
+        if (err instanceof Error && err.name === 'NotAllowedError') {
+          setError('Camera permission denied. Allow camera access and try again.');
+        } else if (err instanceof Error && err.name === 'NotFoundError') {
+          setError('No camera found on this device.');
+        } else {
+          setError('Unable to start the camera on this device.');
         }
-        scannerRef.current?.clear();
-      } catch {
-        // ignore teardown errors
       }
     };
 
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        onSuccess,
-        undefined
-      )
-      .then(() => {
-        if (!cancelled) setStarting(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setStarting(false);
-        setError(
-          err instanceof Error && err.name === 'NotAllowedError'
-            ? 'Camera permission denied. Allow camera access and try again.'
-            : 'Unable to start the camera on this device.'
-        );
-      });
+    run();
 
     return () => {
       cancelled = true;
@@ -118,7 +155,7 @@ export function QcScanDialog({ open, onOpenChange }: QcScanDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-1.5rem)] max-w-sm p-4 sm:max-w-md sm:p-6">
         <DialogHeader>
           <DialogTitle>Scan QC QR</DialogTitle>
           <DialogDescription>
@@ -126,8 +163,8 @@ export function QcScanDialog({ open, onOpenChange }: QcScanDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative overflow-hidden rounded-lg bg-black">
-          <div id={SCANNER_ELEMENT_ID} className="w-full" />
+        <div className="relative w-full overflow-hidden rounded-lg bg-black aspect-square">
+          <div id={SCANNER_ELEMENT_ID} className="h-full w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
           {starting && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white">
               <Loader2 className="h-6 w-6 animate-spin" />
