@@ -29,6 +29,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type DateFilterField = 'created_at' | 'shipping_date';
 
 // Column definitions
 const ALL_COLUMNS = [
@@ -60,6 +69,9 @@ export default function ShippingCalculatorPage() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateField, setDateField] = useState<DateFilterField>('created_at');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [keepFilter, setKeepFilter] = useState(false);
   const filterSaveReadyRef = useRef(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
@@ -94,10 +106,22 @@ export default function ShippingCalculatorPage() {
       if (savedSearch) {
         setSearchTerm(savedSearch);
       }
+      const savedDateField = localStorage.getItem('calc_dateField');
+      if (savedDateField === 'created_at' || savedDateField === 'shipping_date') {
+        setDateField(savedDateField);
+      }
+      const savedDateFrom = localStorage.getItem('calc_dateFrom');
+      if (savedDateFrom) {
+        setDateFrom(savedDateFrom);
+      }
+      const savedDateTo = localStorage.getItem('calc_dateTo');
+      if (savedDateTo) {
+        setDateTo(savedDateTo);
+      }
     }
   }, []);
 
-  // Persist search term when keep-filter is enabled
+  // Persist search term and date filter when keep-filter is enabled
   useEffect(() => {
     if (!filterSaveReadyRef.current) {
       filterSaveReadyRef.current = true;
@@ -106,11 +130,25 @@ export default function ShippingCalculatorPage() {
     if (keepFilter) {
       localStorage.setItem('calc_keepFilter', '1');
       localStorage.setItem('calc_searchTerm', searchTerm);
+      localStorage.setItem('calc_dateField', dateField);
+      if (dateFrom) {
+        localStorage.setItem('calc_dateFrom', dateFrom);
+      } else {
+        localStorage.removeItem('calc_dateFrom');
+      }
+      if (dateTo) {
+        localStorage.setItem('calc_dateTo', dateTo);
+      } else {
+        localStorage.removeItem('calc_dateTo');
+      }
     } else {
       localStorage.setItem('calc_keepFilter', '0');
       localStorage.removeItem('calc_searchTerm');
+      localStorage.removeItem('calc_dateField');
+      localStorage.removeItem('calc_dateFrom');
+      localStorage.removeItem('calc_dateTo');
     }
-  }, [keepFilter, searchTerm]);
+  }, [keepFilter, searchTerm, dateField, dateFrom, dateTo]);
 
   // Load column presets from Supabase
   useEffect(() => {
@@ -802,14 +840,29 @@ export default function ShippingCalculatorPage() {
   const activeQuotations = quotations.filter(quotation => quotation.status !== 'completed' && quotation.status !== 'draft');
   const completedQuotations = quotations.filter(quotation => quotation.status === 'completed');
 
-  // Filter function for search
+  // Filter function for search and date range
+  const hasDateFilter = Boolean(dateFrom || dateTo);
+  const hasActiveFilters = Boolean(searchTerm || hasDateFilter);
+
+  const inDateRange = (quotation: Quotation) => {
+    if (!hasDateFilter) return true;
+    const raw = dateField === 'created_at' ? quotation.created_at : quotation.shipping_date;
+    if (!raw) return false;
+    const d = raw.slice(0, 10);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo && d > dateTo) return false;
+    return true;
+  };
+
   const filterQuotations = (quotationsList: Quotation[]) => {
-    if (!searchTerm) return quotationsList;
+    let list = quotationsList.filter(inDateRange);
+
+    if (!searchTerm) return list;
 
     const searchTermLower = searchTerm.toLowerCase();
     const searchDigits = searchTerm.replace(/[^0-9]/g, '');
 
-    return quotationsList.filter(quotation => {
+    return list.filter(quotation => {
       const textMatch =
         quotation.id?.toLowerCase().includes(searchTermLower) ||
         quotation.quotation_no?.toLowerCase().includes(searchTermLower) ||
@@ -826,6 +879,12 @@ export default function ShippingCalculatorPage() {
     });
   };
 
+  const clearDateFilter = () => {
+    setDateField('created_at');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const filteredDraftQuotations = filterQuotations(draftQuotations);
   const filteredActiveQuotations = filterQuotations(activeQuotations);
   const filteredCompletedQuotations = filterQuotations(completedQuotations);
@@ -838,7 +897,7 @@ export default function ShippingCalculatorPage() {
           <FileText className="h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium">No quotations found</h3>
           <p className="text-sm text-gray-500 mt-1 mb-4">
-            {searchTerm ? 'Try adjusting your search terms.' : 'No quotations in this category yet.'}
+            {hasActiveFilters ? 'Try adjusting your search or date range.' : 'No quotations in this category yet.'}
           </p>
         </div>
       );
@@ -1299,7 +1358,7 @@ export default function ShippingCalculatorPage() {
           </div>
 
           {/* Search Input */}
-          <div className="flex flex-wrap items-center gap-3 mt-4">
+          <div className="flex flex-wrap items-end gap-3 mt-4">
             <div className="relative flex-1 min-w-[200px] sm:max-w-[33%]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -1310,7 +1369,53 @@ export default function ShippingCalculatorPage() {
                 className="pl-8 w-full text-sm"
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="calc-date-field" className="text-xs text-gray-500">Filter by</Label>
+                <Select value={dateField} onValueChange={(v) => setDateField(v as DateFilterField)}>
+                  <SelectTrigger id="calc-date-field" size="sm" className="w-[140px] text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created_at">Date</SelectItem>
+                    <SelectItem value="shipping_date">Shipping Date</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="calc-date-from" className="text-xs text-gray-500">From</Label>
+                <Input
+                  id="calc-date-from"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-[140px] text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="calc-date-to" className="text-xs text-gray-500">To</Label>
+                <Input
+                  id="calc-date-to"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-[140px] text-sm"
+                />
+              </div>
+              {hasDateFilter && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={clearDateFilter}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear dates
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center space-x-2 pb-1">
               <Checkbox
                 id="keep-filter"
                 checked={keepFilter}
