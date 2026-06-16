@@ -399,6 +399,7 @@ export interface Quotation {
   opportunities?: {
     stage: string;
     closure_status?: string | null;
+    pickup_date?: string | null;
   } | null;
 
   /** Per-line VAT flags for freight, clearance, delivery, additional (see QuotationTaxableLines). */
@@ -1018,7 +1019,8 @@ export async function getQuotations(userId: string) {
         *,
         company:companies(name),
         destination_country:destinations(country, port),
-        product:products(name)
+        product:products(name),
+        opportunities(stage, closure_status, pickup_date)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });

@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type DateFilterField = 'created_at' | 'shipping_date';
+type DateFilterField = 'created_at' | 'pickup_date';
 
 // Column definitions
 const ALL_COLUMNS = [
@@ -107,7 +107,7 @@ export default function ShippingCalculatorPage() {
         setSearchTerm(savedSearch);
       }
       const savedDateField = localStorage.getItem('calc_dateField');
-      if (savedDateField === 'created_at' || savedDateField === 'shipping_date') {
+      if (savedDateField === 'created_at' || savedDateField === 'pickup_date') {
         setDateField(savedDateField);
       }
       const savedDateFrom = localStorage.getItem('calc_dateFrom');
@@ -846,7 +846,7 @@ export default function ShippingCalculatorPage() {
 
   const inDateRange = (quotation: Quotation) => {
     if (!hasDateFilter) return true;
-    const raw = dateField === 'created_at' ? quotation.created_at : quotation.shipping_date;
+    const raw = dateField === 'created_at' ? quotation.created_at : quotation.opportunities?.pickup_date;
     if (!raw) return false;
     const d = raw.slice(0, 10);
     if (dateFrom && d < dateFrom) return false;
@@ -855,7 +855,7 @@ export default function ShippingCalculatorPage() {
   };
 
   const filterQuotations = (quotationsList: Quotation[]) => {
-    let list = quotationsList.filter(inDateRange);
+    const list = quotationsList.filter(inDateRange);
 
     if (!searchTerm) return list;
 
@@ -1378,7 +1378,7 @@ export default function ShippingCalculatorPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at">Date</SelectItem>
-                    <SelectItem value="shipping_date">Shipping Date</SelectItem>
+                    <SelectItem value="pickup_date">Pick up date</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
