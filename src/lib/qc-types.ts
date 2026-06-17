@@ -75,17 +75,6 @@ export interface QcLabFormData {
   sign_date?: string;
 }
 
-export interface QcTestStandard {
-  id: string;
-  name: string;
-  description?: string | null;
-  selections: QcCatalogSelections;
-  is_active: boolean;
-  created_by?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface QcRequest {
   id: string;
   customer_user_id: string;
@@ -127,6 +116,14 @@ export const QC_LAB_LETTERHEAD = {
   nameTh: 'ห้องปฏิบัติการ บริษัท สยาม เฮอเบิล เทค จำกัด',
   formCode: 'FM-QC-019 R.05',
 } as const;
+
+/**
+ * Static blank FM-QC-019 form for customers to print and tick by hand.
+ * Prefers the R2-hosted copy (set NEXT_PUBLIC_QC_FORM_URL after running
+ * scripts/upload-qc-form-to-r2.mjs); falls back to the local public/ copy in dev.
+ */
+export const QC_REQUEST_FORM_FILE =
+  process.env.NEXT_PUBLIC_QC_FORM_URL || '/forms/FM-QC-019.pdf';
 
 export const QC_SAMPLE_TYPE_LABELS: Record<QcSampleType, string> = {
   solid: 'ของแข็ง',

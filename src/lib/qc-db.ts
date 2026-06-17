@@ -6,7 +6,6 @@ import type {
   QcRequestStatus,
   QcTemplate,
   QcTestItem,
-  QcTestStandard,
 } from '@/lib/qc-types';
 import type { QcCatalogSelections } from '@/lib/qc-catalog';
 import { normalizeCatalogSelections } from '@/lib/qc-catalog';
@@ -411,81 +410,4 @@ export async function saveQcTemplateGroups(
   }
 
   return { ok: failed === 0, failed };
-}
-
-export async function getQcStandards(activeOnly = false): Promise<QcTestStandard[]> {
-  let q = supabase.from('qc_test_standards').select('*').order('name');
-  if (activeOnly) q = q.eq('is_active', true);
-  const { data, error } = await q;
-  if (error) {
-    console.error('getQcStandards:', error);
-    return [];
-  }
-  return (data || []).map((row) => ({
-    ...row,
-    selections: normalizeCatalogSelections(row.selections),
-  })) as QcTestStandard[];
-}
-
-export async function getQcStandardById(id: string): Promise<QcTestStandard | null> {
-  const { data, error } = await supabase.from('qc_test_standards').select('*').eq('id', id).maybeSingle();
-  if (error || !data) return null;
-  return {
-    ...data,
-    selections: normalizeCatalogSelections(data.selections),
-  } as QcTestStandard;
-}
-
-export async function createQcStandard(input: {
-  name: string;
-  description?: string;
-  selections: QcCatalogSelections;
-  created_by?: string;
-}): Promise<QcTestStandard | null> {
-  const { data, error } = await supabase
-    .from('qc_test_standards')
-    .insert({
-      name: input.name.trim(),
-      description: input.description?.trim() || null,
-      selections: normalizeCatalogSelections(input.selections),
-      is_active: true,
-      created_by: input.created_by ?? null,
-    })
-    .select('*')
-    .single();
-  if (error) {
-    console.error('createQcStandard:', error);
-    return null;
-  }
-  return {
-    ...data,
-    selections: normalizeCatalogSelections(data.selections),
-  } as QcTestStandard;
-}
-
-export async function updateQcStandard(
-  id: string,
-  patch: Partial<Pick<QcTestStandard, 'name' | 'description' | 'selections' | 'is_active'>>
-): Promise<boolean> {
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (patch.name !== undefined) payload.name = patch.name.trim();
-  if (patch.description !== undefined) payload.description = patch.description?.trim() || null;
-  if (patch.is_active !== undefined) payload.is_active = patch.is_active;
-  if (patch.selections !== undefined) payload.selections = normalizeCatalogSelections(patch.selections);
-
-  const { error } = await supabase.from('qc_test_standards').update(payload).eq('id', id);
-  if (error) {
-    console.error('updateQcStandard:', error);
-    return false;
-  }
-  return true;
-}
-
-export async function deleteQcStandard(id: string): Promise<boolean> {
-  const { error } = await supabase.from('qc_test_standards').delete().eq('id', id);
-  if (error) {
-    console.error('deleteQcStandard:', error);
-    return false;
-  }
-  return true;
 }

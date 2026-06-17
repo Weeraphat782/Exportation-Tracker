@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle, ExternalLink, FileText, Loader2, PlayCircle, Upload } from 'lucide-react';
 import { getQcRequestById, updateQcRequest } from '@/lib/qc-db';
-import { QcRequestPrintForm } from '@/components/qc/qc-request-print-form';
+import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
 import { isQcPaymentSlipImage, QC_PAYMENT_STATUS_LABELS } from '@/lib/qc-types';
@@ -142,9 +142,9 @@ export default function LabQcRequestDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
-        {/* LEFT — QC Request form */}
+        {/* LEFT — QC Invoice */}
         <div className="lg:col-span-2 print:w-full">
-          <QcRequestPrintForm request={request} editor="lab" />
+          <QcInvoiceContent request={request} />
         </div>
 
         {/* RIGHT — Lab actions */}

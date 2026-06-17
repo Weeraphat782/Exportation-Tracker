@@ -27,7 +27,6 @@ import {
   FlaskConical,
   ClipboardList,
   BarChart3,
-  BookMarked,
   UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,7 +69,6 @@ const QC_MENU_GROUP = {
   title: 'QC LAB',
   items: [
     { href: '/qc/templates', icon: FlaskConical, label: 'QC Templates' },
-    { href: '/qc/standards', icon: BookMarked, label: 'QC Standards' },
     { href: '/qc/requests', icon: ClipboardList, label: 'QC Requests' },
   ],
 };

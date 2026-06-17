@@ -7,17 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, ExternalLink, Loader2, Package, QrCode, Trash2, Upload, Wallet } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, Loader2, Package, Printer, QrCode, Trash2, Upload, Wallet } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { canDeleteQcRequest, deleteQcRequest, getQcRequestById, updateQcRequest } from '@/lib/qc-db';
-import { QcRequestPrintForm } from '@/components/qc/qc-request-print-form';
+import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
 import {
   buildQcPaymentQrPayload,
   isQcPaymentSlipImage,
   QC_PAYMENT_STATUS_LABELS,
+  QC_REQUEST_FORM_FILE,
 } from '@/lib/qc-types';
 import type { QcRequest } from '@/lib/qc-types';
 
@@ -177,17 +178,38 @@ export default function PortalQcRequestDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* LEFT — QC Request form (FM-QC-019, A4) */}
-        <div className="lg:col-span-2 order-2 lg:order-1">
+        {/* LEFT — invoice + static form download */}
+        <div className="lg:col-span-2 order-2 lg:order-1 space-y-6">
+          <div className="flex justify-end print:hidden">
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-1" />
+              Print Invoice
+            </Button>
+          </div>
+
+          <div className="qc-print-sheet">
+            <QcInvoiceContent request={request} />
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">QC Request Form (FM-QC-019)</CardTitle>
               <p className="text-sm text-slate-500">
-                กรอกส่วนที่เหลือ บันทึก และพิมพ์เพื่อแนบมาพร้อมกับตัวอย่าง
+                ดาวน์โหลดแบบฟอร์มจริง พิมพ์และติ๊กด้วยตนเอง แล้วแนบไปกับตัวอย่าง
               </p>
             </CardHeader>
-            <CardContent>
-              <QcRequestPrintForm request={request} editor="customer" />
+            <CardContent className="space-y-4">
+              <a href={QC_REQUEST_FORM_FILE} target="_blank" rel="noreferrer">
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <Download className="h-4 w-4 mr-2" />
+                  เปิด / ดาวน์โหลดฟอร์ม FM-QC-019
+                </Button>
+              </a>
+              <ol className="text-sm text-slate-600 space-y-2 list-decimal list-inside">
+                <li>ดาวน์โหลดและพิมพ์แบบฟอร์ม</li>
+                <li>ติ๊กรายการทดสอบและกรอกข้อมูลที่จำเป็นด้วยตนเอง</li>
+                <li>แนบแบบฟอร์มที่กรอกแล้วมาพร้อมกับตัวอย่าง</li>
+              </ol>
             </CardContent>
           </Card>
         </div>

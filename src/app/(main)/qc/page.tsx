@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ClipboardList, FlaskConical, BookMarked } from 'lucide-react';
+import { ClipboardList, FlaskConical } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -9,12 +9,6 @@ const links = [
     title: 'QC Requests',
     description: 'Lab work queue — New, Processing, Complete',
     icon: ClipboardList,
-  },
-  {
-    href: '/qc/standards',
-    title: 'Test Standards',
-    description: 'Pre-fill FM-QC-019 selections (GACP, etc.)',
-    icon: BookMarked,
   },
   {
     href: '/qc/templates',

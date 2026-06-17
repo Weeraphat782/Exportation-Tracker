@@ -1,22 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Download, Loader2 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import { createQcRequest, getQcStandards } from '@/lib/qc-db';
-import { EMPTY_CATALOG_SELECTIONS, hasCatalogSelections } from '@/lib/qc-catalog';
-import type { QcCatalogSelections } from '@/lib/qc-catalog';
-import { QcCatalogFields } from '@/components/qc/qc-catalog-fields';
-import type { QcSampleType, QcTestMethod, QcTestStandard } from '@/lib/qc-types';
-import { QC_SAMPLE_TYPE_LABELS, QC_TEST_METHOD_LABELS } from '@/lib/qc-types';
+import {
+  createQcRequest,
+  getQcTemplates,
+  getQcTestItems,
+  nestQcTestItems,
+} from '@/lib/qc-db';
+import { buildSelectedItem, computeQcInvoiceTotals } from '@/lib/qc-invoice';
+import type {
+  QcSampleType,
+  QcSelectedItem,
+  QcTemplate,
+  QcTestItem,
+  QcTestMethod,
+} from '@/lib/qc-types';
+import {
+  QC_REQUEST_FORM_FILE,
+  QC_SAMPLE_TYPE_LABELS,
+  QC_TEST_METHOD_LABELS,
+} from '@/lib/qc-types';
 import { toast } from 'sonner';
 
 function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
@@ -59,16 +73,92 @@ function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
   );
 }
 
+function QcFormDownloadCard({ className }: { className?: string }) {
+  return (
+    <div className={`rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3 ${className ?? ''}`}>
+      <div>
+        <p className="text-sm font-semibold text-slate-800">แบบฟอร์ม QC Request (FM-QC-019)</p>
+        <p className="text-xs text-slate-500 mt-1">
+          ดาวน์โหลดแบบฟอร์มจริง พิมพ์และติ๊กด้วยตนเอง แล้วแนบไปกับตัวอย่าง
+        </p>
+      </div>
+      <a href={QC_REQUEST_FORM_FILE} target="_blank" rel="noreferrer">
+        <Button variant="outline" className="w-full sm:w-auto">
+          <Download className="h-4 w-4 mr-2" />
+          เปิด / ดาวน์โหลดฟอร์ม FM-QC-019
+        </Button>
+      </a>
+    </div>
+  );
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function TestRow({
+  item,
+  groupLabel,
+  checked,
+  qty,
+  onCheckedChange,
+  onQtyChange,
+}: {
+  item: QcTestItem;
+  groupLabel?: string | null;
+  checked: boolean;
+  qty: number;
+  onCheckedChange: (checked: boolean) => void;
+  onQtyChange: (qty: number) => void;
+}) {
+  const price = Number(item.price) || 0;
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+      <Checkbox
+        id={`test-${item.id}`}
+        checked={checked}
+        onCheckedChange={(v) => onCheckedChange(v === true)}
+      />
+      <label htmlFor={`test-${item.id}`} className="flex-1 min-w-[140px] text-sm cursor-pointer">
+        {groupLabel ? (
+          <span className="text-slate-500">{groupLabel}: </span>
+        ) : null}
+        {item.name}
+        {item.unit_label ? (
+          <span className="text-slate-400 text-xs ml-1">({item.unit_label})</span>
+        ) : null}
+      </label>
+      <span className="text-sm tabular-nums text-slate-600 shrink-0">
+        {formatMoney(price)} THB
+      </span>
+      {checked && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-slate-500 shrink-0">Qty</Label>
+          <Input
+            type="number"
+            min={1}
+            className="w-20 h-8"
+            value={qty}
+            onChange={(e) => onQtyChange(Math.max(1, Number(e.target.value) || 1))}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NewQcRequestPage() {
   const router = useRouter();
   const { user, profile } = useCustomerAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [standards, setStandards] = useState<QcTestStandard[]>([]);
-  const [standardId, setStandardId] = useState('');
-  const [catalogSelections, setCatalogSelections] = useState<QcCatalogSelections>({
-    ...EMPTY_CATALOG_SELECTIONS,
-  });
   const [submitting, setSubmitting] = useState(false);
+
+  const [templates, setTemplates] = useState<QcTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('');
+  const [nestedItems, setNestedItems] = useState<QcTestItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [qtys, setQtys] = useState<Record<string, number>>({});
 
   const [companyNameAddress, setCompanyNameAddress] = useState('');
   const [contactName, setContactName] = useState('');
@@ -87,7 +177,7 @@ export default function NewQcRequestPage() {
   const [testMethodOther, setTestMethodOther] = useState('');
 
   useEffect(() => {
-    getQcStandards(true).then(setStandards);
+    getQcTemplates(true).then(setTemplates);
   }, []);
 
   useEffect(() => {
@@ -98,32 +188,71 @@ export default function NewQcRequestPage() {
     }
   }, [profile]);
 
-  const applyStandard = (id: string) => {
-    setStandardId(id);
-    if (!id) return;
-    const std = standards.find((s) => s.id === id);
-    if (std) {
-      setCatalogSelections({
-        items: [...std.selections.items],
-        units: { ...(std.selections.units || {}) },
-        potencyOther: std.selections.potencyOther,
-        heavyMetalsOther: std.selections.heavyMetalsOther,
-        other: std.selections.other,
-      });
-      toast.success(`Applied standard: ${std.name}`);
+  useEffect(() => {
+    if (!templateId) {
+      setNestedItems([]);
+      setCheckedIds(new Set());
+      setQtys({});
+      return;
     }
+    setLoadingItems(true);
+    getQcTestItems(templateId).then((raw) => {
+      setNestedItems(nestQcTestItems(raw));
+      setCheckedIds(new Set());
+      setQtys({});
+      setLoadingItems(false);
+    });
+  }, [templateId]);
+
+  const selectedItems = useMemo((): QcSelectedItem[] => {
+    const items: QcSelectedItem[] = [];
+    for (const node of nestedItems) {
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          if (!checkedIds.has(child.id)) continue;
+          const qty = qtys[child.id] ?? 1;
+          const built = buildSelectedItem(child, qty);
+          built.group_label = node.name;
+          items.push(built);
+        }
+      } else if (checkedIds.has(node.id)) {
+        const qty = qtys[node.id] ?? 1;
+        items.push(buildSelectedItem(node, qty));
+      }
+    }
+    return items;
+  }, [nestedItems, checkedIds, qtys]);
+
+  const totals = useMemo(() => computeQcInvoiceTotals(selectedItems), [selectedItems]);
+
+  const toggleItem = (id: string, checked: boolean) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+        if (!qtys[id]) setQtys((q) => ({ ...q, [id]: 1 }));
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
     if (!user) return;
-    if (!hasCatalogSelections(catalogSelections)) {
+    if (!templateId) {
+      toast.error('Please select a test template');
+      return;
+    }
+    if (selectedItems.length === 0) {
       toast.error('Please select at least one test');
       return;
     }
     setSubmitting(true);
     const created = await createQcRequest({
       customer_user_id: user.id,
-      catalog_selections: catalogSelections,
+      template_id: templateId,
+      selected_items: selectedItems,
       company_name_address: companyNameAddress,
       contact_name: contactName,
       phone,
@@ -149,7 +278,7 @@ export default function NewQcRequestPage() {
     }
   };
 
-  const selectedCount = catalogSelections.items.length;
+  const selectedTemplate = templates.find((t) => t.id === templateId);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -260,39 +389,95 @@ export default function NewQcRequestPage() {
       )}
 
       {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Tests (FM-QC-019)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {standards.length > 0 && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 space-y-2">
-                <Label>Apply standard (optional)</Label>
-                <Select value={standardId || 'none'} onValueChange={(v) => applyStandard(v === 'none' ? '' : v)}>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Tests</CardTitle>
+              <CardDescription>Choose a test panel and tick the items you need</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Test Template</Label>
+                <Select value={templateId || 'none'} onValueChange={(v) => setTemplateId(v === 'none' ? '' : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a standard e.g. GACP" />
+                    <SelectValue placeholder="Select a template…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None — select manually</SelectItem>
-                    {standards.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                        {s.description ? ` — ${s.description}` : ''}
+                    <SelectItem value="none" disabled>Select a template…</SelectItem>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                        {t.description ? ` — ${t.description}` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-            <QcCatalogFields value={catalogSelections} onChange={setCatalogSelections} />
-            <div className="flex gap-2 mt-6">
-              <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-              <Button disabled={!hasCatalogSelections(catalogSelections)} onClick={() => setStep(3)}>
-                Next <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
+              {loadingItems ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                </div>
+              ) : templateId && nestedItems.length === 0 ? (
+                <p className="text-sm text-slate-500 py-4">This template has no test items yet.</p>
+              ) : templateId ? (
+                <div className="space-y-4">
+                  {nestedItems.map((node) => (
+                    <div key={node.id} className="rounded-lg border border-slate-200 p-3">
+                      {node.children && node.children.length > 0 ? (
+                        <>
+                          <p className="text-sm font-semibold text-slate-700 mb-2">{node.name}</p>
+                          {node.children.map((child) => (
+                            <TestRow
+                              key={child.id}
+                              item={child}
+                              groupLabel={node.name}
+                              checked={checkedIds.has(child.id)}
+                              qty={qtys[child.id] ?? 1}
+                              onCheckedChange={(c) => toggleItem(child.id, c)}
+                              onQtyChange={(q) => setQtys((prev) => ({ ...prev, [child.id]: q }))}
+                            />
+                          ))}
+                        </>
+                      ) : (
+                        <TestRow
+                          item={node}
+                          checked={checkedIds.has(node.id)}
+                          qty={qtys[node.id] ?? 1}
+                          onCheckedChange={(c) => toggleItem(node.id, c)}
+                          onQtyChange={(q) => setQtys((prev) => ({ ...prev, [node.id]: q }))}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {selectedItems.length > 0 && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-slate-600">{selectedItems.length} item(s) selected</span>
+                    <span className="font-semibold text-emerald-800 tabular-nums">
+                      Total: {formatMoney(totals.grand_total)} THB
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <QcFormDownloadCard />
+
+              <div className="flex gap-2 mt-2">
+                <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button
+                  disabled={!templateId || selectedItems.length === 0}
+                  onClick={() => setStep(3)}
+                >
+                  Next <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {step === 3 && (
@@ -303,14 +488,37 @@ export default function NewQcRequestPage() {
           <CardContent className="space-y-4">
             <div className="border rounded-lg p-4 space-y-2 text-sm">
               <p><span className="text-slate-500">Sample:</span> {sampleName || '—'}</p>
-              <p><span className="text-slate-500">Tests selected:</span> {selectedCount} item(s)</p>
-              {catalogSelections.potencyOther && (
-                <p className="text-xs text-slate-600">Potency other: {catalogSelections.potencyOther}</p>
-              )}
-              {catalogSelections.other && (
-                <p className="text-xs text-slate-600 whitespace-pre-wrap">Other: {catalogSelections.other}</p>
-              )}
+              <p>
+                <span className="text-slate-500">Template:</span>{' '}
+                {selectedTemplate?.name || '—'}
+              </p>
+              <p><span className="text-slate-500">Tests selected:</span> {selectedItems.length} item(s)</p>
+              <ul className="text-xs text-slate-600 space-y-1 pl-2">
+                {selectedItems.map((item) => (
+                  <li key={item.test_item_id}>
+                    {item.group_label ? `${item.group_label}: ` : ''}
+                    {item.name} × {item.qty} — {formatMoney(item.subtotal)} THB
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
+                <p className="flex justify-between">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="tabular-nums">{formatMoney(totals.subtotal)} THB</span>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-slate-500">VAT</span>
+                  <span className="tabular-nums">{formatMoney(totals.vat)} THB</span>
+                </p>
+                <p className="flex justify-between font-semibold text-base">
+                  <span>Grand Total</span>
+                  <span className="tabular-nums text-emerald-700">{formatMoney(totals.grand_total)} THB</span>
+                </p>
+              </div>
             </div>
+
+            <QcFormDownloadCard />
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
               <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleSubmit} disabled={submitting}>

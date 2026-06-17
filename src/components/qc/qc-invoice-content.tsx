@@ -26,8 +26,8 @@ export interface QcInvoiceContentProps {
 const LAB_LETTERHEAD_LINES = [
   QC_LAB_LETTERHEAD.nameTh,
   'Siam Herbal Tech Co., Ltd.',
-  '10/12-13 Convent Road, Silom, Bangrak, Bangkok 10500',
-  'Tel. : 02-630-4600-1',
+  '288/8 หมู่ที่ 4 ตำบลบางหญ้าแพรก อำเภอเมืองสมุทรสาคร จ.สมุทรสาคร 74000',
+  'Tel. : +6691-782-9291',
   `Form: ${QC_LAB_LETTERHEAD.formCode}`,
 ] as const;
 
@@ -45,6 +45,12 @@ export function QcInvoiceContent({ request, mode = 'preview' }: QcInvoiceContent
       <CardContent className="p-0 flex-1 flex flex-col">
         <div className="flex flex-wrap justify-between items-start gap-4 mb-6 border-b border-slate-200 pb-6">
           <div className="text-slate-800 space-y-1 max-w-[640px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/QC form LOgo.png"
+              alt="Lab logo"
+              className="h-16 w-auto object-contain mb-2 [print-color-adjust:exact] [-webkit-print-color-adjust:exact]"
+            />
             {LAB_LETTERHEAD_LINES.map((line, i) => (
               <p
                 key={i}
