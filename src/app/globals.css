@@ -509,3 +509,24 @@
     background: #fff !important;
   }
 }
+
+/* QC Request form — print only the form sheet, not the surrounding page.
+   Scoped with :has() so it activates only on pages containing the form. */
+@media print {
+  body:has(.qc-print-sheet) * {
+    visibility: hidden;
+  }
+
+  body:has(.qc-print-sheet) .qc-print-sheet,
+  body:has(.qc-print-sheet) .qc-print-sheet * {
+    visibility: visible;
+  }
+
+  body:has(.qc-print-sheet) .qc-print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+  }
+}

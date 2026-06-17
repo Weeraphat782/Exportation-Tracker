@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -9,26 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
-import {
-  createQcRequest,
-  getQcTemplates,
-  getQcTestItems,
-  nestQcTestItems,
-} from '@/lib/qc-db';
-import { buildSelectedItem, computeQcInvoiceTotals } from '@/lib/qc-invoice';
-import type { QcSampleType, QcTemplate, QcTestItem, QcTestMethod } from '@/lib/qc-types';
+import { createQcRequest, getQcStandards } from '@/lib/qc-db';
+import { EMPTY_CATALOG_SELECTIONS, hasCatalogSelections } from '@/lib/qc-catalog';
+import type { QcCatalogSelections } from '@/lib/qc-catalog';
+import { QcCatalogFields } from '@/components/qc/qc-catalog-fields';
+import type { QcSampleType, QcTestMethod, QcTestStandard } from '@/lib/qc-types';
 import { QC_SAMPLE_TYPE_LABELS, QC_TEST_METHOD_LABELS } from '@/lib/qc-types';
 import { toast } from 'sonner';
 
-function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 | 4 }) {
+function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 }) {
   const steps = [
-    { n: 1, label: 'Template' },
-    { n: 2, label: 'Details' },
-    { n: 3, label: 'Tests' },
-    { n: 4, label: 'Summary' },
+    { n: 1, label: 'Details' },
+    { n: 2, label: 'Tests' },
+    { n: 3, label: 'Submit' },
   ] as const;
 
   return (
@@ -64,72 +59,15 @@ function StepIndicator({ currentStep }: { currentStep: 1 | 2 | 3 | 4 }) {
   );
 }
 
-function TestTree({
-  nodes,
-  qtyMap,
-  onQtyChange,
-  depth,
-}: {
-  nodes: QcTestItem[];
-  qtyMap: Record<string, number>;
-  onQtyChange: (id: string, qty: number) => void;
-  depth: number;
-}) {
-  return (
-    <div className="space-y-2" style={{ marginLeft: depth * 16 }}>
-      {nodes.map((node) => {
-        const hasPrice = node.price != null && Number(node.price) > 0;
-        const isLeaf = !node.children?.length;
-        return (
-          <div key={node.id}>
-            {isLeaf && hasPrice ? (
-              <div className="flex items-center gap-3 py-2 border-b border-gray-100">
-                <Checkbox
-                  checked={(qtyMap[node.id] || 0) > 0}
-                  onCheckedChange={(checked) => onQtyChange(node.id, checked ? 1 : 0)}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    {node.group_label ? `${node.group_label}: ` : ''}
-                    {node.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {Number(node.price).toLocaleString()} THB / {node.unit_label || 'unit'}
-                    {node.test_duration ? ` · ${node.test_duration}` : ''}
-                  </p>
-                </div>
-                {(qtyMap[node.id] || 0) > 0 && (
-                  <Input
-                    type="number"
-                    min={node.min_sample_qty || 1}
-                    className="w-20"
-                    value={qtyMap[node.id] || 1}
-                    onChange={(e) => onQtyChange(node.id, Math.max(0, parseInt(e.target.value) || 0))}
-                  />
-                )}
-              </div>
-            ) : (
-              <p className="text-sm font-semibold text-gray-700 py-1">{node.name}</p>
-            )}
-            {node.children && node.children.length > 0 && (
-              <TestTree nodes={node.children} qtyMap={qtyMap} onQtyChange={onQtyChange} depth={depth + 1} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function NewQcRequestPage() {
   const router = useRouter();
   const { user, profile } = useCustomerAuth();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [templates, setTemplates] = useState<QcTemplate[]>([]);
-  const [templateId, setTemplateId] = useState('');
-  const [testTree, setTestTree] = useState<QcTestItem[]>([]);
-  const [flatItems, setFlatItems] = useState<QcTestItem[]>([]);
-  const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [standards, setStandards] = useState<QcTestStandard[]>([]);
+  const [standardId, setStandardId] = useState('');
+  const [catalogSelections, setCatalogSelections] = useState<QcCatalogSelections>({
+    ...EMPTY_CATALOG_SELECTIONS,
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const [companyNameAddress, setCompanyNameAddress] = useState('');
@@ -149,7 +87,7 @@ export default function NewQcRequestPage() {
   const [testMethodOther, setTestMethodOther] = useState('');
 
   useEffect(() => {
-    getQcTemplates(true).then(setTemplates);
+    getQcStandards(true).then(setStandards);
   }, []);
 
   useEffect(() => {
@@ -160,36 +98,32 @@ export default function NewQcRequestPage() {
     }
   }, [profile]);
 
-  useEffect(() => {
-    if (!templateId) return;
-    getQcTestItems(templateId).then((items) => {
-      setFlatItems(items);
-      setTestTree(nestQcTestItems(items));
-      setQtyMap({});
-    });
-  }, [templateId]);
-
-  const selectedItems = useMemo(() => {
-    return flatItems
-      .filter((item) => (qtyMap[item.id] || 0) > 0 && item.price != null)
-      .map((item) => buildSelectedItem(item, qtyMap[item.id] || 1));
-  }, [flatItems, qtyMap]);
-
-  const totals = useMemo(() => computeQcInvoiceTotals(selectedItems), [selectedItems]);
-
-  const handleQtyChange = (id: string, qty: number) => {
-    setQtyMap((prev) => ({ ...prev, [id]: qty }));
+  const applyStandard = (id: string) => {
+    setStandardId(id);
+    if (!id) return;
+    const std = standards.find((s) => s.id === id);
+    if (std) {
+      setCatalogSelections({
+        items: [...std.selections.items],
+        units: { ...(std.selections.units || {}) },
+        potencyOther: std.selections.potencyOther,
+        heavyMetalsOther: std.selections.heavyMetalsOther,
+        other: std.selections.other,
+      });
+      toast.success(`Applied standard: ${std.name}`);
+    }
   };
 
   const handleSubmit = async () => {
-    if (!user || !templateId || selectedItems.length === 0) {
-      toast.error('Please complete all required fields');
+    if (!user) return;
+    if (!hasCatalogSelections(catalogSelections)) {
+      toast.error('Please select at least one test');
       return;
     }
     setSubmitting(true);
     const created = await createQcRequest({
       customer_user_id: user.id,
-      template_id: templateId,
+      catalog_selections: catalogSelections,
       company_name_address: companyNameAddress,
       contact_name: contactName,
       phone,
@@ -205,7 +139,6 @@ export default function NewQcRequestPage() {
       sample_type_other: sampleType === 'other' ? sampleTypeOther : undefined,
       test_method: testMethod,
       test_method_other: testMethod === 'other' ? testMethodOther : undefined,
-      selected_items: selectedItems,
     });
     setSubmitting(false);
     if (created) {
@@ -216,6 +149,8 @@ export default function NewQcRequestPage() {
     }
   };
 
+  const selectedCount = catalogSelections.items.length;
+
   return (
     <div className="max-w-3xl mx-auto">
       <Link href="/portal/qc-requests" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
@@ -224,36 +159,11 @@ export default function NewQcRequestPage() {
       </Link>
 
       <h1 className="text-2xl font-bold mb-2">New QC Request</h1>
-      <p className="text-slate-500 text-sm mb-6">FM-QC-019 — Lab testing request form</p>
+      <p className="text-slate-500 text-sm mb-6">FM-QC-019 — ใบส่งทดสอบ (QC Request)</p>
 
       <StepIndicator currentStep={step} />
 
       {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Test Template</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Select value={templateId} onValueChange={setTemplateId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a test panel" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button disabled={!templateId} onClick={() => setStep(2)}>
-              Next <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 2 && (
         <Card>
           <CardHeader>
             <CardTitle>Sample & Contact Details</CardTitle>
@@ -278,7 +188,14 @@ export default function NewQcRequestPage() {
               </div>
               <div>
                 <Label>Sample Name</Label>
-                <Input value={sampleName} onChange={(e) => setSampleName(e.target.value)} />
+                <Input
+                  value={sampleName}
+                  onChange={(e) => setSampleName(e.target.value)}
+                  placeholder="Dried cannabis flower + ชื่อสายพันธุ์"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  ระบุชนิดตัวอย่างตามด้วยชื่อสายพันธุ์ เช่น Dried cannabis flower - Charlotte&apos;s Angel
+                </p>
               </div>
               <div>
                 <Label>Lot No.</Label>
@@ -335,9 +252,44 @@ export default function NewQcRequestPage() {
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <Button onClick={() => setStep(2)}>
+              Next <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Tests (FM-QC-019)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {standards.length > 0 && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 space-y-2">
+                <Label>Apply standard (optional)</Label>
+                <Select value={standardId || 'none'} onValueChange={(v) => applyStandard(v === 'none' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a standard e.g. GACP" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None — select manually</SelectItem>
+                    {standards.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                        {s.description ? ` — ${s.description}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <QcCatalogFields value={catalogSelections} onChange={setCatalogSelections} />
+            <div className="flex gap-2 mt-6">
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-              <Button onClick={() => setStep(3)}>Next <ArrowRight className="h-4 w-4 ml-1" /></Button>
+              <Button disabled={!hasCatalogSelections(catalogSelections)} onClick={() => setStep(3)}>
+                Next <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -346,40 +298,21 @@ export default function NewQcRequestPage() {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Select Tests</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TestTree nodes={testTree} qtyMap={qtyMap} onQtyChange={handleQtyChange} depth={0} />
-            <div className="flex gap-2 mt-6">
-              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-              <Button disabled={selectedItems.length === 0} onClick={() => setStep(4)}>
-                Next <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 4 && (
-        <Card>
-          <CardHeader>
             <CardTitle>Summary & Submit</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border rounded-lg p-4 space-y-2 text-sm">
-              {selectedItems.map((item) => (
-                <div key={item.test_item_id} className="flex justify-between">
-                  <span>{item.name} × {item.qty}</span>
-                  <span>{item.subtotal.toLocaleString()} THB</span>
-                </div>
-              ))}
-              <div className="border-t pt-2 flex justify-between font-bold">
-                <span>Grand Total (incl. VAT)</span>
-                <span>{totals.grand_total.toLocaleString()} THB</span>
-              </div>
+              <p><span className="text-slate-500">Sample:</span> {sampleName || '—'}</p>
+              <p><span className="text-slate-500">Tests selected:</span> {selectedCount} item(s)</p>
+              {catalogSelections.potencyOther && (
+                <p className="text-xs text-slate-600">Potency other: {catalogSelections.potencyOther}</p>
+              )}
+              {catalogSelections.other && (
+                <p className="text-xs text-slate-600 whitespace-pre-wrap">Other: {catalogSelections.other}</p>
+              )}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
               <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleSubmit} disabled={submitting}>
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                 Submit QC Request

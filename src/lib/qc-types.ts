@@ -3,6 +3,8 @@ export type QcPaymentStatus = 'pending' | 'paid' | 'verified';
 export type QcSampleType = 'solid' | 'liquid' | 'other';
 export type QcTestMethod = 'lab' | 'customer' | 'other';
 
+import type { QcCatalogSelections } from '@/lib/qc-catalog';
+
 export interface QcLabAdminAllowlistEntry {
   id: string;
   email: string;
@@ -73,10 +75,21 @@ export interface QcLabFormData {
   sign_date?: string;
 }
 
+export interface QcTestStandard {
+  id: string;
+  name: string;
+  description?: string | null;
+  selections: QcCatalogSelections;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface QcRequest {
   id: string;
   customer_user_id: string;
-  template_id: string;
+  template_id?: string | null;
   qc_code: string;
   share_token?: string | null;
   status: QcRequestStatus;
@@ -96,6 +109,7 @@ export interface QcRequest {
   test_method?: QcTestMethod | null;
   test_method_other?: string | null;
   selected_items: QcSelectedItem[];
+  catalog_selections?: QcCatalogSelections | null;
   subtotal?: number | null;
   vat?: number | null;
   grand_total?: number | null;

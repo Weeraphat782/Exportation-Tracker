@@ -144,7 +144,7 @@ export default function LabQcRequestDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
         {/* LEFT — QC Request form */}
         <div className="lg:col-span-2 print:w-full">
-          <QcRequestPrintForm request={request} />
+          <QcRequestPrintForm request={request} editor="lab" />
         </div>
 
         {/* RIGHT — Lab actions */}

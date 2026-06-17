@@ -1,11 +1,15 @@
 import { supabase } from '@/lib/supabase';
+import { queryClient, loadSession } from '@/lib/customer-query-client';
 import type {
   QcLabAdminAllowlistEntry,
   QcRequest,
   QcRequestStatus,
   QcTemplate,
   QcTestItem,
+  QcTestStandard,
 } from '@/lib/qc-types';
+import type { QcCatalogSelections } from '@/lib/qc-catalog';
+import { normalizeCatalogSelections } from '@/lib/qc-catalog';
 import { computeQcInvoiceTotals, generateQcCode } from '@/lib/qc-invoice';
 import type { QcSelectedItem } from '@/lib/qc-types';
 
@@ -85,7 +89,8 @@ export async function getQcRequestsByStatus(status?: QcRequestStatus): Promise<Q
 
 export async function createQcRequest(input: {
   customer_user_id: string;
-  template_id: string;
+  template_id?: string | null;
+  catalog_selections?: QcCatalogSelections;
   company_name_address?: string;
   contact_name?: string;
   phone?: string;
@@ -101,16 +106,36 @@ export async function createQcRequest(input: {
   sample_type_other?: string;
   test_method?: string;
   test_method_other?: string;
-  selected_items: QcSelectedItem[];
+  selected_items?: QcSelectedItem[];
 }): Promise<QcRequest | null> {
-  const totals = computeQcInvoiceTotals(input.selected_items);
+  const selected_items = input.selected_items ?? [];
+  const catalog_selections = normalizeCatalogSelections(input.catalog_selections ?? {});
+  const totals = computeQcInvoiceTotals(selected_items);
   const qc_code = generateQcCode();
   const share_token = crypto.randomUUID();
 
   const { data, error } = await supabase
     .from('qc_requests')
     .insert({
-      ...input,
+      customer_user_id: input.customer_user_id,
+      template_id: input.template_id ?? null,
+      catalog_selections,
+      company_name_address: input.company_name_address,
+      contact_name: input.contact_name,
+      phone: input.phone,
+      email: input.email,
+      sample_name: input.sample_name,
+      lot_no: input.lot_no,
+      manufacturer: input.manufacturer,
+      sample_qty: input.sample_qty,
+      production_date: input.production_date,
+      expiry_date: input.expiry_date,
+      sampling_date: input.sampling_date,
+      sample_type: input.sample_type,
+      sample_type_other: input.sample_type_other,
+      test_method: input.test_method,
+      test_method_other: input.test_method_other,
+      selected_items,
       qc_code,
       share_token,
       status: 'new',
@@ -131,14 +156,33 @@ export async function createQcRequest(input: {
 
 export async function updateQcRequest(
   id: string,
-  patch: Partial<QcRequest>
+  patch: Partial<QcRequest>,
+  options?: { asCustomer?: boolean }
 ): Promise<boolean> {
-  const { error } = await supabase
+  let client = supabase;
+  // Customer portal must use the dedicated query client (main client's session
+  // handling can stall/fail on navigator locks). loadSession() guarantees a
+  // valid token is attached before the write.
+  if (options?.asCustomer) {
+    const ready = await loadSession();
+    if (!ready) {
+      console.error('updateQcRequest: no valid customer session');
+      return false;
+    }
+    client = queryClient;
+  }
+  const { error } = await client
     .from('qc_requests')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) {
-    console.error('updateQcRequest:', error);
+    console.error(
+      'updateQcRequest failed:',
+      error.message,
+      error.code,
+      error.details,
+      error.hint
+    );
     return false;
   }
   return true;
@@ -367,4 +411,81 @@ export async function saveQcTemplateGroups(
   }
 
   return { ok: failed === 0, failed };
+}
+
+export async function getQcStandards(activeOnly = false): Promise<QcTestStandard[]> {
+  let q = supabase.from('qc_test_standards').select('*').order('name');
+  if (activeOnly) q = q.eq('is_active', true);
+  const { data, error } = await q;
+  if (error) {
+    console.error('getQcStandards:', error);
+    return [];
+  }
+  return (data || []).map((row) => ({
+    ...row,
+    selections: normalizeCatalogSelections(row.selections),
+  })) as QcTestStandard[];
+}
+
+export async function getQcStandardById(id: string): Promise<QcTestStandard | null> {
+  const { data, error } = await supabase.from('qc_test_standards').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return {
+    ...data,
+    selections: normalizeCatalogSelections(data.selections),
+  } as QcTestStandard;
+}
+
+export async function createQcStandard(input: {
+  name: string;
+  description?: string;
+  selections: QcCatalogSelections;
+  created_by?: string;
+}): Promise<QcTestStandard | null> {
+  const { data, error } = await supabase
+    .from('qc_test_standards')
+    .insert({
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      selections: normalizeCatalogSelections(input.selections),
+      is_active: true,
+      created_by: input.created_by ?? null,
+    })
+    .select('*')
+    .single();
+  if (error) {
+    console.error('createQcStandard:', error);
+    return null;
+  }
+  return {
+    ...data,
+    selections: normalizeCatalogSelections(data.selections),
+  } as QcTestStandard;
+}
+
+export async function updateQcStandard(
+  id: string,
+  patch: Partial<Pick<QcTestStandard, 'name' | 'description' | 'selections' | 'is_active'>>
+): Promise<boolean> {
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) payload.name = patch.name.trim();
+  if (patch.description !== undefined) payload.description = patch.description?.trim() || null;
+  if (patch.is_active !== undefined) payload.is_active = patch.is_active;
+  if (patch.selections !== undefined) payload.selections = normalizeCatalogSelections(patch.selections);
+
+  const { error } = await supabase.from('qc_test_standards').update(payload).eq('id', id);
+  if (error) {
+    console.error('updateQcStandard:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteQcStandard(id: string): Promise<boolean> {
+  const { error } = await supabase.from('qc_test_standards').delete().eq('id', id);
+  if (error) {
+    console.error('deleteQcStandard:', error);
+    return false;
+  }
+  return true;
 }

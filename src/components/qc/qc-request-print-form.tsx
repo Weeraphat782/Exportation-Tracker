@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Printer, Save } from 'lucide-react';
 import { updateQcRequest } from '@/lib/qc-db';
+import { normalizeCatalogSelections, hasCatalogSelections } from '@/lib/qc-catalog';
+import { QcCatalogFields } from '@/components/qc/qc-catalog-fields';
 import { QC_LAB_LETTERHEAD } from '@/lib/qc-types';
 import type { QcLabFormData, QcRequest } from '@/lib/qc-types';
 import { toast } from 'sonner';
@@ -25,16 +27,25 @@ function Check({
   label: React.ReactNode;
   onToggle?: () => void;
 }) {
+  const editable = !!onToggle;
   return (
     <button
       type="button"
       onClick={onToggle}
-      disabled={!onToggle}
-      className="inline-flex items-start gap-1.5 text-left align-top disabled:cursor-default"
+      disabled={!editable}
+      className={`inline-flex items-start gap-1.5 text-left align-top disabled:cursor-default ${
+        editable
+          ? 'cursor-pointer -mx-1 rounded px-1 hover:bg-emerald-50 print:mx-0 print:px-0 print:hover:bg-transparent'
+          : ''
+      }`}
     >
       <span
-        className={`mt-[2px] inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center border border-slate-800 text-[10px] leading-none ${
-          checked ? 'bg-slate-800 text-white' : 'bg-white text-transparent'
+        className={`mt-[2px] inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center border bg-white text-[11px] font-bold leading-none [print-color-adjust:exact] [-webkit-print-color-adjust:exact] ${
+          checked
+            ? 'border-red-600 text-red-600'
+            : editable
+              ? 'border-emerald-500 text-transparent ring-1 ring-emerald-300 print:border-slate-800 print:ring-0'
+              : 'border-slate-800 text-transparent'
         }`}
       >
         {checked ? '✓' : ''}
@@ -50,20 +61,31 @@ function Fill({
   onChange,
   className = '',
   placeholder,
+  underline = true,
 }: {
   value: string;
   onChange?: (v: string) => void;
   className?: string;
   placeholder?: string;
+  underline?: boolean;
 }) {
+  const editable = !!onChange;
   return (
     <input
       type="text"
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange?.(e.target.value)}
-      readOnly={!onChange}
-      className={`border-0 border-b border-dotted border-slate-400 bg-transparent px-1 text-[13px] leading-tight focus:outline-none focus:border-solid focus:border-blue-500 print:border-dotted ${className}`}
+      readOnly={!editable}
+      className={`border-0 bg-transparent px-1 text-[13px] leading-tight focus:outline-none ${
+        underline ? 'border-b' : ''
+      } ${
+        editable
+          ? `border-solid border-emerald-400 bg-emerald-50/40 focus:border-emerald-600 print:border-slate-400 print:bg-transparent ${underline ? 'print:border-dotted' : ''}`
+          : underline
+            ? 'border-dotted border-slate-400'
+            : ''
+      } ${className}`}
     />
   );
 }
@@ -76,17 +98,44 @@ function StaticValue({ value }: { value?: string | null }) {
   );
 }
 
-export function QcRequestPrintForm({ request }: { request: QcRequest }) {
+export type QcRequestPrintFormEditor = 'lab' | 'customer';
+
+export function QcRequestPrintForm({
+  request,
+  editor = 'lab',
+}: {
+  request: QcRequest;
+  editor?: QcRequestPrintFormEditor;
+}) {
   const [lab, setLab] = useState<QcLabFormData>(request.lab_form_data || {});
   const [saving, setSaving] = useState(false);
+  const isLabEditor = editor === 'lab';
 
   const set = <K extends keyof QcLabFormData>(key: K, value: QcLabFormData[K]) => {
     setLab((prev) => ({ ...prev, [key]: value }));
   };
 
+  const labOnlyFill = (
+    value: string,
+    onChange: (v: string) => void,
+    className?: string,
+    underline = true
+  ) => (
+    <Fill
+      value={value}
+      onChange={isLabEditor ? onChange : undefined}
+      className={className}
+      underline={underline}
+    />
+  );
+
   const handleSave = async () => {
     setSaving(true);
-    const ok = await updateQcRequest(request.id, { lab_form_data: lab });
+    const ok = await updateQcRequest(
+      request.id,
+      { lab_form_data: lab },
+      { asCustomer: editor === 'customer' }
+    );
     setSaving(false);
     if (ok) toast.success('Form saved');
     else toast.error('Save failed');
@@ -94,10 +143,21 @@ export function QcRequestPrintForm({ request }: { request: QcRequest }) {
 
   const handlePrint = () => window.print();
 
-  const items = request.selected_items ?? [];
+  const catalogSelections = normalizeCatalogSelections(request.catalog_selections);
+  const legacyItems = request.selected_items ?? [];
+  const useCatalog = hasCatalogSelections(catalogSelections);
 
   return (
     <div>
+      {/* Customer hint — hidden when printing */}
+      {editor === 'customer' && (
+        <div className="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800 print:hidden">
+          ช่องที่มี <span className="font-semibold">กรอบสีเขียว</span> สามารถติ๊กหรือกรอกได้เอง (ไม่บังคับ)
+          เมื่อกรอกเสร็จกด <span className="font-semibold">Save Form</span> แล้วจึงกด{' '}
+          <span className="font-semibold">Print Form</span> เพื่อพิมพ์แนบไปกับตัวอย่าง
+        </div>
+      )}
+
       {/* Toolbar — hidden when printing */}
       <div className="mb-4 flex justify-end gap-2 print:hidden">
         <Button variant="outline" onClick={handleSave} disabled={saving}>
@@ -111,11 +171,27 @@ export function QcRequestPrintForm({ request }: { request: QcRequest }) {
       </div>
 
       {/* A4 form sheet */}
-      <div className="qc-print-sheet mx-auto w-full max-w-[800px] border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:max-w-none print:border-0 print:p-0 print:shadow-none">
+      <div className="qc-print-sheet mx-auto w-full max-w-[794px] min-h-[1123px] border border-slate-300 bg-white p-6 text-slate-900 shadow-sm print:w-[210mm] print:min-h-[297mm] print:max-w-none print:border-0 print:p-0 print:shadow-none">
         {/* Header */}
-        <div className="mb-3 text-center">
-          <h1 className="text-base font-bold">{QC_LAB_LETTERHEAD.nameTh}</h1>
-          <p className="text-sm font-semibold">ใบส่งทดสอบ (QC Request)</p>
+        <div className="mb-3">
+          <div className="flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/QC form LOgo.png"
+              alt="Lab logo"
+              className="h-20 w-auto object-contain [print-color-adjust:exact] [-webkit-print-color-adjust:exact]"
+            />
+          </div>
+          <div className="mb-1 flex justify-end">
+            <span className="flex items-baseline gap-1">
+              <span className="text-[12px] whitespace-nowrap">เลขที่คำขอรับบริการ :</span>
+              {labOnlyFill(lab.service_request_no || '', (v) => set('service_request_no', v), 'w-28')}
+            </span>
+          </div>
+          <div className="text-center">
+            <h1 className="text-base font-bold">{QC_LAB_LETTERHEAD.nameTh}</h1>
+            <p className="text-sm font-semibold">ใบส่งทดสอบ (QC Request)</p>
+          </div>
         </div>
 
         {/* Company / contact */}
@@ -189,53 +265,95 @@ export function QcRequestPrintForm({ request }: { request: QcRequest }) {
           </div>
         </div>
 
-        {/* Officials box */}
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 border-t border-slate-800 pt-2">
-          <span className="text-[12px] font-semibold text-slate-600">สำหรับเจ้าหน้าที่:</span>
-          <span className="flex items-baseline gap-1">
-            <span className="text-[13px]">เลขที่ตัวอย่างทดสอบ</span>
-            <Fill value={lab.lab_sample_no || ''} onChange={(v) => set('lab_sample_no', v)} className="w-28" />
-          </span>
-          <span className="flex items-baseline gap-1">
-            <span className="text-[13px]">เลขที่ทดสอบ</span>
-            <Fill value={lab.lab_test_no || ''} onChange={(v) => set('lab_test_no', v)} className="w-28" />
-          </span>
+        {/* Test list — FM-QC-019 table with quantity columns + officials box */}
+        <div className="mt-2 border-t border-slate-800 pt-2">
+          <table className="w-full border-collapse text-[13px]">
+            <thead>
+              <tr>
+                <th rowSpan={2} className="border border-slate-800 p-1 text-left align-middle">
+                  ระบุรายการทดสอบ
+                </th>
+                <th rowSpan={2} className="border border-slate-800 p-1 text-center align-middle w-[64px] leading-tight">
+                  ปริมาณต่อ
+                  <br />
+                  หน่วยบรรจุ
+                </th>
+                <th rowSpan={2} className="border border-slate-800 p-1 text-center align-middle w-[64px] leading-tight">
+                  จำนวน
+                  <br />
+                  หน่วยบรรจุ
+                  <br />
+                  ทั้งหมด
+                </th>
+                <th colSpan={2} className="border border-slate-800 p-1 text-center align-middle">
+                  สำหรับเจ้าหน้าที่
+                </th>
+              </tr>
+              <tr>
+                <th className="border border-slate-800 p-1 text-center align-middle w-[90px] leading-tight">
+                  เลขที่ตัวอย่างทดสอบ
+                </th>
+                <th className="border border-slate-800 p-1 text-center align-middle w-[90px] leading-tight">
+                  เลขที่ทดสอบ
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {useCatalog ? (
+                <tr>
+                  <td className="border border-slate-800 p-2 align-top">
+                    <QcCatalogFields value={catalogSelections} readOnly variant="print" />
+                  </td>
+                  <td className="border border-slate-800 p-1 align-top" aria-hidden="true">&nbsp;</td>
+                  <td className="border border-slate-800 p-1 align-top" aria-hidden="true">&nbsp;</td>
+                  <td className="border border-slate-800 p-1 align-top">
+                    {labOnlyFill(lab.lab_sample_no || '', (v) => set('lab_sample_no', v), 'w-full', false)}
+                  </td>
+                  <td className="border border-slate-800 p-1 align-top">
+                    {labOnlyFill(lab.lab_test_no || '', (v) => set('lab_test_no', v), 'w-full', false)}
+                  </td>
+                </tr>
+              ) : legacyItems.length === 0 ? (
+                <tr>
+                  <td className="border border-slate-800 p-2 text-center text-slate-400">
+                    ไม่มีรายการทดสอบ
+                  </td>
+                  <td className="border border-slate-800 p-1">&nbsp;</td>
+                  <td className="border border-slate-800 p-1">&nbsp;</td>
+                  <td className="border border-slate-800 p-1">
+                    {labOnlyFill(lab.lab_sample_no || '', (v) => set('lab_sample_no', v), 'w-full', false)}
+                  </td>
+                  <td className="border border-slate-800 p-1">
+                    {labOnlyFill(lab.lab_test_no || '', (v) => set('lab_test_no', v), 'w-full', false)}
+                  </td>
+                </tr>
+              ) : (
+                legacyItems.map((item, idx) => (
+                  <tr key={item.test_item_id + idx}>
+                    <td className="border border-slate-800 p-1">
+                      {item.group_label ? `${item.group_label}: ` : ''}
+                      {item.name}
+                    </td>
+                    <td className="border border-slate-800 p-1 text-center">{item.unit_label || ''}</td>
+                    <td className="border border-slate-800 p-1 text-center">{item.qty}</td>
+                    {idx === 0 ? (
+                      <>
+                        <td className="border border-slate-800 p-1 align-top" rowSpan={legacyItems.length}>
+                          {labOnlyFill(lab.lab_sample_no || '', (v) => set('lab_sample_no', v), 'w-full', false)}
+                        </td>
+                        <td className="border border-slate-800 p-1 align-top" rowSpan={legacyItems.length}>
+                          {labOnlyFill(lab.lab_test_no || '', (v) => set('lab_test_no', v), 'w-full', false)}
+                        </td>
+                      </>
+                    ) : null}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Test list */}
-        <table className="mt-2 w-full border-collapse text-[13px]">
-          <thead>
-            <tr className="bg-slate-100">
-              <th className="border border-slate-400 p-1 text-left w-8">#</th>
-              <th className="border border-slate-400 p-1 text-left">ระบุรายการทดสอบ</th>
-              <th className="border border-slate-400 p-1 text-center w-28">ปริมาณต่อหน่วยบรรจุ</th>
-              <th className="border border-slate-400 p-1 text-center w-28">จำนวนหน่วยบรรจุทั้งหมด</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="border border-slate-400 p-2 text-center text-slate-400">
-                  ไม่มีรายการทดสอบ
-                </td>
-              </tr>
-            ) : (
-              items.map((item, idx) => (
-                <tr key={item.test_item_id + idx}>
-                  <td className="border border-slate-400 p-1 text-center">{idx + 1}</td>
-                  <td className="border border-slate-400 p-1">
-                    {item.group_label ? `${item.group_label}: ` : ''}
-                    {item.name}
-                  </td>
-                  <td className="border border-slate-400 p-1 text-center">{item.unit_label || ''}</td>
-                  <td className="border border-slate-400 p-1 text-center">{item.qty}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Handling / report options (lab editable) */}
+        {/* Handling / report options (customer fills on form; optional, not mandatory) */}
         <div className="mt-3 space-y-2 border-t border-slate-800 pt-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span className="text-[13px]">สภาวะการเก็บรักษา :</span>
@@ -295,12 +413,8 @@ export function QcRequestPrintForm({ request }: { request: QcRequest }) {
           <p>• หากมีข้อสงสัยในรายงานผลการทดสอบ กรุณาแจ้งกลับยังห้องปฏิบัติการ ภายใน 7 วันทำการ</p>
         </div>
 
-        {/* Footer: service request no + signature */}
+        {/* Footer: signature */}
         <div className="mt-3 space-y-2 border-t border-slate-800 pt-2">
-          <div className="flex items-baseline gap-1">
-            <span className="text-[13px]">เลขที่คำขอรับบริการ :</span>
-            <Fill value={lab.service_request_no || ''} onChange={(v) => set('service_request_no', v)} className="w-48" />
-          </div>
           <div className="flex flex-wrap items-baseline justify-between gap-2 pt-3">
             <span className="flex items-baseline gap-1 text-[13px]">
               ยืนยันการส่งตัวอย่างตามสภาพ ลงชื่อ

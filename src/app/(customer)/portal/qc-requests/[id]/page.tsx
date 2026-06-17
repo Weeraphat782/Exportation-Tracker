@@ -11,7 +11,7 @@ import { ArrowLeft, Download, ExternalLink, Loader2, Package, QrCode, Trash2, Up
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { canDeleteQcRequest, deleteQcRequest, getQcRequestById, updateQcRequest } from '@/lib/qc-db';
-import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
+import { QcRequestPrintForm } from '@/components/qc/qc-request-print-form';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
 import {
@@ -107,10 +107,14 @@ export default function PortalQcRequestDetailPage() {
       setUploading(false);
       return;
     }
-    const ok = await updateQcRequest(id, {
-      payment_slip_path: path,
-      payment_status: 'paid',
-    });
+    const ok = await updateQcRequest(
+      id,
+      {
+        payment_slip_path: path,
+        payment_status: 'paid',
+      },
+      { asCustomer: true }
+    );
     setUploading(false);
     if (ok) {
       toast.success('Payment slip uploaded');
@@ -173,9 +177,19 @@ export default function PortalQcRequestDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* LEFT — invoice */}
+        {/* LEFT — QC Request form (FM-QC-019, A4) */}
         <div className="lg:col-span-2 order-2 lg:order-1">
-          <QcInvoiceContent request={request} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">QC Request Form (FM-QC-019)</CardTitle>
+              <p className="text-sm text-slate-500">
+                กรอกส่วนที่เหลือ บันทึก และพิมพ์เพื่อแนบมาพร้อมกับตัวอย่าง
+              </p>
+            </CardHeader>
+            <CardContent>
+              <QcRequestPrintForm request={request} editor="customer" />
+            </CardContent>
+          </Card>
         </div>
 
         {/* RIGHT — payment first, then sample QR */}
