@@ -26,6 +26,7 @@ import {
   ScrollText,
   FlaskConical,
   ClipboardList,
+  BarChart3,
   BookMarked,
   UserCog,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const MENU_GROUPS = [
     title: 'MAIN',
     items: [
       { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/analytics', icon: BarChart3, label: 'Analytics' },
       { href: '/opportunities', icon: Sparkles, label: 'Booking' },
       { href: '/packing-lists', icon: FileText, label: 'Packing Lists' },
     ]
