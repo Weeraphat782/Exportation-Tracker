@@ -80,7 +80,7 @@ export function QcInvoicePreview({ request, onViewFull }: QcInvoicePreviewProps)
 
         {!finalized ? (
           <p className="text-xs text-amber-800 leading-relaxed">
-            ราคากำลังตรวจสอบโดยห้องปฏิบัติการ — ยอดชำระจะแสดงหลังยืนยัน Invoice
+            ราคากำลังตรวจสอบ — ยอดชำระจะแสดงหลังยืนยัน Invoice
           </p>
         ) : (
           <>

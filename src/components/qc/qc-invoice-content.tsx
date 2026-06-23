@@ -24,7 +24,7 @@ export interface QcInvoiceContentProps {
 }
 
 const LAB_LETTERHEAD_LINES = [
-  QC_LAB_LETTERHEAD.nameTh,
+  'บริษัท สยาม เฮอเบิล เทค จำกัด',
   'Siam Herbal Tech Co., Ltd.',
   '288/8 หมู่ที่ 4 ตำบลบางหญ้าแพรก อำเภอเมืองสมุทรสาคร จ.สมุทรสาคร 74000',
   'Tel. : +6691-782-9291',
@@ -177,7 +177,7 @@ export function QcInvoiceContent({ request, mode = 'preview' }: QcInvoiceContent
             </div>
           ) : (
             <div className="w-full max-w-sm rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <p className="font-semibold">ราคากำลังตรวจสอบโดยห้องปฏิบัติการ</p>
+              <p className="font-semibold">ราคากำลังตรวจสอบ</p>
               <p className="mt-1 text-amber-800">
                 ยอดชำระและ QR จะแสดงหลังห้องแล็บยืนยันราคาและออกเลขที่ Invoice
               </p>

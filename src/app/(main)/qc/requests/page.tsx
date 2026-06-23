@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ClipboardList, Eye, QrCode, Search } from 'lucide-react';
 import { getQcRequestsByStatus } from '@/lib/qc-db';
+import { getQcPayableTotal } from '@/lib/qc-invoice';
 import type { QcRequest, QcRequestStatus } from '@/lib/qc-types';
 import { QcScanDialog } from '@/components/qc/qc-scan-dialog';
 
@@ -105,7 +106,7 @@ export default function QcRequestsQueuePage() {
                         <TableHead>Sample</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Payment</TableHead>
-                        <TableHead>Total</TableHead>
+                        <TableHead>Net Payable</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -123,8 +124,8 @@ export default function QcRequestsQueuePage() {
                               {req.payment_status}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            {Number(req.grand_total || 0).toLocaleString('en-US', {
+                          <TableCell className="tabular-nums">
+                            {getQcPayableTotal(req).toLocaleString('en-US', {
                               minimumFractionDigits: 2,
                             })}
                           </TableCell>

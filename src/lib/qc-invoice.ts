@@ -86,3 +86,17 @@ export function generateQcCode(): string {
   const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
   return `QC${ymd}-${rand}`;
 }
+
+/** Net amount customer pays (grand total − WHT). Matches QC invoice "Net Payable". */
+export function getQcPayableTotal(req: {
+  net_payable?: number | null;
+  grand_total?: number | null;
+  wht_amount?: number | null;
+}): number {
+  if (req.net_payable != null && !Number.isNaN(Number(req.net_payable))) {
+    return Number(req.net_payable);
+  }
+  const grand = Number(req.grand_total) || 0;
+  const wht = Number(req.wht_amount) || 0;
+  return roundMoney(grand - wht);
+}
