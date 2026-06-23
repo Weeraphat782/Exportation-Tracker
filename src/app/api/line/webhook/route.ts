@@ -24,13 +24,32 @@ type LineWebhookEvent = {
 };
 
 type LineWebhookBody = {
+  destination?: string;
   events?: LineWebhookEvent[];
 };
 
+function logGroupOrRoomId(event: LineWebhookEvent) {
+  const sourceType = event.source?.type;
+  const groupId = event.source?.groupId?.trim();
+  const roomId = event.source?.roomId?.trim();
+
+  if (groupId) {
+    console.info(
+      `[line webhook] event=${event.type} source=${sourceType} — set LINE_QC_GROUP_ID=${groupId}`
+    );
+    return;
+  }
+
+  if (roomId) {
+    console.info(
+      `[line webhook] event=${event.type} source=${sourceType} — set LINE_QC_GROUP_ID=${roomId}`
+    );
+  }
+}
+
 /**
- * LINE Messaging API webhook — logs group/room IDs when the OA joins.
- * Set Webhook URL to https://cargo.omgexp.com/api/line/webhook temporarily,
- * invite the OA to the QC group, then copy LINE_QC_GROUP_ID from server logs.
+ * LINE Messaging API webhook — logs group/room IDs from any chat event.
+ * Enable "Allow bot to join group chats" in LINE Developers → Messaging API first.
  */
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -52,18 +71,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON.' }, { status: 400 });
   }
 
-  for (const event of body.events || []) {
-    if (event.type !== 'join' || !event.source) continue;
+  const events = body.events || [];
+  if (events.length === 0) {
+    console.info('[line webhook] POST ok — no events (verify ping or empty payload)');
+    return NextResponse.json({ ok: true });
+  }
 
-    if (event.source.type === 'group' && event.source.groupId) {
-      console.info(
-        `[line webhook] OA joined group — set LINE_QC_GROUP_ID=${event.source.groupId}`
-      );
-    } else if (event.source.type === 'room' && event.source.roomId) {
-      console.info(
-        `[line webhook] OA joined room — set LINE_QC_GROUP_ID=${event.source.roomId}`
-      );
-    }
+  for (const event of events) {
+    console.info(`[line webhook] received event type=${event.type ?? 'unknown'}`);
+    logGroupOrRoomId(event);
   }
 
   return NextResponse.json({ ok: true });
