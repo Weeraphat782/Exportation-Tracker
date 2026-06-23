@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -885,7 +885,8 @@ function ShippingCalculatorPageContent() {
     const watchedWhtEnabled = useWatch({ control, name: 'whtEnabled' });
     const watchedClearanceCost = useWatch({ control, name: 'clearanceCost' });
     const watchedAdditionalCharges = useWatch({ control, name: 'additionalCharges' });
-    const watchedPallets = useWatch({ control, name: 'pallets' }) ?? [];
+    const watchedPalletsRaw = useWatch({ control, name: 'pallets' });
+    const watchedPallets = useMemo(() => watchedPalletsRaw ?? [], [watchedPalletsRaw]);
 
     const palletGroups = React.useMemo((): PalletGroup[] => {
         const map = new Map<string, PalletGroup>();

@@ -102,6 +102,11 @@ export function QuotationPreviewContent({
         : 3500
     : 0;
 
+  const quotationWhtEnabled =
+    quotationData.wht_enabled !== undefined
+      ? quotationData.wht_enabled
+      : (quotationData as { whtEnabled?: boolean }).whtEnabled;
+
   const quoteLike = useMemo(
     (): Pick<
       Quotation,
@@ -119,10 +124,7 @@ export function QuotationPreviewContent({
       delivery_cost: Number(deliveryCost) || 0,
       additional_charges: quotationData.additional_charges ?? [],
       taxable_lines: quotationData.taxable_lines,
-      wht_enabled:
-        quotationData.wht_enabled !== undefined
-          ? quotationData.wht_enabled
-          : (quotationData as { whtEnabled?: boolean }).whtEnabled,
+      wht_enabled: quotationWhtEnabled,
     }),
     [
       totalFreightCost,
@@ -131,8 +133,7 @@ export function QuotationPreviewContent({
       quotationData.delivery_service_required,
       quotationData.additional_charges,
       quotationData.taxable_lines,
-      quotationData.wht_enabled,
-      (quotationData as { whtEnabled?: boolean }).whtEnabled,
+      quotationWhtEnabled,
     ]
   );
 

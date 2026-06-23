@@ -19,6 +19,8 @@ import {
   nestQcTestItems,
 } from '@/lib/qc-db';
 import { buildSelectedItem, computeQcInvoiceTotals } from '@/lib/qc-invoice';
+import { loadSession } from '@/lib/customer-query-client';
+import { getStoredSession } from '@/lib/session-helper';
 import type {
   QcSampleType,
   QcSelectedItem,
@@ -337,6 +339,25 @@ export default function NewQcRequestPage() {
     toast.success(`ตั้งจำนวน ${qty} ให้ ${targets.length} รายการแล้ว`);
   };
 
+  const notifyLabAdmins = async (requestId: string) => {
+    try {
+      await loadSession();
+      const token = getStoredSession()?.access_token;
+      if (!token) return;
+
+      await fetch('/api/qc/notify-new-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ requestId }),
+      });
+    } catch (err) {
+      console.error('[qc new request] lab notification failed:', err);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     if (!templateId) {
@@ -370,6 +391,7 @@ export default function NewQcRequestPage() {
     });
     setSubmitting(false);
     if (created) {
+      void notifyLabAdmins(created.id);
       toast.success('QC request submitted');
       router.push(`/portal/qc-requests/${created.id}`);
     } else {

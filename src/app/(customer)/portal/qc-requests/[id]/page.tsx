@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, ExternalLink, FileText, Loader2, Package, Printer, QrCode, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, Loader2, Package, Printer, QrCode, Trash2, Upload } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { canDeleteQcRequest, deleteQcRequest, getQcRequestById, updateQcRequest } from '@/lib/qc-db';
