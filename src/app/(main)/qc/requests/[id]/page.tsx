@@ -1,18 +1,36 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle, ExternalLink, FileText, Loader2, PlayCircle, Upload } from 'lucide-react';
-import { getQcRequestById, updateQcRequest } from '@/lib/qc-db';
+import {
+  ArrowLeft,
+  CheckCircle,
+  ExternalLink,
+  FileText,
+  Loader2,
+  PlayCircle,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import {
+  appendQcCoaPath,
+  finalizeQcInvoice,
+  getQcRequestById,
+  removeQcCoaPath,
+  updateQcRequest,
+} from '@/lib/qc-db';
+import { computeQcTotalsWithDiscount } from '@/lib/qc-invoice';
 import { QcInvoiceContent } from '@/components/qc/qc-invoice-content';
 import { getFileUrl } from '@/lib/storage';
 import { toast } from 'sonner';
-import { isQcPaymentSlipImage, QC_PAYMENT_STATUS_LABELS } from '@/lib/qc-types';
+import { getQcCoaPaths, isQcPaymentSlipImage, QC_PAYMENT_STATUS_LABELS } from '@/lib/qc-types';
 import type { QcRequest } from '@/lib/qc-types';
 
 async function uploadQcFile(qcRequestId: string, file: File, documentType: string): Promise<string | null> {
@@ -37,15 +55,21 @@ async function uploadQcFile(qcRequestId: string, file: File, documentType: strin
   return path as string;
 }
 
+function formatMoney(value: number) {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function LabQcRequestDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [request, setRequest] = useState<QcRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [labNotes, setLabNotes] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('0');
+  const [estimatedCoaDate, setEstimatedCoaDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
-  const [coaUrl, setCoaUrl] = useState<string | null>(null);
+  const [coaUrls, setCoaUrls] = useState<{ path: string; url: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,16 +77,18 @@ export default function LabQcRequestDetailPage() {
     setRequest(data);
     if (data) {
       setLabNotes(data.lab_notes || '');
+      setDiscountPercent(String(data.discount_percent ?? 0));
+      setEstimatedCoaDate(data.estimated_coa_date?.slice(0, 10) || '');
       if (data.payment_slip_path) {
         setSlipUrl(await getFileUrl(data.payment_slip_path, 'r2'));
       } else {
         setSlipUrl(null);
       }
-      if (data.coa_path) {
-        setCoaUrl(await getFileUrl(data.coa_path, 'r2'));
-      } else {
-        setCoaUrl(null);
-      }
+      const paths = getQcCoaPaths(data);
+      const resolved = await Promise.all(
+        paths.map(async (path) => ({ path, url: (await getFileUrl(path, 'r2')) || '' }))
+      );
+      setCoaUrls(resolved.filter((r) => r.url));
     }
     setLoading(false);
   }, [id]);
@@ -70,6 +96,14 @@ export default function LabQcRequestDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const previewTotals = useMemo(() => {
+    if (!request) return null;
+    return computeQcTotalsWithDiscount(
+      request.selected_items ?? [],
+      Number(discountPercent) || 0
+    );
+  }, [request, discountPercent]);
 
   const patch = async (patchData: Partial<QcRequest>) => {
     setBusy(true);
@@ -84,7 +118,7 @@ export default function LabQcRequestDetailPage() {
   };
 
   const verifyPayment = async () => {
-    await patch({ payment_status: 'verified', status: 'processing' });
+    await patch({ payment_status: 'verified' });
   };
 
   const moveToProcessing = async () => {
@@ -95,16 +129,50 @@ export default function LabQcRequestDetailPage() {
     await patch({ status: 'complete', lab_notes: labNotes });
   };
 
-  const handleCoaUpload = async (file: File) => {
+  const saveEstimatedCoaDate = async () => {
+    await patch({ estimated_coa_date: estimatedCoaDate || null });
+  };
+
+  const handleFinalize = async () => {
     setBusy(true);
-    const path = await uploadQcFile(id, file, 'qc-coa');
-    if (!path) {
-      toast.error('Upload failed');
-      setBusy(false);
-      return;
-    }
-    await patch({ coa_path: path });
+    const updated = await finalizeQcInvoice(id, Number(discountPercent) || 0);
     setBusy(false);
+    if (updated) {
+      toast.success(`Invoice finalized: ${updated.invoice_no}`);
+      await load();
+    } else {
+      toast.error('Failed to finalize invoice');
+    }
+  };
+
+  const handleCoaUpload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true);
+    let okCount = 0;
+    for (const file of Array.from(files)) {
+      const path = await uploadQcFile(id, file, 'qc-coa');
+      if (path && (await appendQcCoaPath(id, path))) okCount++;
+    }
+    setBusy(false);
+    if (okCount > 0) {
+      toast.success(`Uploaded ${okCount} COA file(s)`);
+      await load();
+    } else {
+      toast.error('Upload failed');
+    }
+  };
+
+  const handleRemoveCoa = async (path: string) => {
+    if (!window.confirm('Remove this COA file?')) return;
+    setBusy(true);
+    const ok = await removeQcCoaPath(id, path);
+    setBusy(false);
+    if (ok) {
+      toast.success('COA removed');
+      await load();
+    } else {
+      toast.error('Failed to remove COA');
+    }
   };
 
   if (loading) {
@@ -121,7 +189,11 @@ export default function LabQcRequestDetailPage() {
 
   const paymentMeta = QC_PAYMENT_STATUS_LABELS[request.payment_status];
   const slipIsImage = isQcPaymentSlipImage(request.payment_slip_path);
-  const canMoveToProcessing = request.payment_status === 'verified';
+  const finalized = Boolean(request.price_finalized);
+  const hasSlip = Boolean(request.payment_slip_path);
+  const paymentVerified = request.payment_status === 'verified';
+  const canVerifyPayment = finalized && hasSlip && !paymentVerified;
+  const canMoveToProcessing = finalized && paymentVerified;
 
   return (
     <div className="space-y-6">
@@ -134,25 +206,104 @@ export default function LabQcRequestDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold font-mono">{request.qc_code}</h1>
+          {request.invoice_no && (
+            <p className="text-sm text-slate-500 font-mono">Invoice: {request.invoice_no}</p>
+          )}
           <div className="flex gap-2 mt-1 flex-wrap">
             <Badge>{request.status}</Badge>
             <Badge className={paymentMeta.badgeClass}>{paymentMeta.label}</Badge>
+            {finalized ? (
+              <Badge className="bg-emerald-100 text-emerald-800">Price finalized</Badge>
+            ) : (
+              <Badge variant="outline" className="border-amber-300 text-amber-800">
+                Awaiting finalize
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
-        {/* LEFT — QC Invoice */}
         <div className="lg:col-span-2 print:w-full">
           <QcInvoiceContent request={request} />
         </div>
 
-        {/* RIGHT — Lab actions */}
         <Card className="lg:col-span-1 print:hidden lg:sticky lg:top-6 self-start">
           <CardHeader>
             <CardTitle>Lab Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
+            {/* Pricing / Finalize */}
+            <div className="space-y-3 border-b pb-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pricing</p>
+              {!finalized ? (
+                <>
+                  <div>
+                    <Label htmlFor="discount-percent">Discount (%)</Label>
+                    <Input
+                      id="discount-percent"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  {previewTotals && (
+                    <div className="rounded-md bg-slate-50 border border-slate-200 p-3 text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>{formatMoney(previewTotals.subtotal)}</span>
+                      </div>
+                      {previewTotals.discount_amount > 0 && (
+                        <div className="flex justify-between text-emerald-700">
+                          <span>Discount ({previewTotals.discount_percent}%)</span>
+                          <span>−{formatMoney(previewTotals.discount_amount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>VAT 7%</span>
+                        <span>{formatMoney(previewTotals.vat)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span>Grand Total</span>
+                        <span>{formatMoney(previewTotals.grand_total)}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-800">
+                        <span>WHT 3%</span>
+                        <span>−{formatMoney(previewTotals.wht_amount)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t pt-1 text-emerald-800">
+                        <span>Net Payable</span>
+                        <span>{formatMoney(previewTotals.net_payable)} THB</span>
+                      </div>
+                    </div>
+                  )}
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={handleFinalize}
+                    disabled={busy}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Finalize Invoice
+                  </Button>
+                  <p className="text-xs text-slate-500">
+                    ลูกค้าจะเห็น QR ชำระเงินหลังกด Finalize และออกเลข Invoice
+                  </p>
+                </>
+              ) : (
+                <div className="rounded-md bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">
+                  <p className="font-semibold">{request.invoice_no}</p>
+                  <p className="mt-1">Net payable: {formatMoney(Number(request.net_payable))} THB</p>
+                  {Number(request.discount_percent) > 0 && (
+                    <p className="text-xs mt-1">Discount: {request.discount_percent}%</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Status */}
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
@@ -168,7 +319,11 @@ export default function LabQcRequestDetailPage() {
                   </Button>
                   {!canMoveToProcessing && (
                     <p className="text-xs text-amber-700">
-                      Confirm payment first — lab cannot start testing until payment is verified.
+                      {!finalized
+                        ? 'ขั้นที่ 1: กด Finalize Invoice เพื่อยืนยันราคาและส่งให้ลูกค้าก่อน'
+                        : !hasSlip
+                          ? 'ขั้นที่ 2: รอลูกค้าอัปโหลดสลิปการชำระเงิน'
+                          : 'ขั้นที่ 3: กด Confirm Payment ด้านล่างเพื่อยืนยันการชำระเงินก่อนเริ่มตรวจ'}
                     </p>
                   )}
                 </>
@@ -206,11 +361,22 @@ export default function LabQcRequestDetailPage() {
                       </Button>
                     </a>
                   )}
-                  {request.payment_status !== 'verified' && (
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={verifyPayment} disabled={busy}>
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Confirm Payment & Start Processing
-                    </Button>
+                  {!paymentVerified && (
+                    <>
+                      <Button
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        onClick={verifyPayment}
+                        disabled={busy || !canVerifyPayment}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Confirm Payment
+                      </Button>
+                      {!finalized && (
+                        <p className="text-xs text-amber-700">
+                          ต้อง Finalize Invoice ก่อนจึงจะยืนยันการชำระเงินได้
+                        </p>
+                      )}
+                    </>
                   )}
                 </>
               ) : (
@@ -227,31 +393,69 @@ export default function LabQcRequestDetailPage() {
                   View Invoice
                 </Button>
               </Link>
-              {coaUrl && (
-                <a href={coaUrl} target="_blank" rel="noreferrer">
-                  <Button variant="outline" className="w-full">
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    View COA
-                  </Button>
-                </a>
+
+              {coaUrls.length > 0 && (
+                <ul className="space-y-2">
+                  {coaUrls.map(({ path, url }, idx) => (
+                    <li key={path} className="flex items-center gap-2">
+                      <a href={url} target="_blank" rel="noreferrer" className="flex-1 min-w-0">
+                        <Button variant="outline" size="sm" className="w-full truncate">
+                          <ExternalLink className="h-4 w-4 mr-1 shrink-0" />
+                          COA {idx + 1}
+                        </Button>
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 shrink-0"
+                        onClick={() => handleRemoveCoa(path)}
+                        disabled={busy}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
+
               <label className="block">
                 <Button asChild variant="outline" className="w-full border-dashed">
                   <span className="cursor-pointer">
                     <Upload className="h-4 w-4 mr-1" />
-                    {request.coa_path ? 'Replace COA' : 'Upload COA'}
+                    Upload COA (multiple)
                   </span>
                 </Button>
                 <input
                   type="file"
                   className="hidden"
                   accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleCoaUpload(f);
-                  }}
+                  multiple
+                  onChange={(e) => handleCoaUpload(e.target.files)}
                 />
               </label>
+            </div>
+
+            {/* Estimated COA date */}
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Estimated COA Date
+              </p>
+              <Input
+                type="date"
+                value={estimatedCoaDate}
+                onChange={(e) => setEstimatedCoaDate(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={saveEstimatedCoaDate}
+                disabled={busy}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                Save COA date
+              </Button>
+              <p className="text-xs text-slate-500">วันที่นี้จะแสดงให้ลูกค้าเห็นในพอร์ทัล</p>
             </div>
 
             {/* Lab notes */}
@@ -260,8 +464,7 @@ export default function LabQcRequestDetailPage() {
               <Textarea value={labNotes} onChange={(e) => setLabNotes(e.target.value)} rows={4} />
             </div>
 
-            {/* Complete */}
-            {request.status !== 'complete' && (
+            {request.status === 'processing' && (
               <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={markComplete} disabled={busy}>
                 <CheckCircle className="h-4 w-4 mr-1" />
                 Mark Complete

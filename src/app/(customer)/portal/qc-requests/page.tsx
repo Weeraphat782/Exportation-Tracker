@@ -80,6 +80,7 @@ export default function PortalQcRequestsPage() {
                   <TableHead>Sample</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Payment</TableHead>
+                  <TableHead>Est. COA</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -95,6 +96,15 @@ export default function PortalQcRequestsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{req.payment_status}</TableCell>
+                    <TableCell>
+                      {req.estimated_coa_date ? (
+                        <span className="font-medium text-emerald-700">
+                          {new Date(req.estimated_coa_date).toLocaleDateString('en-GB')}
+                        </span>
+                      ) : (
+                        <span className="text-amber-600">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Link href={`/portal/qc-requests/${req.id}`}>
                         <Button size="sm" variant="outline">

@@ -9,7 +9,7 @@ import type {
 } from '@/lib/qc-types';
 import type { QcCatalogSelections } from '@/lib/qc-catalog';
 import { normalizeCatalogSelections } from '@/lib/qc-catalog';
-import { computeQcInvoiceTotals, generateQcCode } from '@/lib/qc-invoice';
+import { computeQcInvoiceTotals, computeQcTotalsWithDiscount, generateQcCode } from '@/lib/qc-invoice';
 import type { QcSelectedItem } from '@/lib/qc-types';
 
 export function nestQcTestItems(items: QcTestItem[]): QcTestItem[] {
@@ -106,6 +106,7 @@ export async function createQcRequest(input: {
   test_method?: string;
   test_method_other?: string;
   selected_items?: QcSelectedItem[];
+  estimated_coa_date?: string;
 }): Promise<QcRequest | null> {
   const selected_items = input.selected_items ?? [];
   const catalog_selections = normalizeCatalogSelections(input.catalog_selections ?? {});
@@ -135,13 +136,20 @@ export async function createQcRequest(input: {
       test_method: input.test_method,
       test_method_other: input.test_method_other,
       selected_items,
+      estimated_coa_date: input.estimated_coa_date || null,
       qc_code,
       share_token,
       status: 'new',
       payment_status: 'pending',
+      price_finalized: false,
+      discount_percent: 0,
+      discount_amount: totals.discount_amount,
       subtotal: totals.subtotal,
       vat: totals.vat,
       grand_total: totals.grand_total,
+      wht_amount: totals.wht_amount,
+      net_payable: totals.net_payable,
+      coa_paths: [],
     })
     .select('*, qc_templates(name)')
     .single();
@@ -182,6 +190,90 @@ export async function updateQcRequest(
       error.details,
       error.hint
     );
+    return false;
+  }
+  return true;
+}
+
+export async function finalizeQcInvoice(
+  id: string,
+  discountPercent: number
+): Promise<QcRequest | null> {
+  const existing = await getQcRequestById(id);
+  if (!existing) return null;
+
+  const totals = computeQcTotalsWithDiscount(existing.selected_items ?? [], discountPercent);
+  const now = new Date().toISOString();
+
+  const { data: invoiceNo, error: rpcError } = await supabase.rpc('assign_qc_invoice_no', {
+    p_request_id: id,
+  });
+  if (rpcError) {
+    console.error('finalizeQcInvoice assign_qc_invoice_no:', rpcError);
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('qc_requests')
+    .update({
+      discount_percent: totals.discount_percent,
+      discount_amount: totals.discount_amount,
+      subtotal: totals.subtotal,
+      vat: totals.vat,
+      grand_total: totals.grand_total,
+      wht_amount: totals.wht_amount,
+      net_payable: totals.net_payable,
+      price_finalized: true,
+      finalized_at: now,
+      invoice_no: invoiceNo as string,
+      updated_at: now,
+    })
+    .eq('id', id)
+    .select('*, qc_templates(name)')
+    .single();
+
+  if (error) {
+    console.error('finalizeQcInvoice:', error);
+    return null;
+  }
+  return data as QcRequest;
+}
+
+export async function appendQcCoaPath(id: string, path: string): Promise<boolean> {
+  const existing = await getQcRequestById(id);
+  if (!existing) return false;
+  const current = Array.isArray(existing.coa_paths) ? existing.coa_paths : [];
+  const next = [...current, path];
+  const { error } = await supabase
+    .from('qc_requests')
+    .update({
+      coa_paths: next,
+      coa_path: next[0] ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) {
+    console.error('appendQcCoaPath:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function removeQcCoaPath(id: string, path: string): Promise<boolean> {
+  const existing = await getQcRequestById(id);
+  if (!existing) return false;
+  const current = Array.isArray(existing.coa_paths) ? existing.coa_paths : [];
+  const next = current.filter((p) => p !== path);
+  const { error } = await supabase
+    .from('qc_requests')
+    .update({
+      coa_paths: next,
+      coa_path: next[0] ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) {
+    console.error('removeQcCoaPath:', error);
     return false;
   }
   return true;

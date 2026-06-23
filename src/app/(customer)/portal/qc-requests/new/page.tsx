@@ -96,6 +96,25 @@ function formatMoney(value: number) {
   return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function collectLeafItems(nodes: QcTestItem[]): { item: QcTestItem; groupLabel?: string | null }[] {
+  const out: { item: QcTestItem; groupLabel?: string | null }[] = [];
+  for (const node of nodes) {
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        out.push({ item: child, groupLabel: node.name });
+      }
+    } else {
+      out.push({ item: node });
+    }
+  }
+  return out;
+}
+
+function collectGroupLeafItems(group: QcTestItem): QcTestItem[] {
+  if (group.children && group.children.length > 0) return group.children;
+  return [group];
+}
+
 function TestRow({
   item,
   groupLabel,
@@ -103,6 +122,7 @@ function TestRow({
   qty,
   onCheckedChange,
   onQtyChange,
+  minSampleQty,
 }: {
   item: QcTestItem;
   groupLabel?: string | null;
@@ -110,6 +130,7 @@ function TestRow({
   qty: number;
   onCheckedChange: (checked: boolean) => void;
   onQtyChange: (qty: number) => void;
+  minSampleQty?: number | null;
 }) {
   const price = Number(item.price) || 0;
   return (
@@ -126,6 +147,12 @@ function TestRow({
         {item.name}
         {item.unit_label ? (
           <span className="text-slate-400 text-xs ml-1">({item.unit_label})</span>
+        ) : null}
+        {minSampleQty != null && minSampleQty > 0 ? (
+          <span className="block text-xs text-amber-700 mt-0.5">
+            ขั้นต่ำตัวอย่าง: {minSampleQty}
+            {item.unit_label ? ` ${item.unit_label}` : ''}
+          </span>
         ) : null}
       </label>
       <span className="text-sm tabular-nums text-slate-600 shrink-0">
@@ -175,6 +202,7 @@ export default function NewQcRequestPage() {
   const [sampleTypeOther, setSampleTypeOther] = useState('');
   const [testMethod, setTestMethod] = useState<QcTestMethod>('lab');
   const [testMethodOther, setTestMethodOther] = useState('');
+  const [bulkQty, setBulkQty] = useState('1');
 
   useEffect(() => {
     getQcTemplates(true).then(setTemplates);
@@ -225,6 +253,57 @@ export default function NewQcRequestPage() {
 
   const totals = useMemo(() => computeQcInvoiceTotals(selectedItems), [selectedItems]);
 
+  const leafItems = useMemo(() => collectLeafItems(nestedItems), [nestedItems]);
+  const allSelected =
+    leafItems.length > 0 && leafItems.every(({ item }) => checkedIds.has(item.id));
+
+  const minSampleSummary = useMemo(() => {
+    const lines: string[] = [];
+    for (const node of nestedItems) {
+      const minQty = node.min_sample_qty;
+      if (minQty != null && minQty > 0) {
+        lines.push(`${node.name}: ขั้นต่ำ ${minQty}${node.unit_label ? ` ${node.unit_label}` : ''}`);
+      }
+    }
+    return lines;
+  }, [nestedItems]);
+
+  const toggleAll = (checked: boolean) => {
+    if (!checked) {
+      setCheckedIds(new Set());
+      return;
+    }
+    const nextIds = new Set<string>();
+    const nextQtys: Record<string, number> = {};
+    for (const { item } of leafItems) {
+      nextIds.add(item.id);
+      nextQtys[item.id] = qtys[item.id] ?? 1;
+    }
+    setCheckedIds(nextIds);
+    setQtys((prev) => ({ ...prev, ...nextQtys }));
+  };
+
+  const toggleGroup = (group: QcTestItem, checked: boolean) => {
+    const leaves = collectGroupLeafItems(group);
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      for (const item of leaves) {
+        if (checked) next.add(item.id);
+        else next.delete(item.id);
+      }
+      return next;
+    });
+    if (checked) {
+      setQtys((prev) => {
+        const next = { ...prev };
+        for (const item of leaves) {
+          if (!next[item.id]) next[item.id] = 1;
+        }
+        return next;
+      });
+    }
+  };
+
   const toggleItem = (id: string, checked: boolean) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
@@ -236,6 +315,26 @@ export default function NewQcRequestPage() {
       }
       return next;
     });
+  };
+
+  const applyQtyToAll = () => {
+    const qty = Math.max(1, Math.floor(Number(bulkQty) || 1));
+    const targets = checkedIds.size > 0 ? leafItems.filter(({ item }) => checkedIds.has(item.id)) : leafItems;
+    if (targets.length === 0) {
+      toast.error('เลือกรายการก่อน หรือยังไม่มีรายการให้ตั้งค่า');
+      return;
+    }
+    const nextIds = new Set(checkedIds);
+    setQtys((prev) => {
+      const next = { ...prev };
+      for (const { item } of targets) {
+        next[item.id] = qty;
+        nextIds.add(item.id);
+      }
+      return next;
+    });
+    setCheckedIds(nextIds);
+    toast.success(`ตั้งจำนวน ${qty} ให้ ${targets.length} รายการแล้ว`);
   };
 
   const handleSubmit = async () => {
@@ -422,11 +521,71 @@ export default function NewQcRequestPage() {
                 <p className="text-sm text-slate-500 py-4">This template has no test items yet.</p>
               ) : templateId ? (
                 <div className="space-y-4">
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p className="font-semibold">หากตรวจหลาย sample ใน 1 รายการ</p>
+                    <p className="mt-1">
+                      ให้ใส่จำนวนรวมในช่อง Qty แล้วพิมพ์แบบฟอร์ม QC Request ให้ครบเท่าจำนวน sample
+                      พร้อมกรอกและติ๊กรายการให้ครบทุกชุด
+                    </p>
+                  </div>
+
+                  {minSampleSummary.length > 0 && (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                      <p className="font-semibold">ปริมาณตัวอย่างขั้นต่ำที่ต้องส่ง</p>
+                      <ul className="mt-1 list-disc list-inside space-y-0.5">
+                        {minSampleSummary.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all-tests"
+                        checked={allSelected}
+                        onCheckedChange={(v) => toggleAll(v === true)}
+                      />
+                      <label htmlFor="select-all-tests" className="text-sm font-medium cursor-pointer">
+                        เลือกทั้งหมด ({leafItems.length} รายการ)
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-slate-500 shrink-0">ตั้งจำนวนทุกรายการ</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-20 h-8"
+                        value={bulkQty}
+                        onChange={(e) => setBulkQty(e.target.value)}
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={applyQtyToAll}>
+                        ใช้กับ{checkedIds.size > 0 ? 'ที่เลือก' : 'ทั้งหมด'}
+                      </Button>
+                    </div>
+                  </div>
+
                   {nestedItems.map((node) => (
                     <div key={node.id} className="rounded-lg border border-slate-200 p-3">
                       {node.children && node.children.length > 0 ? (
                         <>
-                          <p className="text-sm font-semibold text-slate-700 mb-2">{node.name}</p>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <p className="text-sm font-semibold text-slate-700">{node.name}</p>
+                            <button
+                              type="button"
+                              className="text-xs text-emerald-700 hover:underline"
+                              onClick={() => {
+                                const leaves = collectGroupLeafItems(node);
+                                const allOn = leaves.every((c) => checkedIds.has(c.id));
+                                toggleGroup(node, !allOn);
+                              }}
+                            >
+                              {collectGroupLeafItems(node).every((c) => checkedIds.has(c.id))
+                                ? 'ยกเลิกทั้งกลุ่ม'
+                                : 'เลือกทั้งกลุ่ม'}
+                            </button>
+                          </div>
                           {node.children.map((child) => (
                             <TestRow
                               key={child.id}
@@ -436,6 +595,7 @@ export default function NewQcRequestPage() {
                               qty={qtys[child.id] ?? 1}
                               onCheckedChange={(c) => toggleItem(child.id, c)}
                               onQtyChange={(q) => setQtys((prev) => ({ ...prev, [child.id]: q }))}
+                              minSampleQty={node.min_sample_qty}
                             />
                           ))}
                         </>
@@ -446,6 +606,7 @@ export default function NewQcRequestPage() {
                           qty={qtys[node.id] ?? 1}
                           onCheckedChange={(c) => toggleItem(node.id, c)}
                           onQtyChange={(q) => setQtys((prev) => ({ ...prev, [node.id]: q }))}
+                          minSampleQty={node.min_sample_qty}
                         />
                       )}
                     </div>
@@ -458,9 +619,12 @@ export default function NewQcRequestPage() {
                   <div className="flex justify-between gap-2">
                     <span className="text-slate-600">{selectedItems.length} item(s) selected</span>
                     <span className="font-semibold text-emerald-800 tabular-nums">
-                      Total: {formatMoney(totals.grand_total)} THB
+                      ราคาประมาณการ: {formatMoney(totals.grand_total)} THB
                     </span>
                   </div>
+                  <p className="text-xs text-amber-700 mt-1">
+                    ยอดนี้เป็นราคาประมาณการ ห้องแล็บอาจปรับส่วนลดและยืนยันราคาก่อนแสดง QR ชำระเงิน
+                  </p>
                 </div>
               )}
 
@@ -486,6 +650,18 @@ export default function NewQcRequestPage() {
             <CardTitle>Summary & Submit</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <p className="font-semibold">ก่อนส่งตัวอย่าง — สำคัญ</p>
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                <li>ติดเลข Lot No. ของสินค้ามาด้วยทุกครั้ง</li>
+                <li>
+                  หลัง submit ให้พิมพ์ QR Code จากระบบติดบนถุงตัวอย่างเพื่อ tracking
+                  (1 รายการมี 5 sample = พิมพ์ QR 5 อันติดครบ 5 sample)
+                </li>
+                <li>แนบแบบฟอร์ม FM-QC-019 ที่กรอกและติ๊กครบแล้วมาพร้อมตัวอย่าง</li>
+              </ul>
+            </div>
+
             <div className="border rounded-lg p-4 space-y-2 text-sm">
               <p><span className="text-slate-500">Sample:</span> {sampleName || '—'}</p>
               <p>
@@ -502,16 +678,17 @@ export default function NewQcRequestPage() {
                 ))}
               </ul>
               <div className="border-t border-slate-200 pt-2 mt-2 space-y-1">
+                <p className="text-xs text-amber-700 font-medium">ราคาประมาณการ (อาจมีการเปลี่ยนแปลง)</p>
                 <p className="flex justify-between">
                   <span className="text-slate-500">Subtotal</span>
                   <span className="tabular-nums">{formatMoney(totals.subtotal)} THB</span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-500">VAT</span>
+                  <span className="text-slate-500">VAT 7%</span>
                   <span className="tabular-nums">{formatMoney(totals.vat)} THB</span>
                 </p>
                 <p className="flex justify-between font-semibold text-base">
-                  <span>Grand Total</span>
+                  <span>Grand Total (est.)</span>
                   <span className="tabular-nums text-emerald-700">{formatMoney(totals.grand_total)} THB</span>
                 </p>
               </div>

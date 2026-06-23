@@ -1,6 +1,10 @@
 import { computeProformaTotals } from '@/lib/db';
 import type { QcSelectedItem } from '@/lib/qc-types';
 
+function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 export function qcItemsToLineItems(items: QcSelectedItem[]) {
   return items.map((item) => ({
     description: item.group_label
@@ -12,8 +16,42 @@ export function qcItemsToLineItems(items: QcSelectedItem[]) {
 }
 
 export function computeQcInvoiceTotals(items: QcSelectedItem[]) {
+  return computeQcTotalsWithDiscount(items, 0);
+}
+
+export interface QcInvoiceTotals {
+  subtotal: number;
+  discount_percent: number;
+  discount_amount: number;
+  vat: number;
+  grand_total: number;
+  wht_amount: number;
+  net_payable: number;
+}
+
+/** Apply discount % on subtotal, then VAT 7% and WHT 3% on discounted taxable base. */
+export function computeQcTotalsWithDiscount(
+  items: QcSelectedItem[],
+  discountPercent: number
+): QcInvoiceTotals {
   const lineItems = qcItemsToLineItems(items);
-  return computeProformaTotals(lineItems, false);
+  const base = computeProformaTotals(lineItems, true);
+  const pct = Math.min(100, Math.max(0, Number(discountPercent) || 0));
+  const discount_amount = roundMoney(base.subtotal * (pct / 100));
+  const discountedSubtotal = roundMoney(base.subtotal - discount_amount);
+  const vat = roundMoney(discountedSubtotal * 0.07);
+  const grand_total = roundMoney(discountedSubtotal + vat);
+  const wht_amount = roundMoney(discountedSubtotal * 0.03);
+  const net_payable = roundMoney(grand_total - wht_amount);
+  return {
+    subtotal: base.subtotal,
+    discount_percent: pct,
+    discount_amount,
+    vat,
+    grand_total,
+    wht_amount,
+    net_payable,
+  };
 }
 
 export function buildSelectedItem(
@@ -45,6 +83,6 @@ export function generateQcCode(): string {
     String(d.getFullYear()) +
     String(d.getMonth() + 1).padStart(2, '0') +
     String(d.getDate()).padStart(2, '0');
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
   return `QC${ymd}-${rand}`;
 }

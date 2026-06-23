@@ -102,9 +102,18 @@ export interface QcRequest {
   subtotal?: number | null;
   vat?: number | null;
   grand_total?: number | null;
+  invoice_no?: string | null;
+  discount_percent?: number | null;
+  discount_amount?: number | null;
+  wht_amount?: number | null;
+  net_payable?: number | null;
+  price_finalized?: boolean;
+  finalized_at?: string | null;
+  estimated_coa_date?: string | null;
   payment_status: QcPaymentStatus;
   payment_slip_path?: string | null;
   coa_path?: string | null;
+  coa_paths?: string[];
   lab_notes?: string | null;
   lab_form_data?: QcLabFormData | null;
   created_at?: string;
@@ -124,6 +133,9 @@ export const QC_LAB_LETTERHEAD = {
  */
 export const QC_REQUEST_FORM_FILE =
   process.env.NEXT_PUBLIC_QC_FORM_URL || '/forms/FM-QC-019.pdf';
+
+/** Static PromptPay / bank QR image for QC invoice payment */
+export const QC_PAYMENT_QR_IMAGE = '/images/Payment QR/201417.jpg';
 
 export const QC_SAMPLE_TYPE_LABELS: Record<QcSampleType, string> = {
   solid: 'ของแข็ง',
@@ -169,8 +181,19 @@ export function isQcPaymentSlipImage(path: string | null | undefined): boolean {
   return /\.(jpe?g|png|webp|gif)$/i.test(path);
 }
 
+/** All COA storage paths for a request (legacy single path + JSONB array). */
+export function getQcCoaPaths(request: Pick<QcRequest, 'coa_path' | 'coa_paths'>): string[] {
+  const fromArray = Array.isArray(request.coa_paths) ? request.coa_paths.filter(Boolean) : [];
+  if (fromArray.length > 0) return fromArray;
+  if (request.coa_path) return [request.coa_path];
+  return [];
+}
+
 /** Demo PromptPay-style payload for the payment QR placeholder. */
-export function buildQcPaymentQrPayload(qcCode: string, grandTotal: number | null | undefined): string {
-  const amount = Number(grandTotal) || 0;
+export function buildQcPaymentQrPayload(
+  qcCode: string,
+  netPayable: number | null | undefined
+): string {
+  const amount = Number(netPayable) || 0;
   return `DEMO-QC-PAYMENT|${qcCode}|${amount.toFixed(2)} THB`;
 }
