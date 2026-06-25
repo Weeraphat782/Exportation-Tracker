@@ -7,7 +7,8 @@ import { Opportunity, OpportunityStage } from '@/types/opportunity';
 import { Quotation, getQuotationPayableTotalThb } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Share2, Receipt, ShieldCheck, CheckCircle, UserCircle2, Leaf } from 'lucide-react';
+import { ArrowLeft, FileText, Edit, Calendar, Package, Eye, Flag, Globe, Link2, Link2Off, Share2, Receipt, ShieldCheck, CheckCircle, UserCircle2, Leaf, Loader2 } from 'lucide-react';
+import { unlinkQuotationFromOpportunity } from '@/lib/db';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { QuotationDocuments } from '@/components/quotations/quotation-documents';
@@ -33,6 +34,7 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
     const [opportunity, setOpportunity] = useState<OpportunityDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    const [unlinkingQuoteId, setUnlinkingQuoteId] = useState<string | null>(null);
 
     const fetchOpportunity = async () => {
         setLoading(true);
@@ -142,6 +144,27 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
         } catch (err) {
             console.error('Error confirming price:', err);
             toast.error('Failed to confirm price');
+        }
+    };
+
+    const handleUnlinkQuote = async (quote: Quotation) => {
+        const label = quote.quotation_no || quote.id.slice(0, 8).toUpperCase();
+        if (!window.confirm(`Unlink quotation ${label} from this opportunity?`)) return;
+
+        setUnlinkingQuoteId(quote.id);
+        try {
+            const success = await unlinkQuotationFromOpportunity(quote.id);
+            if (success) {
+                toast.success('Quotation unlinked');
+                fetchOpportunity();
+            } else {
+                toast.error('Failed to unlink quotation');
+            }
+        } catch (err) {
+            console.error('Error unlinking quotation:', err);
+            toast.error('Failed to unlink quotation');
+        } finally {
+            setUnlinkingQuoteId(null);
         }
     };
 
@@ -323,6 +346,22 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                                 {getQuotationPayableTotalThb(quote).toLocaleString()} <span className="text-xs font-normal text-gray-400">THB</span>
                                                             </div>
                                                             <div className="text-[10px] text-gray-400 uppercase font-black tracking-tight">Total (incl. VAT)</div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="mt-1 h-7 px-2 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 lg:hidden"
+                                                                disabled={unlinkingQuoteId === quote.id}
+                                                                onClick={() => handleUnlinkQuote(quote)}
+                                                            >
+                                                                {unlinkingQuoteId === quote.id ? (
+                                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                                ) : (
+                                                                    <>
+                                                                        <Link2Off className="h-3 w-3 mr-1" />
+                                                                        Unlink
+                                                                    </>
+                                                                )}
+                                                            </Button>
                                                         </div>
                                                     </div>
 
@@ -433,6 +472,20 @@ export default function OpportunityDetailPage({ params }: { params: Promise<{ id
                                                     />
 
                                                     <div className="flex justify-end gap-2 mt-4 hidden lg:flex">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                                                            disabled={unlinkingQuoteId === quote.id}
+                                                            onClick={() => handleUnlinkQuote(quote)}
+                                                        >
+                                                            {unlinkingQuoteId === quote.id ? (
+                                                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                                            ) : (
+                                                                <Link2Off className="h-3.5 w-3.5 mr-1.5" />
+                                                            )}
+                                                            Unlink
+                                                        </Button>
                                                         <Button
                                                             variant="outline"
                                                             size="sm"

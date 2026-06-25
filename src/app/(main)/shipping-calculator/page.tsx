@@ -21,6 +21,7 @@ import {
   getPendingApprovalQuotations,
   generateShareToken,
   getQuotationPayableTotalThb,
+  unlinkQuotationFromOpportunity,
 } from '@/lib/db';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -637,6 +638,33 @@ export default function ShippingCalculatorPage() {
     }
   };
 
+  const handleUnlinkFromOpportunity = async (quotation: Quotation) => {
+    if (!quotation.opportunity_id) return;
+
+    const label = quotation.quotation_no || quotation.id.slice(0, 8).toUpperCase();
+    const isConfirmed = window.confirm(`Unlink quotation ${label} from the opportunity card?`);
+    if (!isConfirmed) return;
+
+    const previousQuotations = quotations;
+    setQuotations((prev) =>
+      prev.map((q) => (q.id === quotation.id ? { ...q, opportunity_id: null } : q))
+    );
+
+    try {
+      const success = await unlinkQuotationFromOpportunity(quotation.id);
+      if (success) {
+        toast.success('Quotation unlinked from opportunity');
+      } else {
+        setQuotations(previousQuotations);
+        toast.error('Failed to unlink quotation');
+      }
+    } catch (error) {
+      console.error('Error unlinking quotation:', error);
+      setQuotations(previousQuotations);
+      toast.error('Failed to unlink quotation');
+    }
+  };
+
   const handleViewQuotation = async (id: string) => {
     // Find quotation in our list
     const quotation = quotations.find(q => q.id === id);
@@ -1200,6 +1228,13 @@ export default function ShippingCalculatorPage() {
                           <UserPlus className="h-4 w-4 mr-2" />
                           {quotation.customer_user_id ? 'Change Customer' : 'Assign Customer'}
                         </DropdownMenuItem>
+
+                        {quotation.opportunity_id && (
+                          <DropdownMenuItem onClick={() => handleUnlinkFromOpportunity(quotation)}>
+                            <Link2Off className="h-4 w-4 mr-2" />
+                            Unlink from OP Card
+                          </DropdownMenuItem>
+                        )}
 
                         {/* Mark as Completed */}
                         {showCompleteButton && quotation.status !== 'completed' && (
