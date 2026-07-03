@@ -439,7 +439,7 @@ export default function PublicTrackingPage({ params }: { params: Promise<{ token
                 <div className="bg-white rounded-xl border border-gray-100 p-5">
                     <div className="flex items-center gap-2 mb-4">
                         <Package className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallet Details ({pallets.length})</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallet Details ({pallets.reduce((s, p) => s + (Number(p.quantity) || 1), 0)})</span>
                     </div>
                     <div className="space-y-3">
                         {pallets.map((pallet: Pallet, idx: number) => {

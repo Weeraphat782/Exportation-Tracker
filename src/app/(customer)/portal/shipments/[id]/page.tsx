@@ -1038,7 +1038,7 @@ export default function ShipmentDetailPage() {
                         <div className="text-left">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pallet Details</span>
                             <div className="text-sm font-bold text-gray-900">
-                                {pallets.length} Pallets &bull; Total {totals.totalActualWeight} kg
+                                {pallets.reduce((s, p) => s + (Number(p.quantity) || 1), 0)} Pallets &bull; Total {totals.totalActualWeight} kg
                             </div>
                         </div>
                     </div>
