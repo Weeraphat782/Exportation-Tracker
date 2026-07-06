@@ -15,17 +15,35 @@ import {
 } from 'lucide-react';
 import { CustomerAuthProvider, useCustomerAuth } from '@/contexts/customer-auth-context';
 
+const QC_FEATURE_SEEN_KEY = 'qc_feature_seen';
+
 const navItems = [
   { href: '/portal', label: 'My Shipments', icon: Plane },
   { href: '/portal/quotations/new', label: 'Request Quote', icon: PlusCircle },
-  { href: '/portal/qc-requests', label: 'QC Request', icon: FlaskConical },
+  { href: '/portal/qc-requests', label: 'QC Request', icon: FlaskConical, isNew: true },
   { href: '/portal/profile', label: 'My Profile', icon: User },
-];
+] as const;
 
 // ============ SIDEBAR ============
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { profile, signOut } = useCustomerAuth();
+  const [qcFeatureSeen, setQcFeatureSeen] = useState(true);
+
+  useEffect(() => {
+    setQcFeatureSeen(localStorage.getItem(QC_FEATURE_SEEN_KEY) === '1');
+  }, []);
+
+  useEffect(() => {
+    if (!pathname.startsWith('/portal/qc-requests')) return;
+    localStorage.setItem(QC_FEATURE_SEEN_KEY, '1');
+    setQcFeatureSeen(true);
+  }, [pathname]);
+
+  const markQcFeatureSeen = () => {
+    localStorage.setItem(QC_FEATURE_SEEN_KEY, '1');
+    setQcFeatureSeen(true);
+  };
 
   const initials = profile?.company
     ? profile.company.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -67,14 +85,23 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onClose}
+                onClick={() => {
+                  if ('isNew' in item && item.isNew) markQcFeatureSeen();
+                  onClose();
+                }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
                   ? 'bg-blue-50 text-[#215497] shadow-sm'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
               >
                 <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-[#215497]' : 'text-gray-400'}`} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {'isNew' in item && item.isNew && !qcFeatureSeen && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    New
+                  </span>
+                )}
               </Link>
             );
           })}

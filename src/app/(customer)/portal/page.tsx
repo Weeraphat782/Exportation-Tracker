@@ -6,7 +6,7 @@ import {
     Plane, Package, MapPin, CalendarDays,
     CheckCircle2, Inbox, Loader2, FileText,
     Search, ArrowRight, Eye, Clock, PlusCircle, X,
-    ChevronDown, ChevronUp, BookOpen,
+    ChevronDown, ChevronUp, BookOpen, FlaskConical,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
 import { getCustomerQuotations, getCustomerPendingRequests, cancelCustomerQuoteRequest } from '@/lib/customer-db';
@@ -148,6 +148,8 @@ function ShipmentListCard({ q }: { q: Quotation }) {
 
 // ============ MAIN PAGE ============
 
+const QC_PROMO_DISMISSED_KEY = 'qc_promo_dismissed';
+
 export default function MyShipmentsPage() {
     const { user, profile, isLoading: authLoading } = useCustomerAuth();
     const displayName = profile?.full_name || profile?.company || 'Customer';
@@ -157,6 +159,16 @@ export default function MyShipmentsPage() {
     const [pendingRequests, setPendingRequests] = useState<Quotation[]>([]);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [showCompleted, setShowCompleted] = useState(false);
+    const [showQcPromo, setShowQcPromo] = useState(false);
+
+    useEffect(() => {
+        setShowQcPromo(localStorage.getItem(QC_PROMO_DISMISSED_KEY) !== '1');
+    }, []);
+
+    const dismissQcPromo = () => {
+        localStorage.setItem(QC_PROMO_DISMISSED_KEY, '1');
+        setShowQcPromo(false);
+    };
 
     const loadData = useCallback(async () => {
         if (!user?.id) return;
@@ -257,6 +269,37 @@ export default function MyShipmentsPage() {
                     </div>
                 </div>
             </div>
+
+            {showQcPromo && (
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white shadow-md">
+                    <button
+                        type="button"
+                        onClick={dismissQcPromo}
+                        className="absolute right-3 top-3 rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                        aria-label="Dismiss QC promo"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 pr-8">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                            <FlaskConical className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-lg font-bold">New: QC Lab Testing Service</h2>
+                            <p className="mt-1 text-sm text-emerald-50">
+                                Submit lab samples from the portal — request a quote and track results online.
+                            </p>
+                        </div>
+                        <Link
+                            href="/portal/qc-requests/new"
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition-colors"
+                        >
+                            Try QC Request
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
