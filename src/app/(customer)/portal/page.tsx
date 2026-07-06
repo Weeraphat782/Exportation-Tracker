@@ -271,31 +271,41 @@ export default function MyShipmentsPage() {
             </div>
 
             {showQcPromo && (
-                <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white shadow-md">
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-300/50 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-5 text-white shadow-lg animate-scale-in">
+                    {/* Decorative blobs */}
+                    <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
+                    {/* Shimmer sweep */}
+                    <div className="pointer-events-none absolute inset-0 animate-shimmer opacity-40" />
                     <button
                         type="button"
                         onClick={dismissQcPromo}
-                        className="absolute right-3 top-3 rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                        className="absolute right-3 top-3 z-10 rounded-lg p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                         aria-label="Dismiss QC promo"
                     >
                         <X className="w-4 h-4" />
                     </button>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 pr-8">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                            <FlaskConical className="h-6 w-6" />
+                    <div className="relative z-[1] flex flex-col sm:flex-row sm:items-center gap-4 pr-8">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                            <FlaskConical className="h-6 w-6 animate-float" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h2 className="text-lg font-bold">New: QC Lab Testing Service</h2>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-950 animate-pulse">
+                                    New
+                                </span>
+                                <h2 className="text-lg font-bold">QC Lab Testing Service</h2>
+                            </div>
                             <p className="mt-1 text-sm text-emerald-50">
                                 Submit lab samples from the portal — request a quote and track results online.
                             </p>
                         </div>
                         <Link
                             href="/portal/qc-requests/new"
-                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition-colors"
+                            className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-md hover:bg-emerald-50 hover:scale-105 transition-all"
                         >
                             Try QC Request
-                            <ArrowRight className="w-4 h-4" />
+                            <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                         </Link>
                     </div>
                 </div>

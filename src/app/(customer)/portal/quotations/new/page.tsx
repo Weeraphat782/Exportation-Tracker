@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     ArrowLeft, ArrowRight, Plus, Trash2, Package, Send,
     Loader2, CheckCircle2, AlertCircle, Upload, Check, Eye, Leaf,
-    ChevronUp, ChevronDown, FileText, Building2,
+    ChevronUp, ChevronDown, FileText, Building2, FlaskConical,
 } from 'lucide-react';
 import { createCustomerQuoteRequest, submitCustomerDocument } from '@/lib/customer-db';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
@@ -835,6 +835,22 @@ export default function NewQuoteRequestPage() {
                     </div>
                 </div>
             )}
+
+            <div className="flex items-center gap-4 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-100">
+                    <FlaskConical className="h-5 w-5 text-teal-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">Need lab testing for your product?</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Get a QC quote and track results online.</p>
+                </div>
+                <Link
+                    href="/portal/qc-requests/new"
+                    className="shrink-0 text-sm font-bold text-teal-700 hover:text-teal-900 transition-colors"
+                >
+                    Request QC →
+                </Link>
+            </div>
         </div>
     );
 }

@@ -97,8 +97,8 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-[#215497]' : 'text-gray-400'}`} />
                 <span className="flex-1">{item.label}</span>
                 {'isNew' in item && item.isNew && !qcFeatureSeen && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white animate-pulse-glow">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
                     New
                   </span>
                 )}
