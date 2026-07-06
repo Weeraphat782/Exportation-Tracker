@@ -28,8 +28,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { url: `${base}/site/newsroom`, lastModified: CONTENT_REVISED, changeFrequency: "daily", priority: 0.9 },
     { url: `${base}/site/resources`, lastModified: CONTENT_REVISED, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${base}/llms.txt`, lastModified: CONTENT_REVISED, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${base}/feed.xml`, lastModified: CONTENT_REVISED, changeFrequency: "daily", priority: 0.5 },
   ];
 
   try {

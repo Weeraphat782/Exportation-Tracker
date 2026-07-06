@@ -9,17 +9,28 @@ import type { NextRequest } from 'next/server';
  * - ป้องกัน API routes, static files ไม่ถูก redirect
  * - Layout-level guards ทำ role checking จริง (client-side)
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const PUBLIC_SITE_PATHS = new Set([
+  '/sitemap.xml',
+  '/robots.txt',
+  '/feed.xml',
+  '/llms.txt',
+  '/manifest.json',
+]);
+
+function isPublicMarketingPath(pathname: string): boolean {
+  return pathname === '/' || pathname.startsWith('/site') || PUBLIC_SITE_PATHS.has(pathname);
+}
+
 export function middleware(request: NextRequest) {
-  // Allow all requests to pass through
-  // Real auth checking is done at the layout level (client-side)
-  // because the auth system uses localStorage, not cookies
   const response = NextResponse.next();
 
-  // Add security headers
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  if (!isPublicMarketingPath(request.nextUrl.pathname)) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
 
   return response;
 }
