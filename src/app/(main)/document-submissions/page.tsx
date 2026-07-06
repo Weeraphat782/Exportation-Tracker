@@ -162,21 +162,32 @@ export default function DocumentSubmissionsPage() {
   // Filter submissions based on search, quotation, and category
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
+    const query = searchTerm.trim().toLowerCase();
 
     return submissions.filter((submission) => {
-      // Filter by search term if present
-      if (searchTerm && !submission.original_file_name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return false;
+      if (query) {
+        const q = quotations.find((item) => item.id === submission.quotation_id);
+        const haystack = [
+          submission.original_file_name,
+          q?.quotation_no,
+          submission.company_name,
+          q?.company_name,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(query)) {
+          return false;
+        }
       }
 
-      // Filter by selected quotation if any
       if (selectedQuotation !== 'all' && submission.quotation_id !== selectedQuotation) {
         return false;
       }
 
       return true;
     });
-  }, [submissions, searchTerm, selectedQuotation]);
+  }, [submissions, searchTerm, selectedQuotation, quotations]);
 
   // Group submissions by quotation for display
   const submissionsByQuotation = filteredSubmissions.reduce((acc, submission) => {
@@ -550,7 +561,7 @@ export default function DocumentSubmissionsPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search document name or type"
+                  placeholder="Search by OMG no, file name, or company"
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -602,6 +613,7 @@ export default function DocumentSubmissionsPage() {
             const headerDestination = quotationInfo?.destination || '—';
             const headerCreatedAt = quotationInfo?.created_at || quotationSubmissions[0]?.submitted_at;
             const isPendingApproval = quotationInfo?.status === 'pending_approval';
+            const headerOmgNo = quotationInfo?.quotation_no;
 
             const isExpanded = expandedQuotations[quotationId] || false;
 
@@ -612,6 +624,11 @@ export default function DocumentSubmissionsPage() {
                     <div>
                       <CardTitle className="text-xl flex items-center gap-2 flex-wrap">
                         {headerCompany} - {headerDestination}
+                        {headerOmgNo && (
+                          <Badge variant="secondary" className="font-mono text-xs">
+                            {headerOmgNo}
+                          </Badge>
+                        )}
                         {isPendingApproval && (
                           <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
                             Awaiting approval
@@ -635,7 +652,7 @@ export default function DocumentSubmissionsPage() {
                         )}
                       </CardTitle>
                       <CardDescription>
-                        Quotation: {quotationId.substring(0, 8)}... • Created: {headerCreatedAt ? formatDate(headerCreatedAt) : '—'} • Documents: {quotationSubmissions.length}
+                        OMG: {headerOmgNo || `${quotationId.substring(0, 8)}...`} • Created: {headerCreatedAt ? formatDate(headerCreatedAt) : '—'} • Documents: {quotationSubmissions.length}
                       </CardDescription>
                     </div>
                     <Button
