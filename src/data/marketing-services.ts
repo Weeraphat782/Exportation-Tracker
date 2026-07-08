@@ -3,6 +3,7 @@ export const serviceIds = {
     shippingCustoms: "shipping-customs",
     gdpWarehousing: "gdp-warehousing",
     controlledTempTransport: "controlled-temperature-transport",
+    qcLabTesting: "qc-lab-testing",
 } as const;
 
 export const services = [
@@ -45,5 +46,15 @@ Every process is documented and validated to meet regulatory requirements. From 
         fullDescription: `Temperature-sensitive cargo requires validated transport solutions from origin to destination. OMG Experience provides controlled temperature transport with validated packaging and documented cold-chain handling.
 
 Our solutions cover ambient, chilled, and frozen requirements across air and ground modes. We ensure your pharmaceuticals, biologics, and perishables maintain their integrity throughout the supply chain.`,
+    },
+    {
+        id: serviceIds.qcLabTesting,
+        title: "QC Lab Testing",
+        imageUrl: "/images/air-freight.jpg",
+        shortDescription:
+            "GACP-aligned partner lab, portal-integrated — QR-tracked samples with COA results online.",
+        fullDescription: `Submit export samples through the OMG Experience Export Portal and receive a transparent QC quote with itemized pricing. Every sample gets a QR code for live tracking from receipt through testing to Certificate of Analysis (COA) delivery.
+
+Our integrated lab partner supports GACP-aligned testing for cannabis, hemp, and regulated agricultural exports. Results are available online before your shipment departs—so compliance documentation is ready when you need it, not after.`,
     },
 ];

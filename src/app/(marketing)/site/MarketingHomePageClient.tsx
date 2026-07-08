@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,6 +8,14 @@ import ServiceCard from "@/components/marketing/ServiceCard";
 import { services } from "@/data/marketing-services";
 import { ContinueExploring } from "@/components/marketing/ContinueExploring";
 import PartnerSection from "@/components/marketing/PartnerSection";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { trackCtaClick } from "@/lib/analytics";
 
@@ -47,6 +56,11 @@ const serviceIcons: Record<string, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2V9a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2z" />
     </svg>
   ),
+  "qc-lab-testing": (
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 2v6l-4 8h12l-4-8V2M8.5 16h7" />
+    </svg>
+  ),
 };
 
 const stats = [
@@ -81,6 +95,20 @@ const stats = [
 
 export default function MarketingHomePageClient() {
   useScrollReveal();
+  const [servicesCarouselApi, setServicesCarouselApi] = useState<CarouselApi>();
+  const servicesCarouselPaused = useRef(false);
+
+  const scrollServicesNext = useCallback(() => {
+    if (!servicesCarouselPaused.current) {
+      servicesCarouselApi?.scrollNext();
+    }
+  }, [servicesCarouselApi]);
+
+  useEffect(() => {
+    if (!servicesCarouselApi) return;
+    const timer = setInterval(scrollServicesNext, 4000);
+    return () => clearInterval(timer);
+  }, [servicesCarouselApi, scrollServicesNext]);
 
   return (
     <>
@@ -281,21 +309,39 @@ export default function MarketingHomePageClient() {
               perishable, and time-critical cargo.
             </p>
           </div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-            {services.map((service, index) => (
-              <div
-                key={service.id}
-                className={`reveal-on-scroll stagger-${(index % 4) + 1}`}
-              >
-                <ServiceCard
-                  title={service.title}
-                  description={service.shortDescription}
-                  icon={serviceIcons[service.id]}
-                  imageUrl={service.imageUrl}
-                  href={`/site/services#${service.id}`}
-                />
-              </div>
-            ))}
+          <div
+            className="reveal-on-scroll mt-12"
+            onMouseEnter={() => {
+              servicesCarouselPaused.current = true;
+            }}
+            onMouseLeave={() => {
+              servicesCarouselPaused.current = false;
+            }}
+          >
+            <Carousel
+              opts={{ align: "start", loop: true }}
+              setApi={setServicesCarouselApi}
+              className="relative"
+            >
+              <CarouselContent>
+                {services.map((service) => (
+                  <CarouselItem
+                    key={service.id}
+                    className="basis-[85%] sm:basis-1/2 md:basis-1/4"
+                  >
+                    <ServiceCard
+                      title={service.title}
+                      description={service.shortDescription}
+                      icon={serviceIcons[service.id]}
+                      imageUrl={service.imageUrl}
+                      href={`/site/services#${service.id}`}
+                    />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-1 sm:left-2 lg:-left-12" />
+              <CarouselNext className="right-1 sm:right-2 lg:-right-12" />
+            </Carousel>
           </div>
           <div className="mt-12 text-center">
             <Link
@@ -388,6 +434,63 @@ export default function MarketingHomePageClient() {
                 <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* QC Lab Testing */}
+      <section
+        id="qc-lab-testing"
+        className="relative py-12 overflow-hidden sm:py-20 scroll-mt-24"
+        style={{ background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 50%, #ecfeff 100%)" }}
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="reveal-on-scroll max-w-3xl mx-auto text-center lg:max-w-none lg:text-left lg:flex lg:items-center lg:justify-between lg:gap-12">
+            <div className="flex-1">
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
+                New Service
+              </span>
+              <h2 className="mt-4 text-3xl font-bold text-neutral-900 sm:text-4xl">
+                QC Lab Testing
+                <br />
+                <span style={{ color: "var(--color-accent-ref)" }}>COA before your cargo flies</span>
+              </h2>
+              <p className="mt-4 text-neutral-600 leading-relaxed max-w-2xl lg:max-w-none">
+                Submit samples through the Export Portal, get an instant QC quote, and track every
+                sample with a QR code—from lab receipt to Certificate of Analysis online, before
+                your shipment departs.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-2 justify-center lg:justify-start">
+                {["Lab Testing", "QR Tracked", "COA Online", "GACP-aligned"].map((f) => (
+                  <span
+                    key={f}
+                    className="rounded-full border border-emerald-300 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-800"
+                  >
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 shrink-0 lg:mt-0">
+              <Link
+                href="/site/login"
+                onClick={() => trackCtaClick("Request QC in Portal", "qc-home-section")}
+                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:brightness-110 hover:-translate-y-0.5"
+                style={{ backgroundColor: "var(--color-accent-ref)" }}
+              >
+                Request QC in Portal
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+              <Link
+                href="/site/services#qc-lab-testing"
+                onClick={() => trackCtaClick("Learn more QC", "qc-home-section")}
+                className="inline-flex min-h-[48px] items-center justify-center rounded-lg border border-emerald-400 bg-white/80 px-6 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-white"
+              >
+                Learn more
               </Link>
             </div>
           </div>

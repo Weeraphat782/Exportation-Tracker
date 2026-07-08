@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 const pinnedAnnouncement = {
-    title: "OMG Experience Expands European Air Freight Routes — New direct services to Zurich, Lisbon, and Warsaw",
-    slug: "new-european-routes-2025",
+    title: "QC Lab Testing Now Available — request lab tests and track COA results online in the Export Portal",
+    href: "/site/services#qc-lab-testing",
 };
 
 export default function TopBar() {
@@ -18,7 +18,7 @@ export default function TopBar() {
                 <span className="font-semibold" style={{ color: "var(--color-accent-ref)" }}>New:&nbsp;</span>
                 {pinnedAnnouncement.title}{" "}
                 <Link
-                    href={`/site/newsroom/${pinnedAnnouncement.slug}`}
+                    href={pinnedAnnouncement.href}
                     className="shrink-0 font-bold underline underline-offset-2 transition hover:opacity-90 active:opacity-80"
                     style={{ color: "var(--color-accent-ref)" }}
                 >
