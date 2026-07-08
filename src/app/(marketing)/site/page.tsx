@@ -6,9 +6,9 @@ import { pageMeta } from "@/lib/page-meta";
 import { BRAND_NAME } from "@/lib/site";
 
 export const metadata: Metadata = pageMeta({
-  title: `${BRAND_NAME} — Specialized Air Freight & Global Logistics`,
+  title: "Air Freight & Pharmaceutical Logistics from Thailand",
   description:
-    "End-to-end air freight, GDP warehousing, customs clearance, and AI-assisted document intelligence for pharmaceutical and time-sensitive cargo.",
+    "End-to-end air freight from Bangkok and Thailand — GDP warehousing, customs clearance, and AI-assisted document intelligence for pharmaceutical and time-sensitive cargo.",
   path: "/site",
 });
 
@@ -18,9 +18,9 @@ export default function MarketingHomePage() {
   const ld = jsonLdScript([
     webPageSchema({
       path: "/site",
-      name: `${BRAND_NAME} — Home`,
+      name: `${BRAND_NAME} — Air Freight from Thailand`,
       description:
-        "Specialized air freight, GDP warehousing, customs, and cold-chain logistics with AI document verification.",
+        "Specialized air freight from Bangkok and Thailand — GDP warehousing, customs, and cold-chain logistics with AI document verification.",
     }),
   ]);
 
