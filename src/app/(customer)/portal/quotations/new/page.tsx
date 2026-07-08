@@ -112,6 +112,7 @@ export default function NewQuoteRequestPage() {
     const [requestedDestination, setRequestedDestination] = useState('');
     const [notes, setNotes] = useState('');
     const [phytoRequired, setPhytoRequired] = useState(false);
+    const [qcInterested, setQcInterested] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [submittedQuotationId, setSubmittedQuotationId] = useState<string | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -206,10 +207,15 @@ export default function NewQuoteRequestPage() {
                 quantity: parseInt(p.quantity),
             }));
 
+            const submitNotes = [
+                notes.trim(),
+                qcInterested ? '[QC] Customer requested lab testing (COA) quote' : '',
+            ].filter(Boolean).join('\n\n') || undefined;
+
             const result = await createCustomerQuoteRequest(
                 palletData,
                 requestedDestination,
-                notes || undefined,
+                submitNotes,
                 commodity,
                 phytoRequired
             );
@@ -575,6 +581,35 @@ export default function NewQuoteRequestPage() {
                         </div>
                     </div>
 
+                    {commodity !== 'general' && (
+                        <div className="bg-white rounded-xl border border-gray-100 p-5">
+                            <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                                    <FlaskConical className="w-5 h-5 text-teal-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={qcInterested}
+                                            onChange={(e) => setQcInterested(e.target.checked)}
+                                            className="mt-1 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                        />
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900">
+                                                Need lab testing (COA) for this batch?
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Tick and we&apos;ll include a QC quote — GACP-aligned tests, QR-tracked samples,
+                                                results online before your shipment departs. We&apos;ll include this in your quote.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white rounded-xl border border-gray-100 p-5">
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             Additional Notes <span className="font-normal text-gray-400">(optional)</span>
@@ -665,6 +700,30 @@ export default function NewQuoteRequestPage() {
                             </button>
                         </div>
                     </div>
+
+                    {qcInterested && (
+                        <div className="rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-100">
+                                    <FlaskConical className="h-6 w-6 text-teal-700" />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                    <h3 className="text-base font-bold text-gray-900">Lab testing (COA) — next step</h3>
+                                    <p className="mt-1 text-sm text-teal-900/80">
+                                        Your QC request form is pre-filled and ready — company, contact and email are already done.
+                                        Every sample gets a QR code for live status and results.
+                                    </p>
+                                </div>
+                                <Link
+                                    href="/portal/qc-requests/new"
+                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-colors"
+                                >
+                                    Start QC Request
+                                    <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            </div>
+                        </div>
+                    )}
 
                     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${COMMODITY_META[commodity].badgeClass}`}>
                         {(() => {
