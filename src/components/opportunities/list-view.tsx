@@ -45,6 +45,10 @@ interface ListViewProps {
   onRefresh?: () => void;
 }
 
+function isPickupToday(opp: Opportunity): boolean {
+  return !!opp.pickupDate && opp.pickupDate === new Date().toLocaleDateString('en-CA');
+}
+
 /** Inline editable date cell (payment / pickup) using a DD/MM/YYYY calendar picker */
 function EditableDateCell({
   opportunityId,
@@ -293,7 +297,9 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                       ? 'bg-emerald-50/50'
                       : opp.closureStatus === 'lost'
                         ? 'bg-red-50/50'
-                        : ''
+                        : isPickupToday(opp)
+                          ? 'bg-amber-50'
+                          : ''
                     }`}
                   onClick={() => router.push(`/opportunities/${opp.id}`)}
                 >
@@ -468,7 +474,9 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                   ? 'border-emerald-200 bg-emerald-50/20'
                   : opp.closureStatus === 'lost'
                     ? 'border-red-200 bg-red-50/20'
-                    : 'border-slate-200'
+                    : isPickupToday(opp)
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-slate-200'
                 }`}
               onClick={() => router.push(`/opportunities/${opp.id}`)}
             >

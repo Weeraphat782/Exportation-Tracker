@@ -281,6 +281,10 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
     new Set(quotes.map((q) => normalizeCommodityType(q.commodity_type ?? undefined)))
   );
 
+  const isPickupToday =
+    !!opportunity.pickupDate &&
+    opportunity.pickupDate === new Date().toLocaleDateString('en-CA');
+
   return (
     <div
       ref={setNodeRef}
@@ -296,7 +300,9 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30'
           : opportunity.closureStatus === 'lost'
             ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
-            : 'border-none ring-1 ring-slate-100/50'
+            : isPickupToday
+              ? 'ring-2 ring-amber-400 border-amber-300 bg-amber-50/60'
+              : 'border-none ring-1 ring-slate-100/50'
           } relative overflow-visible pt-1.5`}>
         {/* Color Highlight Bar - Now at the Top and thicker */}
         {displayColor && (
@@ -319,6 +325,11 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
             {opportunity.closureStatus === 'lost' && (
               <Badge className="bg-red-500 text-white text-[10px] px-1.5 py-0 h-5 font-bold">
                 ❌ LOST
+              </Badge>
+            )}
+            {isPickupToday && !opportunity.closureStatus && (
+              <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-5 font-bold animate-pulse">
+                PICKUP TODAY
               </Badge>
             )}
           </div>
