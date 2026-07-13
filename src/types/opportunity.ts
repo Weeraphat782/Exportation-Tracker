@@ -55,6 +55,7 @@ export interface Opportunity {
         docs_count?: number;
         awb_number?: string | null;
         awb_file_url?: string | null;
+        booking_share_token?: string | null;
     }[];
 
     // Closure status - separate from stage (card can be won/lost at any stage)

@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane, Mail } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane, Mail, Link } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -273,6 +273,18 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
   };
 
   const quotes = opportunity.quotationDetails || [];
+  const quotesWithBookingLink = quotes.filter((q) => !!q.booking_share_token);
+
+  const handleCopyBookingLink = async (token: string) => {
+    try {
+      const url = `${window.location.origin}/booking/${token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Booking link copied');
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
   const hasFromCustomer = quotes.some((q) => !!q.customer_user_id);
   const hasPhyto = quotes.some((q) => q.phyto_required);
   const totalDocs = quotes.reduce((s, q) => s + (q.docs_count || 0), 0);
@@ -549,6 +561,22 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 >
                   <FileText className="h-3 w-3 shrink-0" />
                   <span className="truncate max-w-[120px]">{q.quotation_no || `Quote #${i + 1}`}</span>
+                </button>
+              ))}
+              {quotesWithBookingLink.map((q, i) => (
+                <button
+                  key={`booking-${q.id}`}
+                  type="button"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors"
+                  onClick={() => handleCopyBookingLink(q.booking_share_token!)}
+                  title="Copy booking link"
+                >
+                  <Link className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-[120px]">
+                    {quotesWithBookingLink.length > 1
+                      ? `Booking: ${q.quotation_no || `Quote #${i + 1}`}`
+                      : 'Booking Link'}
+                  </span>
                 </button>
               ))}
             </div>

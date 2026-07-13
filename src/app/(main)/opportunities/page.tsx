@@ -43,7 +43,7 @@ export default function OpportunitiesPage() {
         quotations(
           id, price_confirmed, total_cost, vat_amount, wht_amount, wht_enabled, quotation_no,
           customer_user_id, phyto_required, commodity_type, status,
-          awb_number, awb_file_url,
+          awb_number, awb_file_url, booking_share_token,
           document_submissions(count)
         ),
         destination:destination_id(country, port),
@@ -100,6 +100,7 @@ export default function OpportunitiesPage() {
           status?: string;
           awb_number?: string | null;
           awb_file_url?: string | null;
+          booking_share_token?: string | null;
           document_submissions?: { count: number }[];
         }[];
         opportunity_products?: { product: { id: string; name: string } }[];
@@ -133,6 +134,7 @@ export default function OpportunitiesPage() {
               docs_count: q.document_submissions?.[0]?.count ?? 0,
               awb_number: q.awb_number ?? null,
               awb_file_url: q.awb_file_url ?? null,
+              booking_share_token: q.booking_share_token ?? null,
             }))
           : [];
 
