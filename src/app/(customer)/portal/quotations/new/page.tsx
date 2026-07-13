@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     ArrowLeft, ArrowRight, Plus, Trash2, Package, Send,
     Loader2, CheckCircle2, AlertCircle, Upload, Check, Eye, Leaf,
-    ChevronUp, ChevronDown, FileText, Building2, FlaskConical,
+    ChevronUp, ChevronDown, FileText, Building2, FlaskConical, Thermometer,
 } from 'lucide-react';
 import { createCustomerQuoteRequest, submitCustomerDocument } from '@/lib/customer-db';
 import { useCustomerAuth } from '@/contexts/customer-auth-context';
@@ -112,6 +112,8 @@ export default function NewQuoteRequestPage() {
     const [requestedDestination, setRequestedDestination] = useState('');
     const [notes, setNotes] = useState('');
     const [phytoRequired, setPhytoRequired] = useState(false);
+    const [dataLoggerAttached, setDataLoggerAttached] = useState(false);
+    const [noAttachments, setNoAttachments] = useState(false);
     const [qcInterested, setQcInterested] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [submittedQuotationId, setSubmittedQuotationId] = useState<string | null>(null);
@@ -175,6 +177,38 @@ export default function NewQuoteRequestPage() {
         }
     };
 
+    const clearAttachmentsError = () => {
+        setErrors(prev => {
+            if (!prev['attachments']) return prev;
+            const next = { ...prev };
+            delete next['attachments'];
+            return next;
+        });
+    };
+
+    const handlePhytoChange = (checked: boolean) => {
+        setPhytoRequired(checked);
+        if (checked) setNoAttachments(false);
+        clearAttachmentsError();
+    };
+
+    const handleDataLoggerChange = (checked: boolean) => {
+        setDataLoggerAttached(checked);
+        setIncludeMsds(checked);
+        if (checked) setNoAttachments(false);
+        clearAttachmentsError();
+    };
+
+    const handleNoAttachmentsChange = (checked: boolean) => {
+        setNoAttachments(checked);
+        if (checked) {
+            setPhytoRequired(false);
+            setDataLoggerAttached(false);
+            setIncludeMsds(false);
+        }
+        clearAttachmentsError();
+    };
+
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
         if (!requestedDestination.trim()) {
@@ -187,6 +221,9 @@ export default function NewQuoteRequestPage() {
             if (!p.height || parseFloat(p.height) <= 0) newErrors[`${p.id}-height`] = `Pallet ${num}: Height required`;
             if (!p.quantity || parseInt(p.quantity) < 1) newErrors[`${p.id}-quantity`] = `Pallet ${num}: Qty must be >= 1`;
         });
+        if (!phytoRequired && !dataLoggerAttached && !noAttachments) {
+            newErrors['attachments'] = 'Please select Phyto, Data Logger, or No attachments';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -210,6 +247,7 @@ export default function NewQuoteRequestPage() {
             const submitNotes = [
                 notes.trim(),
                 qcInterested ? '[QC] Customer requested lab testing (COA) quote' : '',
+                dataLoggerAttached ? '[DATA LOGGER] Customer will attach data logger (MSDS included)' : '',
             ].filter(Boolean).join('\n\n') || undefined;
 
             const result = await createCustomerQuoteRequest(
@@ -553,32 +591,79 @@ export default function NewQuoteRequestPage() {
                         ))}
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-100 p-5">
-                        <div className="flex items-start gap-3">
+                    <div className={`bg-white rounded-xl border p-5 ${errors['attachments'] ? 'border-red-300 bg-red-50/30' : 'border-gray-100'}`}>
+                        <div className="flex items-start gap-3 mb-4">
                             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                                <Leaf className="w-5 h-5 text-emerald-600" />
+                                <Package className="w-5 h-5 text-emerald-600" />
                             </div>
-                            <div className="flex-1">
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={phytoRequired}
-                                        onChange={(e) => setPhytoRequired(e.target.checked)}
-                                        className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                    />
-                                    <div>
-                                        <div className="text-sm font-bold text-gray-900">
-                                            Need Phytosanitary Certificate service?
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Tick if you want us to arrange the Phytosanitary Certificate
-                                            (plant health certificate required by many destinations).
-                                            Additional fees may apply — we&apos;ll include this in your quote.
-                                        </p>
-                                    </div>
-                                </label>
+                            <div>
+                                <div className="text-sm font-bold text-gray-900">
+                                    Attachments &amp; Services <span className="text-red-500">*</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Select at least one option below.
+                                </p>
                             </div>
                         </div>
+                        <div className="space-y-4 pl-1">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={phytoRequired}
+                                    onChange={(e) => handlePhytoChange(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div>
+                                    <div className="text-sm font-bold text-gray-900">
+                                        Need Phytosanitary Certificate service?
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Tick if you want us to arrange the Phytosanitary Certificate
+                                        (plant health certificate required by many destinations).
+                                        Additional fees may apply — we&apos;ll include this in your quote.
+                                    </p>
+                                </div>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={dataLoggerAttached}
+                                    onChange={(e) => handleDataLoggerChange(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <Thermometer className="w-4 h-4 text-sky-600 shrink-0" />
+                                        <div className="text-sm font-bold text-gray-900">
+                                            Attach Data Logger (MSDS required)
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Tick if your shipment includes a temperature data logger.
+                                        You will need to upload the MSDS in the documents step.
+                                    </p>
+                                </div>
+                            </label>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={noAttachments}
+                                    onChange={(e) => handleNoAttachmentsChange(e.target.checked)}
+                                    className="mt-1 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div>
+                                    <div className="text-sm font-bold text-gray-900">
+                                        No attachments needed
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Tick if you are not arranging Phyto or attaching a data logger for this shipment.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                        {errors['attachments'] && (
+                            <p className="text-xs text-red-600 mt-3 pl-1">{errors['attachments']}</p>
+                        )}
                     </div>
 
                     {commodity !== 'general' && (
