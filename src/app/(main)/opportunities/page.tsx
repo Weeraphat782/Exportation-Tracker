@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { KanbanBoard } from '@/components/opportunities/kanban-board';
 import { ListView } from '@/components/opportunities/list-view';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, PlusCircle, LayoutGrid, List } from 'lucide-react';
+import { RefreshCw, PlusCircle, LayoutGrid, List, Truck } from 'lucide-react';
 import { OpportunityDialog } from '@/components/opportunities/new-opportunity-dialog';
-import { Opportunity, OpportunityStage } from '@/types/opportunity';
+import { Opportunity, OpportunityStage, isPickupToday } from '@/types/opportunity';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { getCompanies } from '@/lib/db';
@@ -597,6 +597,10 @@ export default function OpportunitiesPage() {
     }
   };
 
+  const pickupTodayCount = opportunities.filter(
+    (opp) => opp.closureStatus !== 'lost' && isPickupToday(opp)
+  ).length;
+
   return (
     <div className="h-full flex flex-col space-y-4 p-4 md:p-8 pt-6">
       {/* Page Header */}
@@ -630,6 +634,20 @@ export default function OpportunitiesPage() {
           />
         </div>
       </div>
+
+      {pickupTodayCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3 shadow-sm">
+          <span className="relative flex h-3 w-3 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+          </span>
+          <Truck className="h-6 w-6 text-amber-600 shrink-0" />
+          <p className="text-base md:text-lg font-bold text-amber-900">
+            มีรับของวันนี้ {pickupTodayCount} shipment{pickupTodayCount > 1 ? 's' : ''}
+            <span className="ml-2 font-medium text-amber-700 text-sm">— การ์ดถูกดึงขึ้นบนสุดของแต่ละ column แล้ว</span>
+          </p>
+        </div>
+      )}
 
       {/* Filters Section */}
       <div className="flex flex-col gap-4 bg-white p-3 md:p-4 rounded-xl border border-gray-100 shadow-sm">

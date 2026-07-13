@@ -66,6 +66,10 @@ export interface Opportunity {
     sortOrder?: number | null;
 }
 
+export function isPickupToday(opp: Opportunity): boolean {
+    return !!opp.pickupDate && opp.pickupDate === new Date().toLocaleDateString('en-CA');
+}
+
 export const STAGE_LABELS: Record<OpportunityStage, string> = {
     inquiry: 'Initial Inquiry',
     quoting: 'Quoting',

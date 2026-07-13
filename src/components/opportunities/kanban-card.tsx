@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Opportunity, STAGE_COLORS } from '@/types/opportunity';
+import { Opportunity, STAGE_COLORS, isPickupToday } from '@/types/opportunity';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -293,9 +293,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
     new Set(quotes.map((q) => normalizeCommodityType(q.commodity_type ?? undefined)))
   );
 
-  const isPickupToday =
-    !!opportunity.pickupDate &&
-    opportunity.pickupDate === new Date().toLocaleDateString('en-CA');
+  const pickupToday = isPickupToday(opportunity);
 
   return (
     <div
@@ -312,7 +310,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
           ? 'ring-2 ring-emerald-400 border-emerald-300 bg-emerald-50/30'
           : opportunity.closureStatus === 'lost'
             ? 'ring-2 ring-red-400 border-red-300 bg-red-50/30'
-            : isPickupToday
+            : pickupToday
               ? 'ring-2 ring-amber-400 border-amber-300 bg-amber-50/60'
               : 'border-none ring-1 ring-slate-100/50'
           } relative overflow-visible pt-1.5`}>
@@ -339,7 +337,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                 ❌ LOST
               </Badge>
             )}
-            {isPickupToday && !opportunity.closureStatus && (
+            {pickupToday && !opportunity.closureStatus && (
               <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-5 font-bold animate-pulse">
                 PICKUP TODAY
               </Badge>

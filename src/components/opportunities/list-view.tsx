@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Opportunity, STAGE_LABELS, STAGE_COLORS } from '@/types/opportunity';
+import { Opportunity, STAGE_LABELS, STAGE_COLORS, isPickupToday } from '@/types/opportunity';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,10 +43,6 @@ interface ListViewProps {
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
   onRefresh?: () => void;
-}
-
-function isPickupToday(opp: Opportunity): boolean {
-  return !!opp.pickupDate && opp.pickupDate === new Date().toLocaleDateString('en-CA');
 }
 
 /** Inline editable date cell (payment / pickup) using a DD/MM/YYYY calendar picker */

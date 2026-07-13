@@ -14,7 +14,7 @@ import {
     DragEndEvent,
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Opportunity, OpportunityStage } from '@/types/opportunity';
+import { Opportunity, OpportunityStage, isPickupToday } from '@/types/opportunity';
 import { KanbanColumn } from './kanban-column';
 import { KanbanCard } from './kanban-card';
 
@@ -252,11 +252,17 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
                 {...handlers}
             >
                 <div className="kanban-scroll-area flex gap-4 min-w-max px-6">
-                    {STAGES.map((stage) => (
+                    {STAGES.map((stage) => {
+                        const items = opportunities.filter((o) => o.stage === stage);
+                        const columnItems = [
+                            ...items.filter(isPickupToday),
+                            ...items.filter((o) => !isPickupToday(o)),
+                        ];
+                        return (
                         <KanbanColumn
                             key={stage}
                             stage={stage}
-                            opportunities={opportunities.filter((o) => o.stage === stage)}
+                            opportunities={columnItems}
                             onEdit={onEditOpportunity}
                             onDelete={onDeleteOpportunity}
                             onWinCase={onWinCase}
@@ -264,7 +270,8 @@ export function KanbanBoard({ initialOpportunities, onStageChange, onEditOpportu
                             onRefresh={onRefresh}
                             onPhytoDoneChange={onPhytoDoneChange}
                         />
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
