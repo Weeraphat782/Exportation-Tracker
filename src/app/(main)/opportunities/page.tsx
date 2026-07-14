@@ -295,9 +295,9 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const handlePhytoDoneChange = useCallback((opportunityId: string, phytoDone: boolean) => {
+  const handleOpportunityPatch = useCallback((opportunityId: string, patch: Partial<Opportunity>) => {
     setOpportunities((prev) =>
-      prev.map((o) => (o.id === opportunityId ? { ...o, phytoDone } : o))
+      prev.map((o) => (o.id === opportunityId ? { ...o, ...patch } : o))
     );
   }, []);
 
@@ -775,7 +775,7 @@ export default function OpportunitiesPage() {
                   onWinCase={handleWinCase}
                   onLoseCase={handleLoseCase}
                   onRefresh={fetchOpportunities}
-                  onPhytoDoneChange={handlePhytoDoneChange}
+                  onOpportunityPatch={handleOpportunityPatch}
                   onReorder={handleReorder}
                   initialOpportunities={filteredOpportunities}
                 />
@@ -789,6 +789,7 @@ export default function OpportunitiesPage() {
                   onWinCase={handleWinCase}
                   onLoseCase={handleLoseCase}
                   onRefresh={fetchOpportunities}
+                  onOpportunityPatch={handleOpportunityPatch}
                 />
               </div>
             );

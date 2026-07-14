@@ -31,8 +31,8 @@ interface KanbanCardProps {
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
   onRefresh?: () => void;
-  /** Patch parent/board state after phyto saves — avoids full refetch */
-  onPhytoDoneChange?: (opportunityId: string, phytoDone: boolean) => void;
+  /** Patch parent/board state after inline saves — avoids full refetch */
+  onOpportunityPatch?: (opportunityId: string, patch: Partial<Opportunity>) => void;
 }
 
 const FOCUS_COLORS = [
@@ -45,7 +45,7 @@ const FOCUS_COLORS = [
   { label: 'Orange', value: '#f97316', class: 'bg-orange-500' },
 ];
 
-export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase, onRefresh, onPhytoDoneChange }: KanbanCardProps) {
+export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCase, onRefresh, onOpportunityPatch }: KanbanCardProps) {
   // console.log(`Card ${opportunity.id}: onEdit is`, !!onEdit);
   const router = useRouter();
   const [creating] = useState(false);
@@ -177,7 +177,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
       if (error) throw error;
 
       toast.success(next ? 'Saved: Phyto marked as done' : 'Phyto mark cleared');
-      onPhytoDoneChange?.(opportunity.id, next);
+      onOpportunityPatch?.(opportunity.id, { phytoDone: next });
     } catch (err) {
       console.error('Error updating phyto_done:', err);
       setPhytoDone(!!opportunity.phytoDone);
@@ -198,6 +198,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
       if (error) throw error;
       toast.success('Pickup date updated');
+      onOpportunityPatch?.(opportunity.id, { pickupDate: date || undefined });
     } catch (err) {
       console.error('Error updating pickup date:', err);
       setPickupDate(opportunity.pickupDate || '');
@@ -260,6 +261,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
       if (error) throw error;
       toast.success(date ? 'Payment date saved' : 'Payment date cleared');
+      onOpportunityPatch?.(opportunity.id, { paymentDate: date || undefined });
       if (date) {
         setShowPaymentInput(false);
       }
@@ -660,7 +662,6 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                   className="bg-white border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] w-full focus:ring-1 focus:ring-emerald-500 outline-none"
                   value={pickupDate}
                   onChange={(e) => handlePickupDateChange(e.target.value)}
-                  disabled={isUpdatingPickupDate}
                 />
                 {isUpdatingPickupDate && <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />}
               </div>
@@ -703,7 +704,6 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     className="bg-white border border-amber-200 rounded px-1.5 py-0.5 text-[10px] w-full focus:ring-1 focus:ring-amber-500 outline-none"
                     value={paymentDate}
                     onChange={(e) => handlePaymentDateChange(e.target.value)}
-                    disabled={isUpdatingPaymentDate}
                   />
                   {isUpdatingPaymentDate && <Loader2 className="h-3 w-3 animate-spin text-amber-600 shrink-0" />}
                 </div>
@@ -712,7 +712,6 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
                     type="button"
                     className="text-[10px] text-amber-700 hover:text-amber-900 underline"
                     onClick={() => handlePaymentDateChange('')}
-                    disabled={isUpdatingPaymentDate}
                   >
                     Clear
                   </button>

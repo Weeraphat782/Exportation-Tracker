@@ -43,6 +43,7 @@ interface ListViewProps {
   onWinCase?: (id: string) => void;
   onLoseCase?: (id: string) => void;
   onRefresh?: () => void;
+  onOpportunityPatch?: (opportunityId: string, patch: Partial<Opportunity>) => void;
 }
 
 /** Inline editable date cell (payment / pickup) using a DD/MM/YYYY calendar picker */
@@ -51,11 +52,13 @@ function EditableDateCell({
   initial,
   column,
   successLabel,
+  onOpportunityPatch,
 }: {
   opportunityId: string;
   initial: string;
   column: 'payment_date' | 'pickup_date';
   successLabel: string;
+  onOpportunityPatch?: (opportunityId: string, patch: Partial<Opportunity>) => void;
 }) {
   const [value, setValue] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -75,6 +78,11 @@ function EditableDateCell({
         .eq('id', opportunityId);
       if (error) throw error;
       toast.success(date ? `${successLabel} saved` : `${successLabel} cleared`);
+      onOpportunityPatch?.(opportunityId, {
+        ...(column === 'pickup_date'
+          ? { pickupDate: date || undefined }
+          : { paymentDate: date || undefined }),
+      });
     } catch (err) {
       console.error(`Error updating ${column}:`, err);
       setValue(previous);
@@ -245,7 +253,7 @@ function QuoteChips({ opp }: { opp: Opportunity }) {
   );
 }
 
-export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCase }: ListViewProps) {
+export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCase, onOpportunityPatch }: ListViewProps) {
   const router = useRouter();
 
   const formatDate = (dateString: string) => {
@@ -370,6 +378,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                       initial={opp.paymentDate || ''}
                       column="payment_date"
                       successLabel="Payment date"
+                      onOpportunityPatch={onOpportunityPatch}
                     />
                   </TableCell>
 
@@ -380,6 +389,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                       initial={opp.pickupDate || ''}
                       column="pickup_date"
                       successLabel="Pickup date"
+                      onOpportunityPatch={onOpportunityPatch}
                     />
                   </TableCell>
 
@@ -534,6 +544,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                     initial={opp.paymentDate || ''}
                     column="payment_date"
                     successLabel="Payment date"
+                    onOpportunityPatch={onOpportunityPatch}
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -543,6 +554,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                     initial={opp.pickupDate || ''}
                     column="pickup_date"
                     successLabel="Pickup date"
+                    onOpportunityPatch={onOpportunityPatch}
                   />
                 </div>
                 <div className="flex items-center justify-between">
