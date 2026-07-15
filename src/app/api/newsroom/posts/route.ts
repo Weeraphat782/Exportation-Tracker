@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
+import { triggerMarketingRebuild } from '@/lib/trigger-marketing-rebuild';
 
 function revalidateNewsroomAfterPublish(slug: string) {
   revalidateTag('news:list');
   revalidateTag(`news:article:${slug}`);
   revalidatePath('/site/newsroom');
   revalidatePath(`/site/newsroom/${slug}`);
+  triggerMarketingRebuild('newsroom-agent');
 }
 
 /**

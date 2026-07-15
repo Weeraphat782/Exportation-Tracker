@@ -99,6 +99,9 @@ export default function CmsNewsFormPage() {
                 toast.success('Article created');
                 router.push('/cms/news');
             }
+            if (form.is_published) {
+                fetch('/api/marketing/rebuild', { method: 'POST' }).catch(() => {});
+            }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Save failed';
             toast.error(message);

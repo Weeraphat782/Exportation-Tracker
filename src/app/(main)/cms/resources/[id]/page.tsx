@@ -118,6 +118,9 @@ export default function CmsResourceFormPage() {
                 toast.success('Resource created');
                 router.push('/cms/resources');
             }
+            if (form.is_published) {
+                fetch('/api/marketing/rebuild', { method: 'POST' }).catch(() => {});
+            }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Save failed';
             toast.error(message);

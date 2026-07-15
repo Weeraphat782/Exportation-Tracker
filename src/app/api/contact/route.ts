@@ -7,7 +7,42 @@ export const dynamic = 'force-dynamic';
 
 const MAX_MESSAGE_LEN = 10_000;
 
+function allowedOrigin(origin: string | null): string | null {
+  if (!origin) return null;
+  const extra = process.env.MARKETING_SITE_ORIGIN?.split(',').map((s) => s.trim()) ?? [];
+  const allowed = [
+    'http://localhost:4321',
+    'https://web.omgexp.com',
+    ...extra,
+  ];
+  if (allowed.includes(origin)) return origin;
+  if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return origin;
+  return null;
+}
+
+function corsHeaders(origin: string | null): HeadersInit {
+  const o = allowedOrigin(origin);
+  if (!o) return {};
+  return {
+    'Access-Control-Allow-Origin': o,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
+
+function json(data: unknown, status: number, origin: string | null) {
+  return NextResponse.json(data, { status, headers: corsHeaders(origin) });
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders(request.headers.get('origin')),
+  });
+}
+
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
   try {
     const body = await request.json();
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -19,9 +54,10 @@ export async function POST(request: NextRequest) {
     let message = typeof body.message === 'string' ? body.message.trim() : '';
 
     if (!name || !email || !message) {
-      return NextResponse.json(
+      return json(
         { error: 'Name, email, and message are required.' },
-        { status: 400 }
+        400,
+        origin,
       );
     }
 
@@ -31,18 +67,16 @@ export async function POST(request: NextRequest) {
 
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!emailOk) {
-      return NextResponse.json(
+      return json(
         { error: 'Please provide a valid email address.' },
-        { status: 400 }
+        400,
+        origin,
       );
     }
 
     const supabase = getSupabaseServerClient();
     if (!supabase) {
-      return NextResponse.json(
-        { error: 'Server configuration error.' },
-        { status: 500 }
-      );
+      return json({ error: 'Server configuration error.' }, 500, origin);
     }
 
     const { error: insertError } = await supabase
@@ -57,9 +91,10 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[api/contact] Supabase insert error:', insertError);
-      return NextResponse.json(
+      return json(
         { error: 'Could not save your message. Please try again later.' },
-        { status: 500 }
+        500,
+        origin,
       );
     }
 
@@ -79,15 +114,12 @@ export async function POST(request: NextRequest) {
       message,
     });
 
-    return NextResponse.json({ ok: true });
+    return json({ ok: true }, 200, origin);
   } catch (e) {
     if (e instanceof SyntaxError) {
-      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+      return json({ error: 'Invalid JSON body.' }, 400, origin);
     }
     console.error('[api/contact]', e);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred.' },
-      { status: 500 }
-    );
+    return json({ error: 'An unexpected error occurred.' }, 500, origin);
   }
 }
