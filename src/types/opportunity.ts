@@ -50,6 +50,7 @@ export interface Opportunity {
         quotation_no?: string;
         customer_user_id?: string | null;
         phyto_required?: boolean;
+        notes?: string | null;
         commodity_type?: 'cannabis' | 'hemp' | 'kratom' | 'general' | null;
         status?: string;
         docs_count?: number;

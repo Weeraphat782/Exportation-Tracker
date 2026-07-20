@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane, Mail, Link } from 'lucide-react';
+import { GripVertical, ExternalLink, Loader2, MoreHorizontal, Edit, Trash, Plus, CheckCircle, XCircle, FileText, Palette, UserCircle2, Leaf, FileCheck, BadgeCheck, Banknote, Plane, Mail, Link, Thermometer } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -289,6 +289,7 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
   const hasFromCustomer = quotes.some((q) => !!q.customer_user_id);
   const hasPhyto = quotes.some((q) => q.phyto_required);
+  const hasDataLogger = quotes.some((q) => q.notes?.includes('[DATA LOGGER]'));
   const totalDocs = quotes.reduce((s, q) => s + (q.docs_count || 0), 0);
   const allPriceConfirmed = quotes.length > 0 && quotes.every((q) => q.price_confirmed);
   const commodities = Array.from(
@@ -592,6 +593,11 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
               {hasPhyto && (
                 <span title="Phytosanitary service requested" className="inline-flex items-center text-emerald-700">
                   <Leaf className="w-3.5 h-3.5" />
+                </span>
+              )}
+              {hasDataLogger && (
+                <span title="Data logger attached (MSDS)" className="inline-flex items-center text-sky-600">
+                  <Thermometer className="w-3.5 h-3.5" />
                 </span>
               )}
               {totalDocs > 0 && (

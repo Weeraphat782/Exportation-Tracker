@@ -42,7 +42,7 @@ export default function OpportunitiesPage() {
         *,
         quotations(
           id, price_confirmed, total_cost, vat_amount, wht_amount, wht_enabled, quotation_no,
-          customer_user_id, phyto_required, commodity_type, status,
+          customer_user_id, phyto_required, notes, commodity_type, status,
           awb_number, awb_file_url, booking_share_token,
           document_submissions(count)
         ),
@@ -96,6 +96,7 @@ export default function OpportunitiesPage() {
           quotation_no?: string;
           customer_user_id?: string | null;
           phyto_required?: boolean | null;
+          notes?: string | null;
           commodity_type?: string | null;
           status?: string;
           awb_number?: string | null;
@@ -129,6 +130,7 @@ export default function OpportunitiesPage() {
               quotation_no: q.quotation_no,
               customer_user_id: q.customer_user_id ?? null,
               phyto_required: !!q.phyto_required,
+              notes: q.notes ?? null,
               commodity_type: (q.commodity_type as 'cannabis' | 'hemp' | 'kratom' | 'general' | null) ?? null,
               status: q.status,
               docs_count: q.document_submissions?.[0]?.count ?? 0,

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, Link2Off, ScrollText, UserCircle2, Leaf, Bookmark, BookmarkX } from 'lucide-react';
+import { Plus, FileText, Trash, Search, Share2, CheckCircle, Calendar, Mail, Receipt, MoreHorizontal, FileArchive, CalendarDays, Copy, Settings2, Save, ChevronDown, X, UserPlus, Link2, Link2Off, ScrollText, UserCircle2, Leaf, Bookmark, BookmarkX, Thermometer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import {
@@ -1017,6 +1017,14 @@ export default function ShippingCalculatorPage() {
                           title="Customer requested Phytosanitary Certificate service"
                         >
                           <Leaf className="w-4 h-4" />
+                        </span>
+                      )}
+                      {quotation.notes?.includes('[DATA LOGGER]') && (
+                        <span
+                          className="inline-flex items-center justify-center text-sky-600"
+                          title="Customer will attach data logger (MSDS)"
+                        >
+                          <Thermometer className="w-4 h-4" />
                         </span>
                       )}
                       {quotation.opportunity_id ? (
