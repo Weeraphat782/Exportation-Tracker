@@ -45,7 +45,7 @@ function toMarketingPath(pathname: string): string {
 
 /**
  * When NEXT_PUBLIC_MARKETING_URL is set (local/staging only), send marketing HTML
- * to the Astro site. Auth stays on this app. ponytail: 307 not 301 until cutover.
+ * to the Astro site. Auth stays on this app. 301 for GSC after cutover.
  */
 function marketingRedirect(request: NextRequest): NextResponse | null {
   const base = process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '');
@@ -58,7 +58,7 @@ function marketingRedirect(request: NextRequest): NextResponse | null {
 
   const target = new URL(toMarketingPath(pathname), base);
   target.search = request.nextUrl.search;
-  return NextResponse.redirect(target, 307);
+  return NextResponse.redirect(target, 301);
 }
 
 export function middleware(request: NextRequest) {

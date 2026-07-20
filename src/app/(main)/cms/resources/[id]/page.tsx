@@ -119,7 +119,12 @@ export default function CmsResourceFormPage() {
                 router.push('/cms/resources');
             }
             if (form.is_published) {
-                fetch('/api/marketing/rebuild', { method: 'POST' }).catch(() => {});
+                fetch('/api/marketing/rebuild', { method: 'POST' })
+                    .then((r) => r.json())
+                    .then((data: { triggered?: boolean }) => {
+                        if (data.triggered) toast.success('Marketing site rebuild started');
+                    })
+                    .catch(() => {});
             }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Save failed';
