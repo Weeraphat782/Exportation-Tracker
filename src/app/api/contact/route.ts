@@ -13,6 +13,8 @@ function allowedOrigin(origin: string | null): string | null {
   const allowed = [
     'http://localhost:4321',
     'https://web.omgexp.com',
+    'https://www.omgcargo.tech',
+    'https://omgcargo.tech',
     ...extra,
   ];
   if (allowed.includes(origin)) return origin;
