@@ -59,6 +59,8 @@ let client: BetaAnalyticsDataClient | null = null;
 
 /** Public marketing site path prefix — excludes internal staff app routes. */
 const PUBLIC_PATH_PREFIX = process.env.GA_PUBLIC_PATH_PREFIX?.trim() || '/site';
+const MARKETING_GA_HOSTNAME =
+  process.env.MARKETING_GA_HOSTNAME?.trim() || 'www.omgcargo.tech';
 
 function getPropertyId(): string | null {
   const id = process.env.GA4_PROPERTY_ID?.trim();
@@ -144,12 +146,19 @@ function priorRange(range: GaDateRange): GaDateRange {
 function sitePathFilter(
   fieldName: 'pagePath' | 'landingPage' = 'pagePath'
 ): protos.google.analytics.data.v1beta.IFilterExpression {
-  return {
+  const legacyPath: protos.google.analytics.data.v1beta.IFilterExpression = {
     filter: {
       fieldName,
       stringFilter: { matchType: 'BEGINS_WITH', value: PUBLIC_PATH_PREFIX },
     },
   };
+  const newDomain: protos.google.analytics.data.v1beta.IFilterExpression = {
+    filter: {
+      fieldName: 'hostName',
+      stringFilter: { matchType: 'EXACT', value: MARKETING_GA_HOSTNAME },
+    },
+  };
+  return { orGroup: { expressions: [newDomain, legacyPath] } };
 }
 
 function withSiteFilter(
