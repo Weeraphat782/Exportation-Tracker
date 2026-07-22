@@ -6,6 +6,7 @@ export type OpportunityStage =
     | 'booking_requested'
     | 'awb_received'
     | 'waiting_for_pickup'
+    | 'picked_up'
     | 'payment_received';
 
 // Closure status - separate from stage
@@ -79,6 +80,7 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
     booking_requested: 'Booking Requested',
     awb_received: 'AWB Received',
     waiting_for_pickup: 'Waiting for Pickup',
+    picked_up: 'Picked Up',
     payment_received: 'Payment Received',
 };
 
@@ -90,5 +92,6 @@ export const STAGE_COLORS: Record<OpportunityStage, string> = {
     booking_requested: 'bg-violet-50 text-violet-700 border-violet-200',
     awb_received: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     waiting_for_pickup: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    picked_up: 'bg-teal-50 text-teal-700 border-teal-200',
     payment_received: 'bg-amber-50 text-amber-700 border-amber-200',
 };

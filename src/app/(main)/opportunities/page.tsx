@@ -594,6 +594,7 @@ export default function OpportunitiesPage() {
       case 'pending_booking': return 45;
       case 'booking_requested': return 60;
       case 'awb_received': return 75;
+      case 'picked_up': return 80;
       case 'payment_received': return 85;
       default: return 0;
     }
