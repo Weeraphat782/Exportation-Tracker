@@ -78,7 +78,7 @@ export default function SetupPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-white rounded-sm border border-gray-100 shadow-sm p-6 space-y-5">
 
           {/* Full name */}
           <div>
@@ -207,7 +207,7 @@ export default function SetupPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#215497] hover:bg-[#1a4278] text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#184878] hover:bg-[#1a4278] text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />

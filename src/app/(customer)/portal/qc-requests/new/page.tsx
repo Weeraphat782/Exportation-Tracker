@@ -552,7 +552,7 @@ export default function NewQcRequestPage() {
                   </div>
 
                   {minSampleSummary.length > 0 && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--info-bg)] p-3 text-sm text-blue-900">
                       <p className="font-semibold">ปริมาณตัวอย่างขั้นต่ำที่ต้องส่ง</p>
                       <ul className="mt-1 list-disc list-inside space-y-0.5">
                         {minSampleSummary.map((line) => (

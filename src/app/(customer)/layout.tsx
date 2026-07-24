@@ -58,9 +58,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
       )}
 
-      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transition-transform duration-300 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r transition-transform duration-300 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderColor: 'var(--line)' }}>
         {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-gray-100">
+        <div className="h-16 flex items-center px-5 border-b" style={{ borderColor: 'var(--line)' }}>
           <Link href="/portal" className="flex items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="OMGEXP" className="h-10 w-auto" />
@@ -89,16 +89,16 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                   if ('isNew' in item && item.isNew) markQcFeatureSeen();
                   onClose();
                 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                  ? 'bg-blue-50 text-[#215497] shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors border-l-4 ${isActive
+                  ? 'border-[var(--green-500)] bg-[var(--info-bg)] text-[var(--navy-700)]'
+                  : 'border-transparent text-[#5c656e] hover:bg-[var(--paper-muted)] hover:text-[var(--navy-950)]'
                   }`}
               >
-                <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-[#215497]' : 'text-gray-400'}`} />
+                <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-[var(--navy-700)]' : 'text-[#9aa2aa]'}`} />
                 <span className="flex-1">{item.label}</span>
                 {'isNew' in item && item.isNew && !qcFeatureSeen && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white animate-pulse-glow">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--success)]" style={{ background: 'var(--success-bg)' }}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
                     New
                   </span>
                 )}
@@ -108,9 +108,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </nav>
 
         {/* Bottom section */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-            <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-[#215497] font-semibold text-sm" suppressHydrationWarning>
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t" style={{ borderColor: 'var(--line)' }}>
+          <div className="flex items-center gap-3 p-3 rounded-sm bg-[var(--paper-muted)]">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm text-[var(--navy-700)]" style={{ background: 'var(--info-bg)' }} suppressHydrationWarning>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
@@ -120,7 +120,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
           <button
             onClick={() => signOut()}
-            className="flex items-center gap-2 w-full mt-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex items-center gap-2 w-full mt-2 px-3 py-2 text-sm text-[#5c656e] hover:text-[var(--error)] hover:bg-[var(--error-bg)] rounded-sm transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -142,7 +142,7 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
     : displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="h-16 bg-white border-b flex items-center justify-between px-4 sm:px-6 lg:px-8" style={{ borderColor: 'var(--line)' }}>
       <div className="flex items-center gap-3">
         <button className="lg:hidden p-2 rounded-lg hover:bg-gray-100" onClick={onMenuClick}>
           <Menu className="w-5 h-5 text-gray-600" />
@@ -164,8 +164,8 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
 
           {notifOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-100">
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-sm shadow-[0_8px_24px_rgba(13,44,77,0.1)] border py-2 z-50" style={{ borderColor: 'var(--line)' }}>
+              <div className="px-4 py-2 border-b" style={{ borderColor: 'var(--line)' }}>
                 <span className="text-sm font-semibold text-gray-900">Notifications</span>
               </div>
               <div className="px-4 py-6 text-center text-sm text-gray-400">
@@ -176,7 +176,7 @@ function PortalHeader({ onMenuClick }: { onMenuClick: () => void }) {
         </div>
 
         {/* User avatar */}
-        <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-[#215497] font-semibold text-sm ml-1" suppressHydrationWarning>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm ml-1 text-[var(--navy-700)]" style={{ background: 'var(--info-bg)' }} suppressHydrationWarning>
           {initials}
         </div>
       </div>
@@ -217,7 +217,7 @@ function CustomerLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--paper-muted)]" data-portal-shell>
       <AuthRedirect />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:ml-64 min-h-screen flex flex-col">

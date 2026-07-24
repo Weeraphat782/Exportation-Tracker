@@ -27,16 +27,16 @@ function formatPayableThb(amount: number) {
 }
 
 function getStageDisplay(stage?: string, status?: string) {
-    if (status === 'completed') return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6, barColor: 'bg-emerald-500' };
-    if (status === 'Shipped') return { label: 'Shipped', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
+    if (status === 'completed') return { label: 'Delivered', color: 'text-[#4a9c2d]', bgColor: 'bg-[#eaf6e0] border-[#4a9c2d]/20', step: 6, barColor: 'bg-[#4a9c2d]' };
+    if (status === 'Shipped') return { label: 'Shipped', color: 'text-[#184878]', bgColor: 'bg-[#e6eef6] border-[#184878]/20', step: 4, barColor: 'bg-[#184878]' };
     switch (stage) {
-        case 'payment_received': return { label: 'Delivered', color: 'text-emerald-700', bgColor: 'bg-emerald-50 border-emerald-200', step: 6, barColor: 'bg-emerald-500' };
-        case 'waiting_for_pickup': return { label: 'Waiting for Pick Up', color: 'text-teal-700', bgColor: 'bg-teal-50 border-teal-200', step: 5, barColor: 'bg-teal-500' };
-        case 'awb_received': return { label: 'AWB Received', color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200', step: 4, barColor: 'bg-blue-500' };
-        case 'booking_requested': return { label: 'Booking Requested', color: 'text-cyan-700', bgColor: 'bg-cyan-50 border-cyan-200', step: 3, barColor: 'bg-cyan-500' };
-        case 'pending_booking': return { label: 'Pending Booking', color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200', step: 2, barColor: 'bg-purple-500' };
-        case 'pending_docs': return { label: 'Pending Documents', color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200', step: 1, barColor: 'bg-amber-500' };
-        default: return { label: 'Preparing', color: 'text-slate-700', bgColor: 'bg-slate-50 border-slate-200', step: 0, barColor: 'bg-slate-400' };
+        case 'payment_received': return { label: 'Delivered', color: 'text-[#4a9c2d]', bgColor: 'bg-[#eaf6e0] border-[#4a9c2d]/20', step: 6, barColor: 'bg-[#4a9c2d]' };
+        case 'waiting_for_pickup': return { label: 'Waiting for Pick Up', color: 'text-[#184878]', bgColor: 'bg-[#e6eef6] border-[#184878]/20', step: 5, barColor: 'bg-[#2c6fac]' };
+        case 'awb_received': return { label: 'AWB Received', color: 'text-[#184878]', bgColor: 'bg-[#e6eef6] border-[#184878]/20', step: 4, barColor: 'bg-[#184878]' };
+        case 'booking_requested': return { label: 'Booking Requested', color: 'text-[#184878]', bgColor: 'bg-[#e6eef6] border-[#184878]/20', step: 3, barColor: 'bg-[#2c6fac]' };
+        case 'pending_booking': return { label: 'Pending Booking', color: 'text-[#5c656e]', bgColor: 'bg-[var(--paper-muted)] border-[var(--line)]', step: 2, barColor: 'bg-[#9aa2aa]' };
+        case 'pending_docs': return { label: 'Pending Documents', color: 'text-[#e0a209]', bgColor: 'bg-[#fef9e7] border-[#e0a209]/30', step: 1, barColor: 'bg-[#e0a209]' };
+        default: return { label: 'Preparing', color: 'text-[#5c656e]', bgColor: 'bg-[var(--paper-muted)] border-[var(--line)]', step: 0, barColor: 'bg-[#c4cad0]' };
     }
 }
 
@@ -57,8 +57,8 @@ function MiniProgress({ step }: { step: number }) {
                 <div
                     key={s}
                     className={`h-1.5 flex-1 rounded-full transition-all ${s <= step
-                        ? step >= 6 ? 'bg-emerald-500' : 'bg-blue-500'
-                        : 'bg-gray-100'
+                        ? step >= 6 ? 'bg-[#4a9c2d]' : 'bg-[#184878]'
+                        : 'bg-[var(--line)]'
                         }`}
                 />
             ))}
@@ -75,13 +75,13 @@ function ShipmentListCard({ q }: { q: Quotation }) {
     return (
         <Link
             href={`/portal/shipments/${q.id}`}
-            className="block bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-emerald-200 transition-all group"
+            className="block bg-white rounded-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-emerald-200 transition-all group"
         >
             <div className="p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     {/* Left: Icon + Info */}
                     <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${sc.step >= 6 ? 'bg-emerald-50 text-emerald-600' : sc.step === 5 ? 'bg-teal-50 text-teal-600' : sc.step >= 4 ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                        <div className={`w-12 h-12 rounded-sm flex items-center justify-center shrink-0 transition-colors ${sc.step >= 6 ? 'bg-emerald-50 text-emerald-600' : sc.step === 5 ? 'bg-teal-50 text-teal-600' : sc.step >= 4 ? 'bg-[var(--info-bg)] text-[var(--navy-700)]' : 'bg-amber-50 text-amber-600'
                             }`}>
                             <Plane className={`w-6 h-6 ${sc.step >= 4 ? 'animate-bounce' : ''}`} />
                         </div>
@@ -89,12 +89,12 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                             <div className="flex items-center gap-2.5 flex-wrap">
                                 <span className="text-base font-bold text-gray-900">{q.quotation_no || q.id.slice(0, 8)}</span>
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${sc.bgColor} ${sc.color}`}>
-                                    {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-1.5 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-blue-500'}`} />}
+                                    {(sc.step === 4 || sc.step === 5) && <span className={`w-1.5 h-1.5 rounded-full mr-1.5 animate-pulse ${sc.step === 5 ? 'bg-teal-500' : 'bg-[var(--navy-700)]'}`} />}
                                     {sc.label}
                                 </span>
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                                <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                                <span className="flex items-center gap-1 text-[var(--navy-700)] font-semibold">
                                     <MapPin className="w-3.5 h-3.5" /> {pricingPending ? 'Destination TBD' : (q.destination || 'N/A')}
                                 </span>
                                 <span className="flex items-center gap-1">
@@ -126,7 +126,7 @@ function ShipmentListCard({ q }: { q: Quotation }) {
                                 <div className={`text-lg font-black ${q.price_confirmed ? 'text-emerald-700' : 'text-amber-700'}`}>{formatPayableThb(getQuotationPayableTotalThb(q))}</div>
                             </div>
                         )}
-                        <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
+                        <div className="w-9 h-9 rounded-sm bg-gray-50 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-600 text-gray-400 transition-all">
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                         </div>
                     </div>
@@ -249,9 +249,9 @@ export default function MyShipmentsPage() {
                         href="/manual/index.html"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-xl hover:opacity-90 hover:shadow-lg transition-all"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-bold rounded-sm hover:opacity-90 hover:shadow-lg transition-all"
                         style={{
-                            background: "linear-gradient(135deg, #215497 0%, #2c6bb8 100%)",
+                            background: "linear-gradient(135deg, #184878 0%, #2c6bb8 100%)",
                             boxShadow: "0 4px 14px rgba(33,84,151,0.35)",
                         }}
                     >
@@ -259,11 +259,11 @@ export default function MyShipmentsPage() {
                     </a>
                     <Link
                         href="/portal/quotations/new"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-sm hover:bg-emerald-700 transition-colors shadow-sm"
                     >
                         <PlusCircle className="w-4 h-4" /> Request Quote
                     </Link>
-                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-sm border border-gray-100 shadow-sm">
                         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                         <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Live</span>
                     </div>
@@ -271,7 +271,7 @@ export default function MyShipmentsPage() {
             </div>
 
             {showQcPromo && (
-                <div className="relative overflow-hidden rounded-2xl border border-emerald-300/50 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-5 text-white shadow-lg animate-scale-in">
+                <div className="relative overflow-hidden rounded-sm border border-emerald-300/50 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 p-5 text-white shadow-lg animate-scale-in">
                     {/* Decorative blobs */}
                     <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                     <div className="pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-cyan-300/20 blur-2xl" />
@@ -286,7 +286,7 @@ export default function MyShipmentsPage() {
                         <X className="w-4 h-4" />
                     </button>
                     <div className="relative z-[1] flex flex-col sm:flex-row sm:items-center gap-4 pr-8">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-white/20 backdrop-blur-sm">
                             <FlaskConical className="h-6 w-6 animate-float" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -302,7 +302,7 @@ export default function MyShipmentsPage() {
                         </div>
                         <Link
                             href="/portal/qc-requests/new"
-                            className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-md hover:bg-emerald-50 hover:scale-105 transition-all"
+                            className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-sm bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-md hover:bg-emerald-50 hover:scale-105 transition-all"
                         >
                             Try QC Request
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -319,11 +319,11 @@ export default function MyShipmentsPage() {
                     { label: 'Shipped', value: stats.shipped, icon: Plane, color: 'blue' },
                     { label: 'Delivered', value: stats.delivered, icon: CheckCircle2, color: 'violet' },
                 ].map((s, i) => (
-                    <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow">
+                    <div key={i} className="bg-white rounded-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color === 'emerald' ? 'bg-emerald-50' : s.color === 'amber' ? 'bg-amber-50' : s.color === 'blue' ? 'bg-blue-50' : 'bg-violet-50'
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color === 'emerald' ? 'bg-emerald-50' : s.color === 'amber' ? 'bg-amber-50' : s.color === 'blue' ? 'bg-[var(--info-bg)]' : 'bg-violet-50'
                                 }`}>
-                                <s.icon className={`w-4 h-4 ${s.color === 'emerald' ? 'text-emerald-600' : s.color === 'amber' ? 'text-amber-600' : s.color === 'blue' ? 'text-blue-600' : 'text-violet-600'
+                                <s.icon className={`w-4 h-4 ${s.color === 'emerald' ? 'text-emerald-600' : s.color === 'amber' ? 'text-amber-600' : s.color === 'blue' ? 'text-[var(--navy-700)]' : 'text-violet-600'
                                     }`} />
                             </div>
                             <div>
@@ -345,7 +345,7 @@ export default function MyShipmentsPage() {
                     placeholder="Search by quotation number, destination..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
             </div>
 
@@ -359,11 +359,11 @@ export default function MyShipmentsPage() {
                     {pendingRequests.map((q) => (
                         <div
                             key={q.id}
-                            className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5"
+                            className="bg-amber-50/50 rounded-sm border border-amber-100 p-5"
                         >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                                    <div className="w-12 h-12 rounded-sm flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
                                         <Clock className="w-6 h-6" />
                                     </div>
                                     <div className="space-y-1.5 min-w-0">
@@ -406,14 +406,14 @@ export default function MyShipmentsPage() {
                                         <button
                                             onClick={() => handleCancel(q.id)}
                                             disabled={cancellingId === q.id}
-                                            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
+                                            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-sm border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 transition-colors disabled:opacity-50"
                                         >
                                             {cancellingId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                                             Cancel
                                         </button>
                                         <Link
                                             href={`/portal/shipments/${q.id}#documents`}
-                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors flex-1 sm:flex-none"
+                                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-sm bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm transition-colors flex-1 sm:flex-none"
                                         >
                                             <FileText className="w-3.5 h-3.5" /> Open &amp; upload documents
                                             <ArrowRight className="w-3.5 h-3.5" />
@@ -428,13 +428,13 @@ export default function MyShipmentsPage() {
 
             {/* Shipment List (active only) */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-gray-100 flex items-center justify-center py-20">
+                <div className="bg-white rounded-sm border border-gray-100 flex items-center justify-center py-20">
                     <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                 </div>
             ) : activeFiltered.length === 0 && completedFiltered.length === 0 ? (
-                <div className="bg-white rounded-xl border border-gray-100">
+                <div className="bg-white rounded-sm border border-gray-100">
                     <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                        <div className="w-16 h-16 bg-gray-50 rounded-sm flex items-center justify-center mb-4">
                             <Inbox className="w-8 h-8 text-gray-300" />
                         </div>
                         <h3 className="text-base font-semibold text-gray-900 mb-1">
@@ -448,9 +448,9 @@ export default function MyShipmentsPage() {
                     </div>
                 </div>
             ) : activeFiltered.length === 0 ? (
-                <div className="bg-white rounded-xl border border-gray-100">
+                <div className="bg-white rounded-sm border border-gray-100">
                     <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                        <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-3">
+                        <div className="w-14 h-14 bg-emerald-50 rounded-sm flex items-center justify-center mb-3">
                             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                         </div>
                         <h3 className="text-base font-semibold text-gray-900 mb-1">All shipments delivered</h3>
@@ -477,7 +477,7 @@ export default function MyShipmentsPage() {
 
             {/* Completed shipments (collapsed by default) */}
             {!loading && completedFiltered.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="bg-white rounded-sm border border-gray-100 overflow-hidden">
                     <button
                         type="button"
                         onClick={() => setShowCompleted((v) => !v)}

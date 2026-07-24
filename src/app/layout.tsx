@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Inter, Dancing_Script } from "next/font/google";
+import { Inter, Dancing_Script, Public_Sans, Barlow } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ScrollToTop";
 import { Toaster } from "sonner";
@@ -16,6 +16,19 @@ import {
 } from "@/lib/site";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", preload: true });
+
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-public-sans",
+});
+
+const barlow = Barlow({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+  variable: "--font-barlow",
+});
 
 /** Cursive style for quotation issuer line (Shivek Sachdev) — use `[font-family:var(--font-quotation-signature)]` */
 const quotationSignatureFont = Dancing_Script({
@@ -142,7 +155,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} ${quotationSignatureFont.variable} min-w-0 overflow-x-hidden`}
+        className={`${publicSans.className} ${publicSans.variable} ${barlow.variable} ${inter.className} ${quotationSignatureFont.variable} min-w-0 overflow-x-hidden`}
       >
         {gtmId ? <GoogleTagManager gtmId={gtmId} /> : null}
         {gtmId ? (

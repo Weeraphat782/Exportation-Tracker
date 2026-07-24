@@ -6,9 +6,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans), var(--font-geist-sans);
+  --font-sans: var(--font-public-sans), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-dm-sans: var(--font-dm-sans);
+  --font-display: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
   /* Added for reference 1:1 */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -50,22 +51,33 @@
   --color-cantrak-green-dark: #689F38;
   --color-cantrak-green-light: #9CCC65;
 
-  /* OMGEXP Design Tokens - Logo-derived palette (Reference 1:1) */
-  --color-primary-ref: #215497;
-  --color-primary-dark-ref: #1a4279;
-  --color-accent-ref: #5BBF21;
-  --color-accent-hover-ref: #4da61c;
+  /* OMGEXP Design Tokens - aligned with marketing DS */
+  --color-primary-ref: #184878;
+  --color-primary-dark-ref: #0d2c4d;
+  --color-accent-ref: #6fbe44;
+  --color-accent-hover-ref: #5ea337;
+  --navy-950: #0d2c4d;
+  --navy-700: #184878;
+  --green-500: #6fbe44;
+  --success: #4a9c2d;
+  --success-bg: #eaf6e0;
+  --warning: #e0a209;
+  --error: #d64545;
+  --error-bg: #fdecec;
+  --info-bg: #e6eef6;
+  --line: #e2e6ea;
+  --paper-muted: #f8f9fa;
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.125rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.70 0.15 128);
+  --primary: oklch(0.72 0.17 128);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -76,7 +88,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --ring: oklch(0.45 0.08 250);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -84,7 +96,7 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.45 0.08 250);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
@@ -475,14 +487,24 @@
      ========================================= */
   .card-polished {
     background: white;
-    border-radius: 1rem;
-    border: 1px solid oklch(0.929 0.013 255.508);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 18px rgba(13, 44, 77, 0.07);
     transition: box-shadow 0.25s ease, transform 0.25s ease;
   }
   .card-polished:hover {
-    box-shadow: 0 8px 30px -4px rgba(33,84,151,0.12), 0 4px 12px -2px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 24px rgba(13, 44, 77, 0.1);
     transform: translateY(-2px);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .portal-card {
+    @apply rounded-sm border bg-white;
+    border-color: var(--line);
+    box-shadow: 0 6px 18px rgba(13, 44, 77, 0.07);
   }
 
   /* =========================================
@@ -493,7 +515,7 @@
   select:focus-visible {
     outline: none;
     border-color: var(--color-primary-ref) !important;
-    box-shadow: 0 0 0 3px rgba(33,84,151,0.12);
+    box-shadow: 0 0 0 3px rgba(24, 72, 120, 0.15);
   }
 }
 

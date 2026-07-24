@@ -155,7 +155,7 @@ function CompanyDocSlot({
   const hasFile = !!existing;
 
   return (
-    <div className={`rounded-xl border p-4 transition-all ${hasFile ? 'border-emerald-200 bg-emerald-50/30' : 'border-dashed border-gray-200 bg-gray-50/50'}`}>
+    <div className={`rounded-sm border p-4 transition-all ${hasFile ? 'border-emerald-200 bg-emerald-50/30' : 'border-dashed border-gray-200 bg-gray-50/50'}`}>
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           {hasFile ? (
@@ -388,10 +388,10 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Card */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-sm border border-gray-100 overflow-hidden shadow-sm">
         <div className="h-32 bg-gradient-to-r from-emerald-500 via-emerald-600 to-cyan-600 relative">
           <div className="absolute bottom-0 left-6 translate-y-1/2">
-            <div className="w-20 h-20 bg-white rounded-xl shadow-lg flex items-center justify-center text-2xl font-bold text-emerald-600 border-4 border-white">
+            <div className="w-20 h-20 bg-white rounded-sm shadow-lg flex items-center justify-center text-2xl font-bold text-emerald-600 border-4 border-white">
               {initials}
             </div>
           </div>
@@ -425,7 +425,7 @@ export default function ProfilePage() {
       {/* Info Grid */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Company Information */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md md:col-span-2">
+        <div className="bg-white rounded-sm border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md md:col-span-2">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
               <Building2 className="w-5 h-5" />
@@ -507,7 +507,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Contact / Personal Information */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md">
+        <div className="bg-white rounded-sm border border-gray-100 p-6 shadow-sm group transition-all hover:shadow-md">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
               <User className="w-5 h-5" />
@@ -553,7 +553,7 @@ export default function ProfilePage() {
         )}
 
         {/* Company Documents */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">
+        <div className="bg-white rounded-sm border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
@@ -586,7 +586,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Notification Preferences */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">
+        <div className="bg-white rounded-sm border border-gray-100 p-6 shadow-sm md:col-span-2 group transition-all hover:shadow-md">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-emerald-500 transition-colors">
@@ -607,7 +607,7 @@ export default function ProfilePage() {
               const saving = isSavingNotif === pref.id;
 
               return (
-                <div key={pref.id} className="flex flex-col justify-between p-4 bg-gray-50/50 rounded-xl border border-gray-100 hover:border-emerald-100 transition-all hover:bg-emerald-50/10">
+                <div key={pref.id} className="flex flex-col justify-between p-4 bg-gray-50/50 rounded-sm border border-gray-100 hover:border-emerald-100 transition-all hover:bg-emerald-50/10">
                   <div className="mb-4">
                     <div className="text-sm font-bold text-gray-900">{pref.label}</div>
                     <div className="text-[11px] text-gray-500 mt-1 leading-relaxed">{pref.desc}</div>

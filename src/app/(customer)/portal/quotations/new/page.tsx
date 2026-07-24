@@ -390,15 +390,15 @@ export default function NewQuoteRequestPage() {
 
     if (profile && !profile.company) {
         return (
-            <div className="max-w-md mx-auto bg-white rounded-2xl border p-6 text-center">
-                <Building2 className="w-10 h-10 mx-auto text-[#215497] mb-3" />
+            <div className="max-w-md mx-auto bg-white rounded-sm border p-6 text-center">
+                <Building2 className="w-10 h-10 mx-auto text-[#184878] mb-3" />
                 <h2 className="text-lg font-bold text-gray-900">Set up your company first</h2>
                 <p className="text-sm text-gray-500 mt-1">
                     We need your company details on the quote before our team can prepare a price.
                 </p>
                 <Link
                     href="/portal/setup"
-                    className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#215497] hover:bg-[#1a4278] text-white text-sm font-semibold rounded-lg"
+                    className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#184878] hover:bg-[#1a4278] text-white text-sm font-semibold rounded-lg"
                 >
                     Go to setup <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -440,7 +440,7 @@ export default function NewQuoteRequestPage() {
                                     key={key}
                                     type="button"
                                     onClick={() => setCommodity(key)}
-                                    className={`relative text-left p-6 rounded-2xl border-2 transition-all hover:shadow-md ${
+                                    className={`relative text-left p-6 rounded-sm border-2 transition-all hover:shadow-md ${
                                         selected
                                             ? meta.selectedRingClass
                                             : 'border-gray-100 bg-white hover:border-gray-200'
@@ -452,7 +452,7 @@ export default function NewQuoteRequestPage() {
                                         </span>
                                     )}
                                     <div
-                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${meta.iconBgClass}`}
+                                        className={`w-14 h-14 rounded-sm flex items-center justify-center mb-4 ${meta.iconBgClass}`}
                                     >
                                         <Icon className={`w-7 h-7 ${meta.iconClass}`} />
                                     </div>
@@ -467,7 +467,7 @@ export default function NewQuoteRequestPage() {
                             type="button"
                             disabled={!commodity}
                             onClick={() => setCurrentStep(2)}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next <ArrowRight className="w-4 h-4" />
                         </button>
@@ -486,17 +486,17 @@ export default function NewQuoteRequestPage() {
                         {COMMODITY_META[commodity].label}
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
+                    <div className="bg-[var(--info-bg)] border border-blue-100 rounded-sm p-4 flex gap-3">
                         <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                        <div className="text-sm text-blue-700">
+                        <div className="text-sm text-[var(--navy-700)]">
                             <p className="font-semibold">How it works</p>
-                            <p className="mt-1 text-blue-600">
+                            <p className="mt-1 text-[var(--navy-700)]">
                                 Enter your pallet dimensions. After submit, you can attach export documents right away — or skip and upload later from your shipment page.
                             </p>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-100 p-5">
+                    <div className="bg-white rounded-sm border border-gray-100 p-5">
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             Shipping Destination (Where to?) <span className="text-red-500">*</span>
                         </label>
@@ -528,7 +528,7 @@ export default function NewQuoteRequestPage() {
                         </div>
 
                         {pallets.map((pallet, idx) => (
-                            <div key={pallet.id} className="bg-white rounded-xl border border-gray-100 p-5">
+                            <div key={pallet.id} className="bg-white rounded-sm border border-gray-100 p-5">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-sm font-bold text-gray-700">Pallet {idx + 1}</span>
                                     {pallets.length > 1 && (
@@ -591,9 +591,9 @@ export default function NewQuoteRequestPage() {
                         ))}
                     </div>
 
-                    <div className={`bg-white rounded-xl border p-5 ${errors['attachments'] ? 'border-red-300 bg-red-50/30' : 'border-gray-100'}`}>
+                    <div className={`bg-white rounded-sm border p-5 ${errors['attachments'] ? 'border-red-300 bg-red-50/30' : 'border-gray-100'}`}>
                         <div className="flex items-start gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 rounded-sm bg-emerald-50 flex items-center justify-center shrink-0">
                                 <Package className="w-5 h-5 text-emerald-600" />
                             </div>
                             <div>
@@ -667,9 +667,9 @@ export default function NewQuoteRequestPage() {
                     </div>
 
                     {commodity !== 'general' && (
-                        <div className="bg-white rounded-xl border border-gray-100 p-5">
+                        <div className="bg-white rounded-sm border border-gray-100 p-5">
                             <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                                <div className="w-10 h-10 rounded-sm bg-teal-50 flex items-center justify-center shrink-0">
                                     <FlaskConical className="w-5 h-5 text-teal-600" />
                                 </div>
                                 <div className="flex-1">
@@ -695,7 +695,7 @@ export default function NewQuoteRequestPage() {
                         </div>
                     )}
 
-                    <div className="bg-white rounded-xl border border-gray-100 p-5">
+                    <div className="bg-white rounded-sm border border-gray-100 p-5">
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             Additional Notes <span className="font-normal text-gray-400">(optional)</span>
                         </label>
@@ -709,7 +709,7 @@ export default function NewQuoteRequestPage() {
                     </div>
 
                     {Object.keys(errors).length > 0 && (
-                        <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                        <div className="bg-red-50 border border-red-100 rounded-sm p-4">
                             <ul className="text-xs text-red-600 space-y-0.5">
                                 {Object.values(errors).map((err, i) => (
                                     <li key={i}>• {err}</li>
@@ -730,7 +730,7 @@ export default function NewQuoteRequestPage() {
                             type="button"
                             onClick={handleSubmitQuote}
                             disabled={submitting}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-sm hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
                         >
                             {submitting ? (
                                 <>
@@ -749,8 +749,8 @@ export default function NewQuoteRequestPage() {
             {/* ===== STEP 3: Optional documents ===== */}
             {currentStep === 3 && submittedQuotationId && commodity && (
                 <div className="space-y-6">
-                    <div className="bg-white rounded-2xl border border-emerald-100 p-6 text-center">
-                        <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <div className="bg-white rounded-sm border border-emerald-100 p-6 text-center">
+                        <div className="w-14 h-14 bg-emerald-50 rounded-sm flex items-center justify-center mx-auto mb-3">
                             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Quote received!</h2>
@@ -787,9 +787,9 @@ export default function NewQuoteRequestPage() {
                     </div>
 
                     {qcInterested && (
-                        <div className="rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-5">
+                        <div className="rounded-sm border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-5">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-100">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-teal-100">
                                     <FlaskConical className="h-6 w-6 text-teal-700" />
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
@@ -801,7 +801,7 @@ export default function NewQuoteRequestPage() {
                                 </div>
                                 <Link
                                     href="/portal/qc-requests/new"
-                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-colors"
+                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm bg-teal-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition-colors"
                                 >
                                     Start QC Request
                                     <ArrowRight className="w-4 h-4" />
@@ -818,7 +818,7 @@ export default function NewQuoteRequestPage() {
                         Document checklist for {COMMODITY_META[commodity].label}
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+                    <div className="bg-white rounded-sm border border-gray-100 p-4 space-y-3">
                         {uploadCategories.map((category) => (
                             <Collapsible
                                 key={category.id}
@@ -826,7 +826,7 @@ export default function NewQuoteRequestPage() {
                                 onOpenChange={(open) =>
                                     setOpenSections(prev => ({ ...prev, [category.id]: open }))
                                 }
-                                className="border rounded-xl overflow-hidden"
+                                className="border rounded-sm overflow-hidden"
                             >
                                 <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-gray-50/80 hover:bg-emerald-50/30 transition-colors">
                                     <span className="text-xs font-bold text-gray-700">{category.name}</span>
@@ -873,7 +873,7 @@ export default function NewQuoteRequestPage() {
                                                 return (
                                                     <div
                                                         key={docType.id}
-                                                        className="p-3 rounded-xl border border-gray-100 bg-gray-50/30"
+                                                        className="p-3 rounded-sm border border-gray-100 bg-gray-50/30"
                                                     >
                                                         <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                                                             {docType.name}
@@ -943,7 +943,7 @@ export default function NewQuoteRequestPage() {
                     </div>
 
                     {uploadQueue.length > 0 && (
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-2 text-sm text-emerald-800">
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-sm p-4 flex items-center gap-2 text-sm text-emerald-800">
                             <FileText className="w-4 h-4 shrink-0" />
                             <span>
                                 <strong>{uploadQueue.length}</strong> file(s) ready to upload
@@ -963,7 +963,7 @@ export default function NewQuoteRequestPage() {
                             type="button"
                             onClick={handlePrimaryCta}
                             disabled={uploading}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-sm hover:bg-emerald-700 disabled:opacity-50"
                         >
                             {uploading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -980,7 +980,7 @@ export default function NewQuoteRequestPage() {
                 </div>
             )}
 
-            <div className="flex items-center gap-4 rounded-xl border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-4">
+            <div className="flex items-center gap-4 rounded-sm border border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 p-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-100">
                     <FlaskConical className="h-5 w-5 text-teal-600" />
                 </div>

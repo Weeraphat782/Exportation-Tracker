@@ -106,33 +106,33 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-[calc(100vh-80px)] items-center justify-center">
-      <div className="flex w-full flex-col items-center justify-center px-6 py-12 bg-neutral-50">
+      <div className="flex w-full flex-col items-center justify-center px-6 py-12 bg-[var(--paper-muted)]">
         <div className="w-full max-w-md">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-neutral-900">Welcome back</h1>
+            <h1 className="font-display text-2xl font-bold text-[var(--navy-950)]">Welcome back</h1>
             <p className="text-sm text-neutral-500 mt-1">Sign in to your customer portal</p>
           </div>
 
           {verified && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl mb-6">
+            <div className="flex items-center gap-2 p-3 bg-[var(--success-bg)] border border-[var(--success)] rounded-sm mb-6">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <p className="text-sm text-emerald-700">Email verified! You can now sign in.</p>
+              <p className="text-sm text-[var(--success)]">Email verified! You can now sign in.</p>
             </div>
           )}
 
-          <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-8">
+          <div className="bg-white rounded-sm shadow-sm border border-[var(--line)] p-8">
             <button
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isLoading || oauthLoading}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-sm border border-[var(--line)] bg-white text-neutral-900 font-semibold hover:bg-[var(--paper-muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               <GoogleMark />
               {oauthLoading ? 'Redirecting…' : 'Continue with Google'}
             </button>
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-neutral-200" />
+                <span className="w-full border-t border-[var(--line)]" />
               </div>
               <div className="relative flex justify-center">
                 <span className="bg-white px-3 text-xs uppercase tracking-wide text-neutral-400">or email</span>
@@ -140,9 +140,9 @@ function LoginForm() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="flex items-start gap-2 p-3 bg-[var(--error-bg)] border-l-4 border-[var(--error)] rounded-sm">
+                  <AlertCircle className="w-5 h-5 text-[var(--error)] shrink-0 mt-0.5" />
+                  <p className="text-sm text-[#a12727]">{error}</p>
                 </div>
               )}
 
@@ -156,7 +156,7 @@ function LoginForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
                     required
-                    className="w-full pl-10 pr-4 py-3 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 transition-colors"
+                    className="w-full pl-10 pr-4 py-3 text-sm border border-[var(--line)] rounded-sm focus:outline-none focus:ring-2 transition-colors"
                     style={{ "--tw-ring-color": "rgba(33,84,151,0.15)" } as React.CSSProperties}
                     onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-ref)"; }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
@@ -174,7 +174,7 @@ function LoginForm() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="w-full pl-10 pr-12 py-3 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 transition-colors"
+                    className="w-full pl-10 pr-12 py-3 text-sm border border-[var(--line)] rounded-sm focus:outline-none focus:ring-2 transition-colors"
                     onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary-ref)"; }}
                     onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
                   />
@@ -191,7 +191,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={isLoading || oauthLoading}
-                className="w-full py-3 text-white font-semibold rounded-xl transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 text-white font-semibold rounded-sm transition-all hover:opacity-90 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ backgroundColor: "var(--color-accent-ref)", boxShadow: "0 4px 14px rgba(91,191,33,0.3)" }}
               >
                 {isLoading ? (
@@ -214,7 +214,7 @@ function LoginForm() {
                   href="/manual/index.html"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-semibold text-white rounded-xl transition-all hover:opacity-90 hover:shadow-lg"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 text-sm font-semibold text-white rounded-sm transition-all hover:opacity-90 hover:shadow-lg"
                   style={{
                     background: "linear-gradient(135deg, var(--color-primary-ref) 0%, #2c6bb8 100%)",
                     boxShadow: "0 4px 14px rgba(33,84,151,0.35)",
@@ -228,7 +228,7 @@ function LoginForm() {
               <div className="pt-4 border-t border-neutral-100">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-xl transition-colors"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 text-sm font-medium text-neutral-600 bg-[var(--paper-muted)] hover:bg-neutral-100 border border-[var(--line)] rounded-sm transition-colors"
                 >
                   <Lock className="w-4 h-4" />
                   Login for Admin / Staff
@@ -252,7 +252,7 @@ export default function CustomerLoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[var(--success)] border-t-emerald-600 rounded-full animate-spin" />
       </div>
     }>
       <LoginForm />
