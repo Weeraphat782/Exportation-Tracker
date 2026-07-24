@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from 'crypto';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { getMimeType } from '@/lib/document-comparison-utils';
 import { isRequiredPrebookingType } from '@/lib/customer-check-rule';
+import {
+  marketingJsonResponse,
+  marketingOptionsResponse,
+} from '@/lib/marketing-cors';
 import {
   DocumentCheckPipelineError,
   mapPipelineError,
@@ -21,36 +25,6 @@ const ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png', 'ima
 
 // ponytail: in-memory IP caps reset on cold start; upgrade to Redis/edge store if abuse appears.
 const demoRunsByIp = new Map<string, number[]>();
-
-function allowedOrigin(origin: string | null): string | null {
-  if (!origin) return null;
-  const extra = process.env.MARKETING_SITE_ORIGIN?.split(',').map((s) => s.trim()) ?? [];
-  const allowed = [
-    'http://localhost:4321',
-    'http://localhost:3000',
-    'https://web.omgexp.com',
-    'https://www.omgcargo.tech',
-    'https://omgcargo.tech',
-    ...extra,
-  ];
-  if (allowed.includes(origin)) return origin;
-  if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return origin;
-  return null;
-}
-
-function corsHeaders(origin: string | null): HeadersInit {
-  const o = allowedOrigin(origin);
-  if (!o) return {};
-  return {
-    'Access-Control-Allow-Origin': o,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-}
-
-function json(data: unknown, status: number, origin: string | null) {
-  return NextResponse.json(data, { status, headers: corsHeaders(origin) });
-}
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -91,27 +65,35 @@ function recordDemoRun(key: string) {
 }
 
 export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders(request.headers.get('origin')),
-  });
+  return marketingOptionsResponse(request.headers.get('origin'));
 }
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
 
   if (process.env.MARKETING_DEMO_ENABLED === 'false') {
-    return json({ error: 'Document demo is temporarily unavailable.' }, 503, origin);
+    return marketingJsonResponse({ error: 'Document demo is temporarily unavailable.' }, 503, origin);
   }
 
   try {
     const rateKey = ipKey(clientIp(request));
     const rate = checkDemoRateLimit(rateKey);
     if (!rate.ok) {
-      return json({ error: rate.error }, rate.status, origin);
+      return marketingJsonResponse({ error: rate.error }, rate.status, origin);
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch (e) {
+      console.error('public document-demo formData parse:', e);
+      return marketingJsonResponse(
+        { error: 'Invalid upload payload. Try smaller PDF or image files.' },
+        400,
+        origin
+      );
+    }
+
     const entries: Array<{ type: string; file: File }> = [];
 
     for (const [key, value] of form.entries()) {
@@ -122,14 +104,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (entries.length < 2) {
-      return json(
+      return marketingJsonResponse(
         { error: 'Attach at least 2 required export documents (PDF or image) to run a demo check.' },
         400,
         origin
       );
     }
     if (entries.length > MAX_FILES) {
-      return json({ error: `Too many files (max ${MAX_FILES}).` }, 400, origin);
+      return marketingJsonResponse({ error: `Too many files (max ${MAX_FILES}).` }, 400, origin);
     }
 
     const seenTypes = new Set<string>();
@@ -137,17 +119,21 @@ export async function POST(request: NextRequest) {
 
     for (const { type, file } of entries) {
       if (seenTypes.has(type)) {
-        return json({ error: `Duplicate document type: ${type}` }, 400, origin);
+        return marketingJsonResponse({ error: `Duplicate document type: ${type}` }, 400, origin);
       }
       seenTypes.add(type);
 
       if (file.size > MAX_BYTES) {
-        return json({ error: `File too large (max ${MAX_BYTES / (1024 * 1024)}MB per file).` }, 400, origin);
+        return marketingJsonResponse(
+          { error: `File too large (max ${MAX_BYTES / (1024 * 1024)}MB per file).` },
+          400,
+          origin
+        );
       }
 
       const mimeType = file.type || getMimeType(file.name);
       if (!ALLOWED_MIME.has(mimeType)) {
-        return json({ error: 'Only PDF and image files are supported.' }, 400, origin);
+        return marketingJsonResponse({ error: 'Only PDF and image files are supported.' }, 400, origin);
       }
 
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -163,7 +149,7 @@ export async function POST(request: NextRequest) {
     const result = await runCustomerDocumentCheckPipeline(pipelineInputs);
     recordDemoRun(rateKey);
 
-    return json(
+    return marketingJsonResponse(
       {
         success: true,
         ...result,
@@ -175,10 +161,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     if (error instanceof DocumentCheckPipelineError) {
-      return json({ error: error.message }, error.status, origin);
+      return marketingJsonResponse({ error: error.message }, error.status, origin);
     }
     console.error('public document-demo error:', error);
     const { message, status } = mapPipelineError(error);
-    return json({ error: message }, status, origin);
+    return marketingJsonResponse({ error: message }, status, origin);
   }
 }

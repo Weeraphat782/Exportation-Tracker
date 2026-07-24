@@ -49,6 +49,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+    serverActions: {
+      bodySizeLimit: '20mb',
+    },
+    // ponytail: middlewareClientMaxBodySize needs Next 15.5+; demo route excluded from middleware instead.
     // `optimizeCss: true` (critters) caused build failure (PageNotFoundError: /_document) on Next 15.2.6 — re-enable when upstream fixes.
   },
   async headers() {

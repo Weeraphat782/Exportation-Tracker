@@ -306,6 +306,23 @@ export function mapPipelineError(error: unknown): { message: string; status: num
         status: 408,
       };
     }
+    if (
+      error.message.includes('INVALID_ARGUMENT') ||
+      error.message.includes('no pages') ||
+      error.message.includes('Unable to process input')
+    ) {
+      return {
+        message: 'We could not read one or more files. Upload valid PDF or image export documents.',
+        status: 400,
+      };
+    }
+    const status = (error as Error & { status?: number }).status;
+    if (status === 400) {
+      return {
+        message: 'We could not read one or more files. Upload valid PDF or image export documents.',
+        status: 400,
+      };
+    }
   }
   return { message: 'We could not complete the check right now. Please try again later.', status: 500 };
 }
