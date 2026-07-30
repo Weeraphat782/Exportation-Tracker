@@ -28,6 +28,7 @@ import {
   ClipboardList,
   BarChart3,
   UserCog,
+  Palette,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const MENU_GROUPS = [
       { href: '/document-submissions', icon: FileText, label: 'Document Submissions' },
       { href: '/document-comparison', icon: FileCheck, label: 'Document Comparison' },
       { href: '/calendar', icon: Calendar, label: 'Calendar' },
+      { href: '/social-artwork', icon: Palette, label: 'Social Artwork' },
     ]
   },
   {

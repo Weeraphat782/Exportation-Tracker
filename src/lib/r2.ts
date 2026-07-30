@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
@@ -37,6 +37,23 @@ export async function uploadToR2(
         return key;
     }
     return `${publicUrl}/${key}`;
+}
+
+export async function getFromR2(
+    key: string
+): Promise<{ body: Uint8Array; contentType: string } | null> {
+    try {
+        const res = await r2Client.send(
+            new GetObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key })
+        );
+        if (!res.Body) return null;
+        return {
+            body: await res.Body.transformToByteArray(),
+            contentType: res.ContentType || 'application/octet-stream',
+        };
+    } catch {
+        return null;
+    }
 }
 
 export async function deleteFromR2(key: string): Promise<void> {
