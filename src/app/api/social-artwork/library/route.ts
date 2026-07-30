@@ -10,6 +10,13 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseServerClient();
   if (!supabase) return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
 
+  const id = request.nextUrl.searchParams.get('id');
+  if (id) {
+    const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).single();
+    if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ item: data });
+  }
+
   const kind = request.nextUrl.searchParams.get('kind');
   let query = supabase.from(TABLE).select('*').order('created_at', { ascending: false }).limit(200);
   if (kind === 'photo' || kind === 'artwork') query = query.eq('kind', kind);
@@ -42,15 +49,55 @@ export async function POST(request: NextRequest) {
   // Same-origin URL so html-to-image can export canvases without R2 CORS setup.
   const url = `/api/social-artwork/file?key=${encodeURIComponent(key)}`;
 
+  const label = (form.get('label') as string) || safeName;
+  const template = (form.get('template') as string) || null;
+  const format = (form.get('format') as string) || null;
+  const caption = (form.get('caption') as string) || null;
+  const prompt = (form.get('prompt') as string) || null;
+  const replaceId = (form.get('replaceId') as string) || null;
+  const sourceRaw = form.get('source') as string | null;
+  let source: unknown = null;
+  if (sourceRaw) {
+    try {
+      source = JSON.parse(sourceRaw);
+    } catch {
+      return NextResponse.json({ error: 'Invalid source JSON' }, { status: 400 });
+    }
+  }
+
+  if (replaceId) {
+    const { data: existing, error: fetchError } = await supabase
+      .from(TABLE)
+      .select('r2_key')
+      .eq('id', replaceId)
+      .single();
+    if (fetchError || !existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    await deleteFromR2(existing.r2_key);
+
+    const { data, error } = await supabase
+      .from(TABLE)
+      .update({ r2_key: key, url, label, template, format, caption, prompt, source })
+      .eq('id', replaceId)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ item: data });
+  }
+
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
       kind,
       r2_key: key,
       url,
-      label: (form.get('label') as string) || safeName,
-      template: (form.get('template') as string) || null,
-      format: (form.get('format') as string) || null,
+      label,
+      template,
+      format,
+      caption,
+      prompt,
+      source,
     })
     .select()
     .single();

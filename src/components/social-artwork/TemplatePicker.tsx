@@ -11,9 +11,7 @@ interface TemplatePickerProps {
 }
 
 export function TemplatePicker({ selected, onChange }: TemplatePickerProps) {
-  const toggle = (id: TemplateId) => {
-    onChange(selected.includes(id) ? selected.filter((t) => t !== id) : [...selected, id]);
-  };
+  const select = (id: TemplateId) => onChange([id]);
 
   return (
     <div className="sa-template-grid">
@@ -25,7 +23,7 @@ export function TemplatePicker({ selected, onChange }: TemplatePickerProps) {
             key={id}
             type="button"
             className={active ? 'sa-tpl active' : 'sa-tpl'}
-            onClick={() => toggle(id)}
+            onClick={() => select(id)}
           >
             <span className="sa-tpl-check">{active ? '✓' : ''}</span>
             <div>

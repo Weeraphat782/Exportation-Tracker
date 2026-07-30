@@ -163,6 +163,9 @@
 }
 
 .sa-wizard-footer-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-left: auto;
 }
 
@@ -377,6 +380,7 @@
 }
 
 .sa-sample-select {
+  position: relative;
   display: block;
   width: 100%;
   padding: 0;
@@ -796,6 +800,82 @@
   cursor: ns-resize;
   z-index: 30;
 }
+
+.sa-sample-order {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  z-index: 2;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: var(--sa-green);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.sa-ai-prompt-box {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f6f7f8;
+  border-radius: 0.5rem;
+}
+
+.sa-post-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.sa-post-tabs button {
+  padding: 0.35rem 0.75rem;
+  border: 1.5px solid var(--sa-line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sa-post-tabs button.active {
+  border-color: var(--sa-green);
+  background: rgba(111, 190, 68, 0.12);
+  color: var(--sa-navy);
+}
+
+.sa-caption-field textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.sa-download-card {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sa-download-card-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--sa-muted);
+  margin: 0;
+}
+
+.sa-download-caption {
+  font-size: 0.72rem;
+  color: var(--sa-muted);
+  margin: 0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 
 @media (max-width: 768px) {
   .sa-wizard-panel-split {
