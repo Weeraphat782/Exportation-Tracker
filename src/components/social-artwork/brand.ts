@@ -176,7 +176,7 @@ export function defaultContent(template: TemplateId): ArtworkContent {
     photoUrl: null,
     photoFocusX: 50,
     photoFocusY: 50,
-    lockupPosition: 'bottom-left',
+    lockupPosition: 'top-right',
     lockupTextColor: 'light',
     headline: '',
     subhead: '',
@@ -204,11 +204,10 @@ export function defaultContent(template: TemplateId): ArtworkContent {
 
   switch (template) {
     case 'T0':
-      return { ...base, lockupPosition: 'bottom-left', lockupTextColor: 'light' };
+      return { ...base, lockupTextColor: 'light' };
     case 'T1':
       return {
         ...base,
-        lockupPosition: 'top-left',
         lockupTextColor: 'light',
         eyebrow: 'AIR NETWORK',
         headline: 'Bangkok to 200+\ndestinations, daily.',
@@ -217,7 +216,6 @@ export function defaultContent(template: TemplateId): ArtworkContent {
     case 'T2':
       return {
         ...base,
-        lockupPosition: 'top-left',
         lockupTextColor: 'dark',
         routeFrom: 'Bangkok',
         routeTo: 'Frankfurt',
@@ -225,21 +223,18 @@ export function defaultContent(template: TemplateId): ArtworkContent {
     case 'T2b':
       return {
         ...base,
-        lockupPosition: 'top-left',
         lockupTextColor: 'light',
         pillText: 'BKK ⇄ FRA · guaranteed capacity, daily uplift',
       };
     case 'T2c':
       return {
         ...base,
-        lockupPosition: 'top-left',
         lockupTextColor: 'dark',
       };
     case 'T3':
       return {
         ...base,
         photoUrl: null,
-        lockupPosition: 'top-left',
         lockupTextColor: 'dark',
         eyebrow: 'PUBLIC HOLIDAY',
         headline: 'Songkran\noffice hours',

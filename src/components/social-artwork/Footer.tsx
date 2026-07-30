@@ -26,15 +26,18 @@ export function Footer({
   const rule = tone === 'light' ? COLORS.navy700 : COLORS.green500;
   const keepClear = format === 'story' ? CANVAS.story.keepClearBottom : 0;
 
-  const creditBottom = GEOMETRY.footer.creditBottom + keepClear;
-  const contactBottom =
-    creditBottom +
-    TYPE.fine.size +
-    (showFareConditions ? TYPE.fine.size + GEOMETRY.footer.conditionsAboveCredit : 0);
-
   const contactStyle = ts(content, 'contact', { size: TYPE.contact.size, color: text });
   const conditionsStyle = ts(content, 'conditions', { size: TYPE.fine.size, color: muted });
   const creditStyle = ts(content, 'credit', { size: TYPE.fine.size, color: muted });
+
+  // Stack from actual line boxes (~1.2 × fontSize), not bare font size — bare size makes lines overlap
+  const lineBox = (fontSize: number) => Math.ceil(fontSize * 1.2);
+  const creditBottom = GEOMETRY.footer.creditBottom + keepClear;
+  const conditionsBottom = creditBottom + lineBox(creditStyle.fontSize) + GEOMETRY.footer.conditionsAboveCredit;
+  const contactBottom =
+    (showFareConditions
+      ? conditionsBottom + lineBox(conditionsStyle.fontSize)
+      : creditBottom + lineBox(creditStyle.fontSize)) + GEOMETRY.footer.contactAboveConditions;
 
   return (
     <>
@@ -77,7 +80,7 @@ export function Footer({
               position: 'absolute',
               left: m,
               right: m,
-              bottom: creditBottom + TYPE.fine.size,
+              bottom: conditionsBottom,
               fontFamily: FONTS.body,
               fontWeight: TYPE.fine.weight,
               fontSize: conditionsStyle.fontSize,

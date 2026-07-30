@@ -39,7 +39,9 @@ export const Lockup = forwardRef<HTMLDivElement, LockupProps>(function Lockup(
   }
 
   const m = GEOMETRY.safeMargin;
-  const top = format === 'story' ? CANVAS.story.keepClearTop + 16 : m;
+  // ponytail: logo sits higher than spec by request — half margin on post, half keep-clear on story
+  // (story logo at 125px may sit under the IG profile/close overlay when viewed live)
+  const top = format === 'story' ? CANVAS.story.keepClearTop / 2 : m / 2;
   const bottom = format === 'story' ? CANVAS.story.keepClearBottom + 16 : m;
 
   const style: React.CSSProperties = {
