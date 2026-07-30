@@ -26,7 +26,7 @@ export const FONTS = {
 
 export const FIXED = {
   phone: '02-630-4600-1',
-  email: 'info@omgexp.com',
+  email: 'cargo@omgexp.com',
   website: 'omgexp.com',
   credit: 'OMG Experience Co., Ltd. · Air Freight Forwarding, Bangkok',
   fareConditions: '*Indicative rates · subject to availability, capacity & booking conditions',
