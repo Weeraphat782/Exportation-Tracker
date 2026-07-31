@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Website Analytics Dashboard — Implementation Playbook</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #1e293b;
+      max-width: 180mm;
+      margin: 0 auto;
+      padding: 12mm;
+    }
+    h1 { font-size: 20pt; margin: 0 0 4pt; color: #0f172a; }
+    h2 { font-size: 13pt; margin: 18pt 0 6pt; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 3pt; page-break-after: avoid; }
+    h3 { font-size: 11pt; margin: 12pt 0 4pt; page-break-after: avoid; }
+    p { margin: 0 0 8pt; }
+    ul, ol { margin: 0 0 8pt; padding-left: 18pt; }
+    li { margin-bottom: 3pt; }
+    code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 9pt; }
+    pre {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 8pt 10pt;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      page-break-inside: avoid;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9.5pt; page-break-inside: avoid; }
+    th, td { border: 1px solid #cbd5e1; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-weight: 600; }
+    .meta { color: #64748b; font-size: 9.5pt; margin-bottom: 14pt; }
+    .diagram {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 10pt;
+      font-family: ui-monospace, monospace;
+      font-size: 8.5pt;
+      line-height: 1.35;
+      page-break-inside: avoid;
+    }
+    .warn { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 6pt 10pt; margin: 8pt 0; page-break-inside: avoid; }
+    .cover { margin-bottom: 20pt; }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Website Analytics Dashboard</h1>
+  <p class="meta">Implementation playbook for the OMGEXP admin <strong>/analytics</strong> page — reusable on other sites.<br />
+  Reference stack: Next.js + GA4 Data API + GTM on the public marketing site.<br />
+  Version: July 2026</p>
+</div>
+
+<h2>1. Architecture</h2>
+<p>The dashboard is <strong>not</strong> an embedded Google Analytics UI. It is a custom admin page that pulls aggregated metrics from the <strong>GA4 Data API</strong> using a Google Cloud service account, then renders charts with Recharts.</p>
+
+<div class="diagram">
+  Visitor → Marketing site (GTM snippet) → dataLayer events → GTM → GA4 property<br />
+  Staff → /analytics page → GET /api/analytics/ga (Bearer auth) → ga-data.ts → GA4 Data API → JSON → charts<br />
+  Contact form → attribution in localStorage → Supabase (CRM) — separate from GA4, not shown on this dashboard yet
+</div>
+
+<p><strong>Two halves:</strong> (A) code in your repo embeds GTM and pushes events; (B) configuration in GTM UI + GA4 Admin (tags, triggers, custom dimensions, referral exclusions) is <strong>not</strong> in git.</p>
+
+<h2>2. Code-side setup (portable)</h2>
+
+<h3>2.1 Environment variables (Tr backend)</h3>
+<table>
+  <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
+  <tr><td><code>GA4_PROPERTY_ID</code></td><td>Yes</td><td>Numeric property ID (GA4 Admin → Property settings)</td></tr>
+  <tr><td><code>GA_SERVICE_ACCOUNT_EMAIL</code></td><td>Yes</td><td>Service account email from Google Cloud</td></tr>
+  <tr><td><code>GA_SERVICE_ACCOUNT_PRIVATE_KEY</code></td><td>Yes</td><td>PEM key; use <code>\n</code> for newlines in env</td></tr>
+  <tr><td><code>MARKETING_GA_HOSTNAME</code></td><td>No</td><td>Default <code>www.omgcargo.tech</code> — filters event-scoped reports</td></tr>
+  <tr><td><code>GA_PUBLIC_PATH_PREFIX</code></td><td>No</td><td>Default <code>/site</code> — legacy marketing paths on the staff app domain</td></tr>
+  <tr><td><code>NEXT_PUBLIC_GTM_ID</code></td><td>No</td><td>GTM on public pages (separate from dashboard API)</td></tr>
+</table>
+
+<h3>2.2 Key source files</h3>
+<ul>
+  <li><code>src/lib/ga-range.ts</code> — date windows using GA4 relative dates (<code>7daysAgo</code> … <code>yesterday</code>)</li>
+  <li><code>src/lib/ga-data.ts</code> — Data API queries, site filter, lead events</li>
+  <li><code>src/app/api/analytics/ga/route.ts</code> — admin-only API + 30-minute in-memory cache</li>
+  <li><code>src/app/(main)/analytics/page.tsx</code> — dashboard UI</li>
+</ul>
+
+<h3>2.3 Site filter logic</h3>
+<p>Reports include traffic where <strong>either</strong>:</p>
+<ul>
+  <li><code>hostName = MARKETING_GA_HOSTNAME</code> (new Astro site at www.omgcargo.tech), or</li>
+  <li><code>pagePath</code> begins with <code>GA_PUBLIC_PATH_PREFIX</code> (legacy /site/* on cargo.omgexp.com)</li>
+</ul>
+<p>Staff-only routes (e.g. /dashboard, /login) are excluded unless they match the above.</p>
+
+<h3>2.4 Marketing site events (dataLayer)</h3>
+<p>Push these from the public site after GTM loads:</p>
+<table>
+  <tr><th>Event</th><th>Parameters</th><th>When</th></tr>
+  <tr><td><code>generate_lead</code></td><td><code>form_name</code>, optional <code>transaction_id</code></td><td>After contact API returns success (not on click)</td></tr>
+  <tr><td><code>cta_click</code></td><td><code>cta_label</code>, <code>cta_location</code></td><td>Primary CTA clicks</td></tr>
+  <tr><td><code>contact_click</code></td><td><code>contact_method</code>, <code>contact_value</code></td><td>tel: / mailto: links</td></tr>
+</table>
+
+<h2>3. Manual setup (GTM + GA4 Admin)</h2>
+<ol>
+  <li>Create a GA4 property and web data stream for your marketing domain.</li>
+  <li>Create a GTM container; add GA4 Configuration tag with your Measurement ID (<code>G-XXXX</code>).</li>
+  <li>Add Custom Event triggers for <code>generate_lead</code>, <code>cta_click</code>, <code>contact_click</code>.</li>
+  <li>Add GA4 Event tags mapping dataLayer parameters to event parameters.</li>
+  <li>In GA4 Admin → Custom definitions, register event-scoped dimension <strong>form_name</strong> (parameter <code>form_name</code>). Without this, “By form” breakdown fails.</li>
+  <li>Enable <strong>Google Analytics Data API</strong> in Google Cloud; create a service account; download JSON key or copy email + private key to env.</li>
+  <li>GA4 Admin → Property access management → add service account as <strong>Viewer</strong>.</li>
+  <li>GA4 Admin → Data streams → Configure tag settings → define <strong>unwanted referrals</strong> (e.g. your own domain) to fix self-referral like <code>omgcargo.tech / referral</code>.</li>
+  <li>Mark <code>generate_lead</code> as a key event in GA4 if you want it in standard reports.</li>
+</ol>
+
+<h2>4. What each dashboard metric means</h2>
+<table>
+  <tr><th>UI label</th><th>GA4 source</th><th>Means</th><th>Does NOT mean</th></tr>
+  <tr><td>Users / Sessions / Page views</td><td>Filtered traffic totals</td><td>Marketing + legacy /site paths</td><td>All staff app usage</td></tr>
+  <tr><td>Lead events</td><td><code>eventCount</code> for <code>generate_lead</code></td><td>Successful form submits tracked in GA4</td><td>Unique people; CRM row count</td></tr>
+  <tr><td>Top entry pages</td><td><code>pagePath</code> + <code>entrances</code></td><td>Pages where sessions started</td><td>Same as landingPage dimension (session-scoped)</td></tr>
+  <tr><td>First-touch source</td><td><code>firstUserSourceMedium</code></td><td>First acquisition source on the GA4 property</td><td>First visit to marketing site only</td></tr>
+  <tr><td>Top sources</td><td><code>sessionSourceMedium</code></td><td>Source/medium for each session</td><td>Last-click attribution only</td></tr>
+</table>
+
+<p>Period-over-period % compares equal-length windows ending <strong>yesterday</strong> (today excluded — GA4 processing lag).</p>
+
+<h2>5. Accuracy limits</h2>
+<ul>
+  <li><strong>Processing lag:</strong> Standard reports lag 24–48 hours; Realtime/DebugView are immediate.</li>
+  <li><strong>Undercount:</strong> Ad blockers, no-JS, Safari ITP — typically 10–30% of sessions missing client-side.</li>
+  <li><strong>Lead events vs CRM:</strong> GA4 counts events; Supabase stores submissions with attribution JSON — two systems, two numbers.</li>
+  <li><strong>Double submits:</strong> <code>eventCount</code> increments per event; GA4 dedupes <code>transaction_id</code> only for <code>purchase</code>, not <code>generate_lead</code>.</li>
+  <li><strong>Legacy /site traffic:</strong> If old marketing routes stay live, metrics mix two sites until you redirect or narrow filters.</li>
+  <li><strong>Self-referral:</strong> Cross-domain hops without referral exclusion inflate “referral” and split sessions.</li>
+</ul>
+
+<div class="warn">
+  <strong>End-to-end verification not yet done:</strong> Submit one real test lead via the live contact form, then confirm (1) GA4 DebugView shows <code>generate_lead</code>, (2) dashboard Lead events increments after lag, (3) Supabase <code>contact_submissions.attribution</code> has UTM/click IDs.
+</div>
+
+<h2>6. Verification checklist</h2>
+<ol>
+  <li>GTM Preview → submit test form → see <code>generate_lead</code> with <code>form_name</code>.</li>
+  <li>GA4 DebugView → same event within seconds.</li>
+  <li>GA4 Realtime → active user on marketing hostname.</li>
+  <li>Admin /analytics → KPIs load (not “Analytics not configured”).</li>
+  <li>If a section shows <strong>Data unavailable</strong> with an error string, fix GA4 config (usually missing custom dimension).</li>
+  <li>Run <code>node --experimental-strip-types scripts/ga-range.test.mjs</code> after changing date logic.</li>
+  <li>Compare lead events (GA4) vs contact rows (Supabase) over the same week — expect difference, not parity.</li>
+</ol>
+
+<h2>7. Appendix</h2>
+
+<h3>7.1 Env template</h3>
+<pre>GA4_PROPERTY_ID=123456789
+GA_SERVICE_ACCOUNT_EMAIL=analytics-read@project.iam.gserviceaccount.com
+GA_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+MARKETING_GA_HOSTNAME=www.example.com
+GA_PUBLIC_PATH_PREFIX=/site
+NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX</pre>
+
+<h3>7.2 PEM key troubleshooting</h3>
+<p>If the API returns OpenSSL <code>DECODER routines::unsupported</code>, the private key env is malformed. The codebase normalizes quotes, literal <code>\n</code>, and Windows <code>\r</code> — but the key must still be a valid PEM block.</p>
+
+<h3>7.3 Legacy /site vs new domain</h3>
+<p>OMG currently serves marketing on both <code>www.omgcargo.tech</code> (Astro) and <code>/site/*</code> on the Next app. Top pages may show <code>/site/login</code> alongside <code>/</code>. Options: 301 legacy to new domain (SEO + cleaner analytics), or set <code>GA_PUBLIC_PATH_PREFIX</code> to a path that no longer receives traffic once migrated.</p>
+
+<h3>7.4 PDPA note</h3>
+<p>GTM/GA4 cookies require disclosure in your cookie policy. Attribution keys in localStorage should be listed there too. Consent Mode v2 is recommended for new deployments in regulated markets.</p>
+
+<p class="meta" style="margin-top: 24pt;">Generated from OMGEXP Tr codebase — July 2026</p>
+
+</body>
+</html>

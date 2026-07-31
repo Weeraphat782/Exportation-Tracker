@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Loader2, TrendingDown, TrendingUp, BarChart3 } from 'lucide-react';
+import { Loader2, TrendingDown, TrendingUp, BarChart3, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
@@ -28,7 +28,6 @@ import { Badge } from '@/components/ui/badge';
 import type {
   GaChannelRow,
   GaLandingRow,
-  GaLeadSummary,
   GaPageRow,
   GaSourceRow,
   GaTimeseriesPoint,
@@ -37,15 +36,25 @@ import type {
 
 type RangeKey = '7d' | '28d' | '90d';
 
+interface LeadsPayload {
+  total: number;
+  previousTotal: number;
+  byFormName: { formName: string; count: number }[];
+  bySourceMedium: { sourceMedium: string; count: number }[];
+  timeseries: { date: string; count: number }[];
+}
+
 interface GaApiResponse {
   configured: boolean;
   error?: string;
-  range?: { startDate: string; endDate: string };
+  dataThrough?: string;
+  warnings?: string[];
+  range?: { startDate: string; endDate: string; days: number };
   summary?: GaTrafficSummary;
   sessionsSeries?: GaTimeseriesPoint[];
   topSources?: GaSourceRow[];
   topPages?: GaPageRow[];
-  leads?: GaLeadSummary;
+  leads?: LeadsPayload;
   landingPages?: GaLandingRow[];
   entryChannels?: GaChannelRow[];
 }
@@ -92,22 +101,35 @@ function KpiCard({
   );
 }
 
+function SectionEmpty({ unavailable, empty }: { unavailable?: string; empty: string }) {
+  if (unavailable) {
+    return <p className="text-amber-700 text-sm">Data unavailable — {unavailable}</p>;
+  }
+  return <p className="text-slate-400 text-sm">{empty}</p>;
+}
+
 export default function AnalyticsPage() {
   const [range, setRange] = useState<RangeKey>('28d');
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [summary, setSummary] = useState<GaTrafficSummary | null>(null);
   const [sessionsSeries, setSessionsSeries] = useState<GaTimeseriesPoint[]>([]);
   const [topSources, setTopSources] = useState<GaSourceRow[]>([]);
   const [topPages, setTopPages] = useState<GaPageRow[]>([]);
-  const [leads, setLeads] = useState<GaLeadSummary | null>(null);
+  const [leads, setLeads] = useState<LeadsPayload | null>(null);
   const [landingPages, setLandingPages] = useState<GaLandingRow[]>([]);
   const [entryChannels, setEntryChannels] = useState<GaChannelRow[]>([]);
+  const [landingError, setLandingError] = useState<string | undefined>();
+  const [channelsError, setChannelsError] = useState<string | undefined>();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setWarnings([]);
+    setLandingError(undefined);
+    setChannelsError(undefined);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       setError('Not signed in');
@@ -137,6 +159,12 @@ export default function AnalyticsPage() {
       setLeads(body.leads ?? null);
       setLandingPages(body.landingPages ?? []);
       setEntryChannels(body.entryChannels ?? []);
+      setWarnings(body.warnings ?? []);
+      const warn = body.warnings ?? [];
+      const landingWarn = warn.find((w) => w.startsWith('Landing pages:'));
+      const channelWarn = warn.find((w) => w.startsWith('First-visit channels:'));
+      if (landingWarn) setLandingError(landingWarn.replace(/^Landing pages:\s*/, ''));
+      if (channelWarn) setChannelsError(channelWarn.replace(/^First-visit channels:\s*/, ''));
     } catch {
       setError('Failed to load analytics');
     }
@@ -146,6 +174,10 @@ export default function AnalyticsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const leadBreakdownWarnings = warnings.filter(
+    (w) => w.startsWith('Lead breakdown') || w.startsWith('Lead timeseries')
+  );
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -158,7 +190,9 @@ export default function AnalyticsPage() {
               Website Analytics
             </h1>
             <p className="text-sm text-slate-500">
-              Public website (customer-facing) only — internal staff pages excluded
+              Public website only — data through yesterday (GA4 processing lag). Includes{' '}
+              <span className="font-mono text-xs">www.omgcargo.tech</span> and legacy{' '}
+              <span className="font-mono text-xs">/site/*</span> paths.
             </p>
           </div>
         </div>
@@ -190,6 +224,8 @@ export default function AnalyticsPage() {
             <p>GA4_PROPERTY_ID</p>
             <p>GA_SERVICE_ACCOUNT_EMAIL</p>
             <p>GA_SERVICE_ACCOUNT_PRIVATE_KEY</p>
+            <p>GA_PUBLIC_PATH_PREFIX</p>
+            <p>MARKETING_GA_HOSTNAME</p>
             <p className="text-slate-500 font-sans mt-3">
               Grant the service account Viewer access on your GA4 property (Admin → Property access management).
             </p>
@@ -204,6 +240,24 @@ export default function AnalyticsPage() {
         </Card>
       ) : summary && leads ? (
         <>
+          {warnings.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  Partial data — some GA4 queries failed
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-xs text-amber-900 space-y-1 font-mono">
+                  {warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <KpiCard title="Users" value={summary.totalUsers} previous={summary.previous.totalUsers} />
             <KpiCard title="New users" value={summary.newUsers} previous={summary.previous.newUsers} />
@@ -213,7 +267,7 @@ export default function AnalyticsPage() {
               value={summary.screenPageViews}
               previous={summary.previous.screenPageViews}
             />
-            <KpiCard title="Form leads" value={leads.total} previous={leads.previousTotal} />
+            <KpiCard title="Lead events" value={leads.total} previous={leads.previousTotal} />
           </div>
 
           <Card>
@@ -228,8 +282,8 @@ export default function AnalyticsPage() {
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="sessions" stroke="#2563eb" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="totalUsers" stroke="#059669" strokeWidth={2} dot={false} />
+                  <Line type="linear" dataKey="sessions" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="linear" dataKey="totalUsers" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -239,13 +293,13 @@ export default function AnalyticsPage() {
             <CardHeader>
               <CardTitle className="text-base">How customers entered</CardTitle>
               <CardDescription>
-                Landing pages and first-visit source / medium on the public site
+                Top entry pages (entrances) and first-touch source on the GA4 property (includes staff app users)
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-2">Top landing pages</p>
+                  <p className="text-sm font-semibold text-slate-700 mb-2">Top entry pages</p>
                   <ul className="space-y-2 text-sm">
                     {landingPages.map((row) => (
                       <li
@@ -256,19 +310,21 @@ export default function AnalyticsPage() {
                           {row.landingPage}
                         </span>
                         <span className="tabular-nums text-slate-500 shrink-0 text-xs">
-                          {row.sessions.toLocaleString()} sessions ·{' '}
                           {row.entrances.toLocaleString()} entrances
                         </span>
                       </li>
                     ))}
                     {landingPages.length === 0 && (
-                      <p className="text-slate-400 text-sm">No landing page data for this period</p>
+                      <SectionEmpty
+                        unavailable={landingError}
+                        empty="No entry page data for this period"
+                      />
                     )}
                   </ul>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-700 mb-2">
-                    First-visit source / medium
+                    First-touch source / medium (property-wide)
                   </p>
                   <ul className="space-y-2 text-sm">
                     {entryChannels.map((row) => (
@@ -285,7 +341,10 @@ export default function AnalyticsPage() {
                       </li>
                     ))}
                     {entryChannels.length === 0 && (
-                      <p className="text-slate-400 text-sm">No channel data for this period</p>
+                      <SectionEmpty
+                        unavailable={channelsError}
+                        empty="No channel data for this period"
+                      />
                     )}
                   </ul>
                 </div>
@@ -336,9 +395,9 @@ export default function AnalyticsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Form conversions (generate_lead)</CardTitle>
+              <CardTitle className="text-base">Lead events (generate_lead)</CardTitle>
               <CardDescription>
-                Leads from website forms tracked via GTM — breakdown by form name and traffic source
+                GA4 event count from GTM — not unique people; repeated submits count separately
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -349,7 +408,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="count" name="Leads" stroke="#dc2626" strokeWidth={2} dot={false} />
+                    <Line type="linear" dataKey="count" name="Lead events" stroke="#dc2626" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -365,7 +424,10 @@ export default function AnalyticsPage() {
                       </li>
                     ))}
                     {leads.byFormName.length === 0 && (
-                      <p className="text-slate-400">No lead events yet</p>
+                      <SectionEmpty
+                        unavailable={leadBreakdownWarnings.find((w) => w.includes('by form'))?.replace(/^Lead breakdown by form:\s*/, '')}
+                        empty="No lead events in this period"
+                      />
                     )}
                   </ul>
                 </div>
@@ -379,7 +441,10 @@ export default function AnalyticsPage() {
                       </li>
                     ))}
                     {leads.bySourceMedium.length === 0 && (
-                      <p className="text-slate-400">No lead events yet</p>
+                      <SectionEmpty
+                        unavailable={leadBreakdownWarnings.find((w) => w.includes('by source'))?.replace(/^Lead breakdown by source:\s*/, '')}
+                        empty="No lead events in this period"
+                      />
                     )}
                   </ul>
                 </div>
