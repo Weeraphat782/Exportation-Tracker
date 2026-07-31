@@ -57,6 +57,13 @@ Optional filters (defaults shown):
 - `MARKETING_GA_HOSTNAME` — default `www.omgcargo.tech`
 - `GA_PUBLIC_PATH_PREFIX` — legacy marketing paths under the staff app, default `/site`
 
-Setup: enable **Google Analytics Data API** in Google Cloud, grant the service account **Viewer** on the GA4 property (Admin → Property access management). Register custom dimension `form_name` (event scope) in GA4 if you want lead breakdown by form.
+Setup: enable **Google Analytics Data API** in Google Cloud, grant the service account **Viewer** on the GA4 property (Admin → Property access management).
+
+**Google Search Console (search visibility on `/analytics`)**
+
+- `GSC_SITE_URL` — exact site URL as shown in Search Console (e.g. `sc-domain:omgcargo.tech` or `https://www.omgcargo.tech/`)
+- `GSC_LAG_DAYS` — optional, default `3` (Search Console data lag)
+
+Setup: enable **Search Console API** in the same Google Cloud project; add the service account email in Search Console → Settings → Users and permissions (Restricted is enough).
 
 Self-check date ranges: `node --experimental-strip-types scripts/ga-range.test.mjs`

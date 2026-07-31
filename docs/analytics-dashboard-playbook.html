@@ -54,7 +54,7 @@
 <div class="cover">
   <h1>Website Analytics Dashboard</h1>
   <p class="meta">Implementation playbook for the OMGEXP admin <strong>/analytics</strong> page — reusable on other sites.<br />
-  Reference stack: Next.js + GA4 Data API + GTM on the public marketing site.<br />
+  Reference stack: Next.js + GA4 Data API + Search Console API + GTM on the public marketing site.<br />
   Version: July 2026</p>
 </div>
 
@@ -62,9 +62,9 @@
 <p>The dashboard is <strong>not</strong> an embedded Google Analytics UI. It is a custom admin page that pulls aggregated metrics from the <strong>GA4 Data API</strong> using a Google Cloud service account, then renders charts with Recharts.</p>
 
 <div class="diagram">
-  Visitor → Marketing site (GTM snippet) → dataLayer events → GTM → GA4 property<br />
-  Staff → /analytics page → GET /api/analytics/ga (Bearer auth) → ga-data.ts → GA4 Data API → JSON → charts<br />
-  Contact form → attribution in localStorage → Supabase (CRM) — separate from GA4, not shown on this dashboard yet
+  Search → Google results (Search Console logs impressions/clicks) → Visitor clicks → Marketing site (GTM) → GA4 session<br />
+  Staff → /analytics → GET /api/analytics/ga → ga-data.ts (GA4) + gsc-data.ts (Search Console) → charts<br />
+  Contact form → attribution in localStorage → Supabase (CRM) — separate from this dashboard
 </div>
 
 <p><strong>Two halves:</strong> (A) code in your repo embeds GTM and pushes events; (B) configuration in GTM UI + GA4 Admin (tags, triggers, custom dimensions, referral exclusions) is <strong>not</strong> in git.</p>
@@ -79,13 +79,16 @@
   <tr><td><code>GA_SERVICE_ACCOUNT_PRIVATE_KEY</code></td><td>Yes</td><td>PEM key; use <code>\n</code> for newlines in env</td></tr>
   <tr><td><code>MARKETING_GA_HOSTNAME</code></td><td>No</td><td>Default <code>www.omgcargo.tech</code> — filters event-scoped reports</td></tr>
   <tr><td><code>GA_PUBLIC_PATH_PREFIX</code></td><td>No</td><td>Default <code>/site</code> — legacy marketing paths on the staff app domain</td></tr>
+  <tr><td><code>GSC_SITE_URL</code></td><td>No</td><td>Search Console property URL (must match Console exactly)</td></tr>
+  <tr><td><code>GSC_LAG_DAYS</code></td><td>No</td><td>Default <code>3</code> — end date offset for Search Console queries</td></tr>
   <tr><td><code>NEXT_PUBLIC_GTM_ID</code></td><td>No</td><td>GTM on public pages (separate from dashboard API)</td></tr>
 </table>
 
 <h3>2.2 Key source files</h3>
 <ul>
-  <li><code>src/lib/ga-range.ts</code> — date windows using GA4 relative dates (<code>7daysAgo</code> … <code>yesterday</code>)</li>
-  <li><code>src/lib/ga-data.ts</code> — Data API queries, site filter, lead events</li>
+  <li><code>src/lib/ga-range.ts</code> — GA4 relative dates + Search Console absolute dates</li>
+  <li><code>src/lib/ga-data.ts</code> — GA4 Data API queries, site filter, lead events</li>
+  <li><code>src/lib/gsc-data.ts</code> — Search Console API (impressions, clicks, queries)</li>
   <li><code>src/app/api/analytics/ga/route.ts</code> — admin-only API + 30-minute in-memory cache</li>
   <li><code>src/app/(main)/analytics/page.tsx</code> — dashboard UI</li>
 </ul>
@@ -113,24 +116,42 @@
   <li>Create a GTM container; add GA4 Configuration tag with your Measurement ID (<code>G-XXXX</code>).</li>
   <li>Add Custom Event triggers for <code>generate_lead</code>, <code>cta_click</code>, <code>contact_click</code>.</li>
   <li>Add GA4 Event tags mapping dataLayer parameters to event parameters.</li>
-  <li>In GA4 Admin → Custom definitions, register event-scoped dimension <strong>form_name</strong> (parameter <code>form_name</code>). Without this, “By form” breakdown fails.</li>
+  <li>Optional: register event-scoped dimension <strong>form_name</strong> in GA4 Admin only if you have multiple forms and want form-level breakdown elsewhere — the dashboard uses <code>pagePath</code> for “Leads by page” and needs no custom dimension.</li>
   <li>Enable <strong>Google Analytics Data API</strong> in Google Cloud; create a service account; download JSON key or copy email + private key to env.</li>
   <li>GA4 Admin → Property access management → add service account as <strong>Viewer</strong>.</li>
   <li>GA4 Admin → Data streams → Configure tag settings → define <strong>unwanted referrals</strong> (e.g. your own domain) to fix self-referral like <code>omgcargo.tech / referral</code>.</li>
   <li>Mark <code>generate_lead</code> as a key event in GA4 if you want it in standard reports.</li>
 </ol>
 
+<h2>3b. Manual setup (Search Console)</h2>
+<ol>
+  <li>Verify your site in Google Search Console (domain or URL-prefix property).</li>
+  <li>Google Cloud → enable <strong>Search Console API</strong> (same project as GA4 service account).</li>
+  <li>Search Console → Settings → Users and permissions → add service account email as <strong>Restricted</strong>.</li>
+  <li>Set <code>GSC_SITE_URL</code> to the exact property string: <code>sc-domain:example.com</code> or <code>https://www.example.com/</code>.</li>
+  <li>Optional: adjust <code>GSC_LAG_DAYS</code> (default 3) if reports look incomplete for recent days.</li>
+</ol>
+
 <h2>4. What each dashboard metric means</h2>
 <table>
-  <tr><th>UI label</th><th>GA4 source</th><th>Means</th><th>Does NOT mean</th></tr>
-  <tr><td>Users / Sessions / Page views</td><td>Filtered traffic totals</td><td>Marketing + legacy /site paths</td><td>All staff app usage</td></tr>
-  <tr><td>Lead events</td><td><code>eventCount</code> for <code>generate_lead</code></td><td>Successful form submits tracked in GA4</td><td>Unique people; CRM row count</td></tr>
-  <tr><td>Top entry pages</td><td><code>pagePath</code> + <code>entrances</code></td><td>Pages where sessions started</td><td>Same as landingPage dimension (session-scoped)</td></tr>
-  <tr><td>First-touch source</td><td><code>firstUserSourceMedium</code></td><td>First acquisition source on the GA4 property</td><td>First visit to marketing site only</td></tr>
-  <tr><td>Top sources</td><td><code>sessionSourceMedium</code></td><td>Source/medium for each session</td><td>Last-click attribution only</td></tr>
+  <tr><th>UI label</th><th>Source</th><th>Means</th><th>Does NOT mean</th></tr>
+  <tr><td>Search impressions</td><td>Search Console</td><td>Times your site appeared in Google results</td><td>GA4 page views</td></tr>
+  <tr><td>Search clicks</td><td>Search Console</td><td>Clicks from Google search to your site</td><td>All sessions (includes direct, ads, social)</td></tr>
+  <tr><td>Search CTR</td><td>Search Console</td><td>Clicks ÷ impressions</td><td>Conversion rate</td></tr>
+  <tr><td>Avg position</td><td>Search Console</td><td>Weighted average rank in results</td><td>Exact rank for every query</td></tr>
+  <tr><td>Users / Sessions / Page views</td><td>GA4 filtered totals</td><td>Marketing + legacy /site paths</td><td>All staff app usage</td></tr>
+  <tr><td>Lead CVR</td><td>GA4 computed</td><td>Lead events ÷ sessions</td><td>Revenue or CRM close rate</td></tr>
+  <tr><td>Lead events</td><td>GA4 <code>generate_lead</code></td><td>Form submits tracked in GA4</td><td>Unique people; phone clicks</td></tr>
+  <tr><td>Leads by page</td><td>GA4 <code>pagePath</code> + <code>eventCount</code></td><td>Page where the lead event fired</td><td>First page in session (see Top entry pages)</td></tr>
+  <tr><td>Micro-conversions</td><td>GA4 events</td><td><code>generate_lead</code>, <code>cta_click</code>, <code>contact_click</code></td><td>Deduplicated users</td></tr>
+  <tr><td>Top entry pages</td><td>GA4 <code>landingPage</code> + sessions</td><td>First page in each session</td><td>Most viewed pages (use Top pages)</td></tr>
+  <tr><td>Channel performance</td><td>GA4 merged table</td><td>Sessions + leads + CVR by source/medium</td><td>Multi-touch attribution</td></tr>
+  <tr><td>Top sources</td><td>GA4 <code>sessionSourceMedium</code></td><td>Source/medium per session</td><td>Search Console queries</td></tr>
 </table>
 
-<p>Period-over-period % compares equal-length windows ending <strong>yesterday</strong> (today excluded — GA4 processing lag).</p>
+<p><strong>Why GSC clicks ≠ GA4 organic sessions:</strong> GSC counts Google-search clicks only (server-side). GA4 counts all sessions that reach your site (client-side), grouped by last-click source/medium. Ad blockers suppress GA4 but not GSC. Direct visits and non-Google channels appear in GA4 only.</p>
+
+<p>Period-over-period % compares equal-length windows. GA4 ends <strong>yesterday</strong>; Search Console ends <strong>today − GSC_LAG_DAYS</strong>.</p>
 
 <h2>5. Accuracy limits</h2>
 <ul>
@@ -152,7 +173,8 @@
   <li>GA4 DebugView → same event within seconds.</li>
   <li>GA4 Realtime → active user on marketing hostname.</li>
   <li>Admin /analytics → KPIs load (not “Analytics not configured”).</li>
-  <li>If a section shows <strong>Data unavailable</strong> with an error string, fix GA4 config (usually missing custom dimension).</li>
+  <li>If a section shows <strong>Data unavailable</strong> with an error string, fix GA4 or Search Console config — lead breakdown uses standard <code>pagePath</code>, not custom dimensions.</li>
+  <li>Search Console section hidden until <code>GSC_SITE_URL</code> is set and API access works.</li>
   <li>Run <code>node --experimental-strip-types scripts/ga-range.test.mjs</code> after changing date logic.</li>
   <li>Compare lead events (GA4) vs contact rows (Supabase) over the same week — expect difference, not parity.</li>
 </ol>
@@ -165,6 +187,8 @@ GA_SERVICE_ACCOUNT_EMAIL=analytics-read@project.iam.gserviceaccount.com
 GA_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 MARKETING_GA_HOSTNAME=www.example.com
 GA_PUBLIC_PATH_PREFIX=/site
+GSC_SITE_URL=sc-domain:example.com
+GSC_LAG_DAYS=3
 NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX</pre>
 
 <h3>7.2 PEM key troubleshooting</h3>

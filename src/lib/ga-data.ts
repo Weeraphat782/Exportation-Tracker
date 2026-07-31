@@ -11,11 +11,17 @@ export interface GaTrafficSummary {
   totalUsers: number;
   newUsers: number;
   screenPageViews: number;
+  engagedSessions: number;
+  engagementRate: number;
+  averageSessionDuration: number;
   previous: {
     sessions: number;
     totalUsers: number;
     newUsers: number;
     screenPageViews: number;
+    engagedSessions: number;
+    engagementRate: number;
+    averageSessionDuration: number;
   };
 }
 
@@ -37,18 +43,30 @@ export interface GaPageRow {
 
 export interface GaLandingRow {
   landingPage: string;
-  entrances: number;
+  sessions: number;
 }
 
-export interface GaChannelRow {
+export interface GaChannelPerformanceRow {
   sourceMedium: string;
-  users: number;
+  sessions: number;
+  leads: number;
+  conversionRate: number;
+}
+
+export interface GaBreakdownRow {
+  label: string;
+  sessions: number;
+}
+
+export interface GaMicroConversionRow {
+  eventName: string;
+  count: number;
 }
 
 export interface GaLeadSummary {
   total: number;
   previousTotal: number;
-  byFormName: { formName: string; count: number }[];
+  byPage: { pagePath: string; count: number }[];
   bySourceMedium: { sourceMedium: string; count: number }[];
   timeseries: { date: string; count: number }[];
   errors: string[];
@@ -83,7 +101,7 @@ export function isGaConfigured(): boolean {
  * were not expanded, Windows `\r\n`, and stray whitespace. Without this, OpenSSL
  * throws "DECODER routines::unsupported".
  */
-function normalizePrivateKey(raw: string): string {
+export function normalizePrivateKey(raw: string): string {
   let key = raw.trim();
   if (
     (key.startsWith('"') && key.endsWith('"')) ||
@@ -156,6 +174,22 @@ function withSiteFilter(
   return { andGroup: { expressions: [site, extra] } };
 }
 
+function formatGaError(err: unknown): string {
+  let message = err instanceof Error ? err.message : String(err);
+  const gapic = err as {
+    details?: string;
+    statusDetails?: unknown[];
+  };
+  if (gapic.details) message += ` — ${gapic.details}`;
+  if (Array.isArray(gapic.statusDetails) && gapic.statusDetails.length > 0) {
+    const extra = gapic.statusDetails
+      .map((d) => (typeof d === 'string' ? d : JSON.stringify(d)))
+      .join('; ');
+    if (extra) message += ` — ${extra}`;
+  }
+  return message;
+}
+
 async function fetchTrafficTotals(range: GaDateRange) {
   const [response] = await getClient().runReport({
     property: propertyPath(),
@@ -165,6 +199,9 @@ async function fetchTrafficTotals(range: GaDateRange) {
       { name: 'totalUsers' },
       { name: 'newUsers' },
       { name: 'screenPageViews' },
+      { name: 'engagedSessions' },
+      { name: 'engagementRate' },
+      { name: 'averageSessionDuration' },
     ],
     dimensionFilter: sitePathFilter(),
   });
@@ -174,6 +211,9 @@ async function fetchTrafficTotals(range: GaDateRange) {
     totalUsers: parseMetric(row, 1),
     newUsers: parseMetric(row, 2),
     screenPageViews: parseMetric(row, 3),
+    engagedSessions: parseMetric(row, 4),
+    engagementRate: parseMetric(row, 5),
+    averageSessionDuration: parseMetric(row, 6),
   };
 }
 
@@ -257,7 +297,7 @@ async function safeRunReport(
     const [response] = await getClient().runReport(request);
     return { rows: response.rows || [] };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = formatGaError(err);
     console.warn('GA report failed:', message);
     return { rows: [], error: message };
   }
@@ -272,14 +312,14 @@ export async function getLeadConversions(range: GaDateRange): Promise<GaLeadSumm
     },
   };
 
-  const [total, previousTotal, byFormResult, bySourceResult, timeseriesResult] =
+  const [total, previousTotal, byPageResult, bySourceResult, timeseriesResult] =
     await Promise.all([
       fetchLeadTotal(range),
       fetchLeadTotal(prev),
       safeRunReport({
         property: propertyPath(),
         dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
-        dimensions: [{ name: 'customEvent:form_name' }],
+        dimensions: [{ name: 'pagePath' }],
         metrics: [{ name: 'eventCount' }],
         dimensionFilter: withSiteFilter(eventFilter),
         orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
@@ -305,15 +345,15 @@ export async function getLeadConversions(range: GaDateRange): Promise<GaLeadSumm
     ]);
 
   const errors: string[] = [];
-  if (byFormResult.error) errors.push(`Lead breakdown by form: ${byFormResult.error}`);
+  if (byPageResult.error) errors.push(`Lead breakdown by page: ${byPageResult.error}`);
   if (bySourceResult.error) errors.push(`Lead breakdown by source: ${bySourceResult.error}`);
   if (timeseriesResult.error) errors.push(`Lead timeseries: ${timeseriesResult.error}`);
 
   return {
     total,
     previousTotal,
-    byFormName: byFormResult.rows.map((row) => ({
-      formName: parseDimension(row, 0) || '(not set)',
+    byPage: byPageResult.rows.map((row) => ({
+      pagePath: parseDimension(row, 0) || '/',
       count: parseMetric(row, 0),
     })),
     bySourceMedium: bySourceResult.rows.map((row) => ({
@@ -328,7 +368,7 @@ export async function getLeadConversions(range: GaDateRange): Promise<GaLeadSumm
   };
 }
 
-/** Top entry pages by entrances — pagePath is event-scoped and pairs with hostName filter. */
+/** Top entry pages by sessions — landingPage dimension with site filter. */
 export async function getEntryLandingPages(
   range: GaDateRange,
   limit = 8
@@ -336,39 +376,116 @@ export async function getEntryLandingPages(
   const result = await safeRunReport({
     property: propertyPath(),
     dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
-    dimensions: [{ name: 'pagePath' }],
-    metrics: [{ name: 'entrances' }],
-    dimensionFilter: sitePathFilter('pagePath'),
-    orderBys: [{ metric: { metricName: 'entrances' }, desc: true }],
+    dimensions: [{ name: 'landingPage' }],
+    metrics: [{ name: 'sessions' }],
+    dimensionFilter: sitePathFilter('landingPage'),
+    orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
     limit,
   });
   return {
     data: result.rows.map((row) => ({
       landingPage: parseDimension(row, 0) || '/',
-      entrances: parseMetric(row, 0),
+      sessions: parseMetric(row, 0),
     })),
     error: result.error,
   };
 }
 
-export async function getEntryChannels(
-  range: GaDateRange,
-  limit = 8
-): Promise<GaSectionResult<GaChannelRow[]>> {
+export async function getMicroConversions(
+  range: GaDateRange
+): Promise<GaSectionResult<GaMicroConversionRow[]>> {
+  const eventFilter: protos.google.analytics.data.v1beta.IFilterExpression = {
+    filter: {
+      fieldName: 'eventName',
+      inListFilter: {
+        values: ['generate_lead', 'cta_click', 'contact_click'],
+      },
+    },
+  };
   const result = await safeRunReport({
     property: propertyPath(),
     dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
-    dimensions: [{ name: 'firstUserSourceMedium' }],
-    metrics: [{ name: 'totalUsers' }],
+    dimensions: [{ name: 'eventName' }],
+    metrics: [{ name: 'eventCount' }],
+    dimensionFilter: withSiteFilter(eventFilter),
+    orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+  });
+  return {
+    data: result.rows.map((row) => ({
+      eventName: parseDimension(row, 0) || '(not set)',
+      count: parseMetric(row, 0),
+    })),
+    error: result.error,
+  };
+}
+
+export async function getDeviceBreakdown(
+  range: GaDateRange,
+  limit = 5
+): Promise<GaSectionResult<GaBreakdownRow[]>> {
+  const result = await safeRunReport({
+    property: propertyPath(),
+    dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+    dimensions: [{ name: 'deviceCategory' }],
+    metrics: [{ name: 'sessions' }],
     dimensionFilter: sitePathFilter(),
-    orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
+    orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
     limit,
   });
   return {
     data: result.rows.map((row) => ({
-      sourceMedium: parseDimension(row, 0) || '(not set)',
-      users: parseMetric(row, 0),
+      label: parseDimension(row, 0) || '(not set)',
+      sessions: parseMetric(row, 0),
     })),
     error: result.error,
   };
+}
+
+export async function getCountryBreakdown(
+  range: GaDateRange,
+  limit = 8
+): Promise<GaSectionResult<GaBreakdownRow[]>> {
+  const result = await safeRunReport({
+    property: propertyPath(),
+    dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+    dimensions: [{ name: 'country' }],
+    metrics: [{ name: 'sessions' }],
+    dimensionFilter: sitePathFilter(),
+    orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+    limit,
+  });
+  return {
+    data: result.rows.map((row) => ({
+      label: parseDimension(row, 0) || '(not set)',
+      sessions: parseMetric(row, 0),
+    })),
+    error: result.error,
+  };
+}
+
+export function buildChannelPerformance(
+  sources: GaSourceRow[],
+  leadBySource: { sourceMedium: string; count: number }[],
+  limit = 10
+): GaChannelPerformanceRow[] {
+  const sessionMap = new Map(sources.map((s) => [s.sourceMedium, s.sessions]));
+  const leadMap = new Map(leadBySource.map((l) => [l.sourceMedium, l.count]));
+  const keys = new Set([...sessionMap.keys(), ...leadMap.keys()]);
+  return [...keys]
+    .map((sourceMedium) => {
+      const sessions = sessionMap.get(sourceMedium) ?? 0;
+      const leads = leadMap.get(sourceMedium) ?? 0;
+      return {
+        sourceMedium,
+        sessions,
+        leads,
+        conversionRate: sessions > 0 ? (leads / sessions) * 100 : 0,
+      };
+    })
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, limit);
+}
+
+export function conversionRate(leads: number, sessions: number): number {
+  return sessions > 0 ? (leads / sessions) * 100 : 0;
 }

@@ -9,8 +9,13 @@ import {
   getTopPages,
   getLeadConversions,
   getEntryLandingPages,
-  getEntryChannels,
+  getMicroConversions,
+  getDeviceBreakdown,
+  getCountryBreakdown,
+  buildChannelPerformance,
+  conversionRate,
 } from '@/lib/ga-data';
+import { getGscDashboard } from '@/lib/gsc-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +43,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const rangeKey = searchParams.get('range') || '28d';
-  const cacheKey = `ga:${rangeKey}`;
+  const cacheKey = `ga:v2:${rangeKey}`;
 
   const cached = getCached(cacheKey);
   if (cached) {
@@ -48,10 +53,21 @@ export async function GET(request: Request) {
   const range = parseGaRange(rangeKey);
 
   try {
-    const [landingResult, channelsResult, leads, ...rest] = await Promise.all([
+    const [
+      landingResult,
+      leads,
+      microConversionsResult,
+      deviceResult,
+      countryResult,
+      gsc,
+      ...rest
+    ] = await Promise.all([
       getEntryLandingPages(range),
-      getEntryChannels(range),
       getLeadConversions(range),
+      getMicroConversions(range),
+      getDeviceBreakdown(range),
+      getCountryBreakdown(range),
+      getGscDashboard(range),
       getTrafficSummary(range),
       getSessionsTimeseries(range),
       getTopSources(range),
@@ -60,10 +76,20 @@ export async function GET(request: Request) {
 
     const [summary, sessionsSeries, topSources, topPages] = rest;
 
+    const channelPerformance = buildChannelPerformance(
+      topSources,
+      leads.bySourceMedium
+    );
+
     const warnings: string[] = [
       ...(leads.errors ?? []),
       ...(landingResult.error ? [`Landing pages: ${landingResult.error}`] : []),
-      ...(channelsResult.error ? [`First-visit channels: ${channelsResult.error}`] : []),
+      ...(microConversionsResult.error
+        ? [`Micro-conversions: ${microConversionsResult.error}`]
+        : []),
+      ...(deviceResult.error ? [`Device breakdown: ${deviceResult.error}`] : []),
+      ...(countryResult.error ? [`Country breakdown: ${countryResult.error}`] : []),
+      ...(gsc.error ? [`Search Console: ${gsc.error}`] : []),
     ];
 
     const body = {
@@ -77,12 +103,20 @@ export async function GET(request: Request) {
       leads: {
         total: leads.total,
         previousTotal: leads.previousTotal,
-        byFormName: leads.byFormName,
+        byPage: leads.byPage,
         bySourceMedium: leads.bySourceMedium,
         timeseries: leads.timeseries,
       },
+      conversionRate: {
+        current: conversionRate(leads.total, summary.sessions),
+        previous: conversionRate(leads.previousTotal, summary.previous.sessions),
+      },
       landingPages: landingResult.data,
-      entryChannels: channelsResult.data,
+      channelPerformance,
+      microConversions: microConversionsResult.data,
+      devices: deviceResult.data,
+      countries: countryResult.data,
+      searchConsole: gsc,
       warnings,
     };
 
