@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { sendTelegramContactNotification } from '@/lib/telegram-admin-notify';
 import { sendContactNotification } from '@/lib/mail';
+import { parseAttribution } from '@/lib/contact-attribution';
 import {
   marketingJsonResponse,
   marketingOptionsResponse,
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
     const inquiryType =
       typeof body.inquiryType === 'string' ? body.inquiryType.trim() : null;
     let message = typeof body.message === 'string' ? body.message.trim() : '';
+    const attribution = parseAttribution(body.attribution);
 
     if (!name || !email || !message) {
       return marketingJsonResponse(
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       return marketingJsonResponse({ error: 'Server configuration error.' }, 500, origin);
     }
 
-    const { error: insertError } = await supabase
+    const { data: row, error: insertError } = await supabase
       .from('contact_submissions')
       .insert({
         name,
@@ -61,9 +63,12 @@ export async function POST(request: NextRequest) {
         company: company || null,
         inquiry_type: inquiryType || null,
         message,
-      });
+        attribution,
+      })
+      .select('id')
+      .single();
 
-    if (insertError) {
+    if (insertError || !row?.id) {
       console.error('[api/contact] Supabase insert error:', insertError);
       return marketingJsonResponse(
         { error: 'Could not save your message. Please try again later.' },
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest) {
       company,
       inquiryType,
       message,
+      attribution,
     });
 
     await sendContactNotification({
@@ -86,9 +92,10 @@ export async function POST(request: NextRequest) {
       company,
       inquiryType,
       message,
+      attribution,
     });
 
-    return marketingJsonResponse({ ok: true }, 200, origin);
+    return marketingJsonResponse({ ok: true, id: row.id }, 200, origin);
   } catch (e) {
     if (e instanceof SyntaxError) {
       return marketingJsonResponse({ error: 'Invalid JSON body.' }, 400, origin);

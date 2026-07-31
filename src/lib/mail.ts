@@ -1,4 +1,6 @@
 import { Resend } from 'resend';
+import type { StoredAttribution } from '@/lib/contact-attribution';
+import { formatAttributionLine } from '@/lib/contact-attribution';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -84,13 +86,16 @@ export async function sendContactNotification({
   company,
   inquiryType,
   message,
+  attribution,
 }: {
   name: string;
   email: string;
   company?: string | null;
   inquiryType?: string | null;
   message: string;
+  attribution?: StoredAttribution | null;
 }) {
+  const attrLine = formatAttributionLine(attribution ?? null);
   const subject = `New Contact Inquiry from ${name}`;
   const html = `
     <h2>New Contact Form Submission</h2>
@@ -98,11 +103,12 @@ export async function sendContactNotification({
     <p><strong>Email:</strong> ${email}</p>
     <p><strong>Company:</strong> ${company || 'N/A'}</p>
     <p><strong>Inquiry Type:</strong> ${inquiryType || 'N/A'}</p>
+    ${attrLine ? `<p><strong>Attribution:</strong> ${attrLine.replace(/^\n📊 Attribution: /, '')}</p>` : ''}
     <hr />
     <p><strong>Message:</strong></p>
     <p style="white-space: pre-wrap;">${message}</p>
   `;
-  const text = `New Contact Inquiry\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || 'N/A'}\nInquiry: ${inquiryType || 'N/A'}\n\nMessage:\n${message}`;
+  const text = `New Contact Inquiry\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || 'N/A'}\nInquiry: ${inquiryType || 'N/A'}${attrLine ? `\n${attrLine.trim()}` : ''}\n\nMessage:\n${message}`;
 
   return sendAdminNotification({ subject, html, text });
 }

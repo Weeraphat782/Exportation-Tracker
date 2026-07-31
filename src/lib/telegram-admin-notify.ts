@@ -1,3 +1,6 @@
+import type { StoredAttribution } from '@/lib/contact-attribution';
+import { formatAttributionLine } from '@/lib/contact-attribution';
+
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
@@ -71,6 +74,7 @@ export type TelegramContactNotifyPayload = {
   company?: string | null;
   inquiryType?: string | null;
   message: string;
+  attribution?: StoredAttribution | null;
 };
 
 /**
@@ -87,7 +91,7 @@ export async function sendTelegramContactNotification(
     return;
   }
 
-  const { name, email, company, inquiryType, message } = payload;
+  const { name, email, company, inquiryType, message, attribution } = payload;
   const snippet =
     message.length > 800 ? `${message.slice(0, 800)}…` : message;
 
@@ -97,7 +101,8 @@ export async function sendTelegramContactNotification(
     `📧 อีเมล: ${email}\n` +
     `🏢 บริษัท: ${company?.trim() || '—'}\n` +
     `📋 ประเภท: ${inquiryType?.trim() || '—'}\n\n` +
-    `💬 ข้อความ:\n${snippet}`;
+    `💬 ข้อความ:\n${snippet}` +
+    formatAttributionLine(attribution ?? null);
 
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
