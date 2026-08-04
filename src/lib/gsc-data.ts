@@ -5,6 +5,12 @@ import {
   previousAbsoluteRange,
   type GaDateRange,
 } from './ga-range';
+import {
+  buildGscOpportunities,
+  type GscOpportunities,
+} from './gsc-opportunities';
+
+export type { GscOpportunities, GscStrikingQuery, GscLowCtrPage, GscZeroClickQuery } from './gsc-opportunities';
 
 interface GscApiRow {
   keys?: string[];
@@ -59,7 +65,12 @@ export interface GscDashboardData {
   topQueries?: GscQueryRow[];
   topPages?: GscPageRow[];
   timeseries?: GscTimeseriesPoint[];
+  opportunities?: GscOpportunities;
 }
+
+/** ponytail: GSC API max per dimension query — one call, no extra quota */
+const GSC_DETAIL_ROW_LIMIT = 250;
+const GSC_TOP_LIMIT = 10;
 
 export function isGscConfigured(): boolean {
   return isGaConfigured() && Boolean(process.env.GSC_SITE_URL?.trim());
@@ -73,6 +84,32 @@ function mapRow(row: GscApiRow, keyIndex = 0) {
     position: row.position ?? 0,
     key: row.keys?.[keyIndex] ?? '',
   };
+}
+
+function mapQueryRows(rows: GscApiRow[]): GscQueryRow[] {
+  return rows.map((row) => {
+    const m = mapRow(row);
+    return {
+      query: m.key || '(not set)',
+      clicks: m.clicks,
+      impressions: m.impressions,
+      ctr: m.ctr,
+      position: m.position,
+    };
+  });
+}
+
+function mapPageRows(rows: GscApiRow[]): GscPageRow[] {
+  return rows.map((row) => {
+    const m = mapRow(row);
+    return {
+      page: m.key || '/',
+      clicks: m.clicks,
+      impressions: m.impressions,
+      ctr: m.ctr,
+      position: m.position,
+    };
+  });
 }
 
 function aggregateTotals(rows: GscApiRow[]) {
@@ -156,13 +193,13 @@ export async function getGscDashboard(range: GaDateRange): Promise<GscDashboardD
           startDate: abs.startDate,
           endDate: abs.endDate,
           dimensions: ['query'],
-          rowLimit: 10,
+          rowLimit: GSC_DETAIL_ROW_LIMIT,
         }),
         gscQuery(siteUrl, {
           startDate: abs.startDate,
           endDate: abs.endDate,
           dimensions: ['page'],
-          rowLimit: 10,
+          rowLimit: GSC_DETAIL_ROW_LIMIT,
         }),
         gscQuery(siteUrl, {
           startDate: abs.startDate,
@@ -175,30 +212,19 @@ export async function getGscDashboard(range: GaDateRange): Promise<GscDashboardD
     const current = aggregateTotals(currentTotals);
     const previous = aggregateTotals(previousTotals);
 
+    const allQueries = mapQueryRows(queryRows);
+    const allPages = mapPageRows(pageRows);
+
     return {
       configured: true,
       dataThrough: abs.endDate,
       summary: { ...current, previous },
-      topQueries: queryRows.map((row) => {
-        const m = mapRow(row);
-        return {
-          query: m.key || '(not set)',
-          clicks: m.clicks,
-          impressions: m.impressions,
-          ctr: m.ctr,
-          position: m.position,
-        };
-      }),
-      topPages: pageRows.map((row) => {
-        const m = mapRow(row);
-        return {
-          page: m.key || '/',
-          clicks: m.clicks,
-          impressions: m.impressions,
-          ctr: m.ctr,
-          position: m.position,
-        };
-      }),
+      topQueries: [...allQueries]
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, GSC_TOP_LIMIT),
+      topPages: [...allPages]
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, GSC_TOP_LIMIT),
       timeseries: dateRows
         .map((row) => {
           const m = mapRow(row);
@@ -211,6 +237,7 @@ export async function getGscDashboard(range: GaDateRange): Promise<GscDashboardD
           };
         })
         .sort((a, b) => a.date.localeCompare(b.date)),
+      opportunities: buildGscOpportunities(allQueries, allPages, current.ctr),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

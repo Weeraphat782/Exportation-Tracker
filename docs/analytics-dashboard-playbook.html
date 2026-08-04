@@ -88,7 +88,8 @@
 <ul>
   <li><code>src/lib/ga-range.ts</code> — GA4 relative dates + Search Console absolute dates</li>
   <li><code>src/lib/ga-data.ts</code> — GA4 Data API queries, site filter, lead events</li>
-  <li><code>src/lib/gsc-data.ts</code> — Search Console API (impressions, clicks, queries)</li>
+  <li><code>src/lib/gsc-data.ts</code> — Search Console API (impressions, clicks, queries, opportunities)</li>
+  <li><code>src/lib/gsc-opportunities.ts</code> — striking distance, low CTR, zero-click ranking</li>
   <li><code>src/app/api/analytics/ga/route.ts</code> — admin-only API + 30-minute in-memory cache</li>
   <li><code>src/app/(main)/analytics/page.tsx</code> — dashboard UI</li>
 </ul>
@@ -152,6 +153,15 @@
 <p><strong>Why GSC clicks ≠ GA4 organic sessions:</strong> GSC counts Google-search clicks only (server-side). GA4 counts all sessions that reach your site (client-side), grouped by last-click source/medium. Ad blockers suppress GA4 but not GSC. Direct visits and non-Google channels appear in GA4 only.</p>
 
 <p>Period-over-period % compares equal-length windows. GA4 ends <strong>yesterday</strong>; Search Console ends <strong>today − GSC_LAG_DAYS</strong>.</p>
+
+<h3>4b. SEO opportunities card (Search Console)</h3>
+<p>Uses up to 250 query/page rows from the same GSC API calls (no extra quota). Three columns:</p>
+<table>
+  <tr><th>Column</th><th>Filter</th><th>What to do next</th></tr>
+  <tr><td>Striking distance</td><td>Queries ranking #5–20 with ≥10 impressions</td><td>Add content or internal links targeting these terms — small ranking gains can move you to page 1</td></tr>
+  <tr><td>Low CTR pages</td><td>Pages with CTR below site average, sorted by <em>missed clicks</em></td><td>Rewrite title and meta description so the snippet matches search intent</td></tr>
+  <tr><td>Zero-click queries</td><td>Impressions &gt; 0 but zero clicks</td><td>Snippet or intent mismatch — consider a dedicated landing page or clearer title</td></tr>
+</table>
 
 <h2>5. Accuracy limits</h2>
 <ul>

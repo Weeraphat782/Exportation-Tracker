@@ -37,6 +37,7 @@ import type {
 } from '@/lib/ga-data';
 import type {
   GscDashboardData,
+  GscOpportunities,
   GscPageRow,
   GscQueryRow,
 } from '@/lib/gsc-data';
@@ -396,6 +397,10 @@ export default function AnalyticsPage() {
                 <GscQueryTable rows={gsc.topQueries ?? []} error={gsc.error} />
                 <GscPageTable rows={gsc.topPages ?? []} error={gsc.error} />
               </div>
+
+              {gsc.opportunities && (
+                <GscOpportunitiesCard data={gsc.opportunities} siteCtr={gsc.summary.ctr} />
+              )}
             </>
           )}
 
@@ -743,6 +748,83 @@ function GscPageTable({ rows, error }: { rows: GscPageRow[]; error?: string }) {
             <SectionEmpty unavailable={error} empty="No page data for this period" />
           )}
         </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GscOpportunitiesCard({ data, siteCtr }: { data: GscOpportunities; siteCtr: number }) {
+  const siteCtrPct = (siteCtr * 100).toFixed(1);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">SEO opportunities</CardTitle>
+        <CardDescription>
+          Actions from Search Console — site CTR {(siteCtr * 100).toFixed(1)}% in this period
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-1">Striking distance</p>
+            <p className="text-xs text-slate-500 mb-2">
+              Queries ranking #5–20 — add a section or internal link targeting these terms
+            </p>
+            <ul className="space-y-2 text-sm">
+              {data.strikingDistance.map((row) => (
+                <li key={row.query} className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+                  <span className="truncate text-slate-700" title={row.query}>{row.query}</span>
+                  <span className="tabular-nums text-slate-500 shrink-0 text-xs">
+                    pos {row.position.toFixed(1)} · {row.impressions.toLocaleString()} imp
+                  </span>
+                </li>
+              ))}
+              {data.strikingDistance.length === 0 && (
+                <SectionEmpty empty="No queries in positions 5–20 yet" />
+              )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-1">Low CTR pages</p>
+            <p className="text-xs text-slate-500 mb-2">
+              High impressions but CTR below site average ({siteCtrPct}%) — rewrite title and meta description
+            </p>
+            <ul className="space-y-2 text-sm">
+              {data.lowCtrPages.map((row) => (
+                <li key={row.page} className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+                  <span className="truncate font-mono text-xs text-slate-700" title={row.page}>
+                    {row.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                  </span>
+                  <span className="tabular-nums text-slate-500 shrink-0 text-xs">
+                    ~{Math.round(row.missedClicks)} missed · {(row.ctr * 100).toFixed(1)}% CTR
+                  </span>
+                </li>
+              ))}
+              {data.lowCtrPages.length === 0 && (
+                <SectionEmpty empty="No pages below site CTR in this period" />
+              )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-1">Zero-click queries</p>
+            <p className="text-xs text-slate-500 mb-2">
+              Shown in Google but nobody clicked — snippet or intent mismatch; consider a dedicated page
+            </p>
+            <ul className="space-y-2 text-sm">
+              {data.zeroClickQueries.map((row) => (
+                <li key={row.query} className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+                  <span className="truncate text-slate-700" title={row.query}>{row.query}</span>
+                  <span className="tabular-nums text-slate-500 shrink-0 text-xs">
+                    {row.impressions.toLocaleString()} imp · pos {row.position.toFixed(1)}
+                  </span>
+                </li>
+              ))}
+              {data.zeroClickQueries.length === 0 && (
+                <SectionEmpty empty="No zero-click queries in this period" />
+              )}
+            </ul>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
