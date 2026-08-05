@@ -12,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -255,6 +257,11 @@ function QuoteChips({ opp }: { opp: Opportunity }) {
 
 export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCase, onOpportunityPatch }: ListViewProps) {
   const router = useRouter();
+  const pager = usePagination(
+    'opportunities',
+    opportunities,
+    [opportunities.map((o) => o.id).join(',')],
+  );
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('th-TH', {
@@ -294,7 +301,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
                 </TableCell>
               </TableRow>
             ) : (
-              opportunities.map((opp) => (
+              pager.items.map((opp) => (
                 <TableRow
                   key={opp.id}
                   className={`hover:bg-slate-50 transition-colors cursor-pointer ${opp.closureStatus === 'won'
@@ -464,6 +471,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
             )}
           </TableBody>
         </Table>
+        <Pagination pager={pager} />
       </div>
 
       {/* Mobile Card View - Visible on Mobile */}
@@ -473,7 +481,7 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
             No opportunities found
           </div>
         ) : (
-          opportunities.map((opp) => (
+          pager.items.map((opp) => (
             <div
               key={opp.id}
               className={`p-4 rounded-xl border bg-white shadow-sm transition-all active:scale-[0.98] ${opp.closureStatus === 'won'
@@ -589,6 +597,9 @@ export function ListView({ opportunities, onEdit, onDelete, onWinCase, onLoseCas
             </div>
           ))
         )}
+      </div>
+      <div className="md:hidden">
+        <Pagination pager={pager} />
       </div>
     </div>
   );

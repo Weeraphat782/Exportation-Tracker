@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { deleteQcTemplate, getQcTemplates, updateQcTemplate } from '@/lib/qc-db';
@@ -45,6 +47,8 @@ export default function QcTemplatesPage() {
     }
   };
 
+  const pager = usePagination('qc-templates', templates);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -78,6 +82,7 @@ export default function QcTemplatesPage() {
               </Link>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -88,7 +93,7 @@ export default function QcTemplatesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {templates.map((tpl) => (
+                {pager.items.map((tpl) => (
                   <TableRow key={tpl.id}>
                     <TableCell className="font-medium">{tpl.name}</TableCell>
                     <TableCell className="text-slate-500">{tpl.description || '—'}</TableCell>
@@ -115,6 +120,8 @@ export default function QcTemplatesPage() {
                 ))}
               </TableBody>
             </Table>
+            <Pagination pager={pager} />
+            </>
           )}
         </CardContent>
       </Card>

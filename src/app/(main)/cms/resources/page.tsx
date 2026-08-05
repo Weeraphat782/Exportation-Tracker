@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Trash2, Edit, Eye, EyeOff, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -62,6 +64,8 @@ export default function CmsResourcesPage() {
         r.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
     );
 
+    const pager = usePagination('cms-resources', filtered, [search]);
+
     return (
         <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
@@ -105,7 +109,7 @@ export default function CmsResourcesPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filtered.map((resource) => (
+                            {pager.items.map((resource) => (
                                 <tr key={resource.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3">
                                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{resource.title}</p>
@@ -145,6 +149,7 @@ export default function CmsResourcesPage() {
                             ))}
                         </tbody>
                     </table>
+                    <Pagination pager={pager} className="px-4" />
                 </div>
             )}
         </div>

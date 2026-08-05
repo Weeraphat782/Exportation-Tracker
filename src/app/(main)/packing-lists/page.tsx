@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { toast } from 'sonner';
 
 interface PackingListItem {
@@ -49,6 +51,8 @@ export default function PackingListsPage() {
     loadLists();
   }, []);
 
+  const pager = usePagination('packing-lists', items);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -86,7 +90,7 @@ export default function PackingListsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((it) => (
+                  {pager.items.map((it) => (
                     <tr key={it.id} className="border-b hover:bg-accent/30">
                       <td className="py-2 pr-4 font-medium">{it.packing_list_no}</td>
                       <td className="py-2 pr-4">{it.consigner}</td>
@@ -129,6 +133,7 @@ export default function PackingListsPage() {
                   ))}
                 </tbody>
               </table>
+              <Pagination pager={pager} />
             </div>
           )}
         </CardContent>

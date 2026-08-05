@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { ClipboardList, Eye, QrCode, Search } from 'lucide-react';
 import { getQcRequestsByStatus } from '@/lib/qc-db';
 import { getQcPayableTotal } from '@/lib/qc-invoice';
@@ -47,6 +49,8 @@ export default function QcRequestsQueuePage() {
         (r.company_name_address || '').toLowerCase().includes(q)
     );
   }, [requests, search]);
+
+  const pager = usePagination(`qc-requests-${tab}`, filtered, [search, tab]);
 
   return (
     <div className="space-y-6">
@@ -98,6 +102,7 @@ export default function QcRequestsQueuePage() {
                 ) : filtered.length === 0 ? (
                   <p className="text-center py-6 text-slate-500">No requests in this folder.</p>
                 ) : (
+                  <>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -111,7 +116,7 @@ export default function QcRequestsQueuePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((req) => (
+                      {pager.items.map((req) => (
                         <TableRow key={req.id}>
                           <TableCell className="font-mono font-medium">{req.qc_code}</TableCell>
                           <TableCell>{req.qc_templates?.name || '—'}</TableCell>
@@ -141,6 +146,8 @@ export default function QcRequestsQueuePage() {
                       ))}
                     </TableBody>
                   </Table>
+                  <Pagination pager={pager} />
+                  </>
                 )}
               </CardContent>
             </Card>

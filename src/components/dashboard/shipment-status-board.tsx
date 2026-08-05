@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -23,15 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { DatePickerField } from '@/components/ui/date-picker-field';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import {
   SHIPMENT_STATUS_LABELS,
   summarizeShipmentRows,
@@ -46,8 +40,6 @@ interface ShipmentStatusBoardProps {
 }
 
 type FilterKey = 'all' | ShipmentOpStatus;
-
-const PAGE_SIZE_OPTIONS = [5, 10, 15, 20] as const;
 
 const STATUS_BADGE: Record<ShipmentOpStatus, 'warning' | 'success' | 'destructive' | 'orange'> = {
   awaiting_payment: 'warning',
@@ -99,10 +91,15 @@ function KpiCard({
 export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: ShipmentStatusBoardProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(5);
   const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
   const summary = useMemo(() => summarizeShipmentRows(rows), [rows]);
+
+  const filteredRows = useMemo(() => {
+    if (filter === 'all') return rows;
+    return rows.filter((r) => r.opStatus === filter);
+  }, [rows, filter]);
+
+  const pager = usePagination('shipment-board', filteredRows, [filter]);
 
   const handlePaymentDateChange = async (opportunityId: string, date: string) => {
     setSavingPaymentId(opportunityId);
@@ -121,29 +118,6 @@ export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: Shipm
       setSavingPaymentId(null);
     }
   };
-
-  const filteredRows = useMemo(() => {
-    if (filter === 'all') return rows;
-    return rows.filter((r) => r.opStatus === filter);
-  }, [rows, filter]);
-
-  const totalFiltered = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const pagedRows = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, safePage, pageSize]);
-  const rangeStart = totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safePage * pageSize, totalFiltered);
-
-  useEffect(() => {
-    setPage(1);
-  }, [filter, pageSize]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
 
   if (isLoading) {
     return (
@@ -245,7 +219,7 @@ export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: Shipm
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pagedRows.map((row) => (
+                      {pager.items.map((row) => (
                         <TableRow
                           key={row.id}
                           className="cursor-pointer hover:bg-slate-50"
@@ -319,58 +293,7 @@ export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: Shipm
                   </Table>
                 </div>
               )}
-              {filteredRows.length > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-3 border-t">
-                  <p className="text-xs text-muted-foreground">
-                    Showing {rangeStart}–{rangeEnd} of {totalFiltered}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">Per page</span>
-                      <Select
-                        value={String(pageSize)}
-                        onValueChange={(v) => setPageSize(Number(v))}
-                      >
-                        <SelectTrigger className="h-8 w-[72px] text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAGE_SIZE_OPTIONS.map((n) => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        disabled={safePage <= 1}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-xs text-muted-foreground px-2 whitespace-nowrap">
-                        Page {safePage} of {totalPages}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                        disabled={safePage >= totalPages}
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {filteredRows.length > 0 && <Pagination pager={pager} />}
             </TabsContent>
           </Tabs>
         </CardContent>

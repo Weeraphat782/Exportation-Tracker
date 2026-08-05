@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Plus, Pencil, Trash, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -43,6 +45,8 @@ export default function DestinationSettingsPage() {
     }
     loadDestinations();
   }, []);
+
+  const pager = usePagination('destinations', destinations);
 
   // Handle edit button click
   const handleEdit = (id: string) => {
@@ -126,6 +130,7 @@ export default function DestinationSettingsPage() {
           {loading && <p>Loading destinations...</p>}
           {error && <p className="text-red-500">Error: {error}</p>}
           {!loading && !error && (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -141,7 +146,7 @@ export default function DestinationSettingsPage() {
                     <TableCell colSpan={3} className="text-center">No destinations found.</TableCell>
                   </TableRow>
                 ) : (
-                  destinations.map((destination) => (
+                  pager.items.map((destination) => (
                     <TableRow key={destination.id}>
                       <TableCell className="font-medium">{destination.country}</TableCell>
                       <TableCell>{destination.port || '-'}</TableCell>
@@ -189,6 +194,8 @@ export default function DestinationSettingsPage() {
                 )}
               </TableBody>
             </Table>
+            <Pagination pager={pager} />
+            </>
           )}
         </CardContent>
       </Card>

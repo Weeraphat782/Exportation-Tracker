@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -39,6 +41,8 @@ export default function CarrierBoardSettingsPage() {
   useEffect(() => {
     void fetchRoutes();
   }, [fetchRoutes]);
+
+  const pager = usePagination('carrier-board', rows);
 
   const toggleActive = async (row: CarrierBoardRouteRow, nextActive: boolean) => {
     setUpdatingId(row.id);
@@ -115,7 +119,7 @@ export default function CarrierBoardSettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {pager.items.map((r) => (
                     <tr key={r.id} className="border-b last:border-0">
                       <td className="p-3 tabular-nums text-muted-foreground">{r.sort_order}</td>
                       <td className="p-3 font-medium">{r.country}</td>
@@ -137,6 +141,7 @@ export default function CarrierBoardSettingsPage() {
                   ))}
                 </tbody>
               </table>
+              <Pagination pager={pager} />
             </div>
           )}
         </CardContent>

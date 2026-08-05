@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Plus, Edit, Trash2, FileText, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
@@ -62,6 +64,8 @@ export default function RulesPage() {
       setLoading(false);
     }
   }
+
+  const pager = usePagination('comparison-rules', rules);
 
   async function handleDelete(id: string, isDefault: boolean) {
     if (isDefault) {
@@ -161,7 +165,7 @@ export default function RulesPage() {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {rules.map((rule) => (
+          {pager.items.map((rule) => (
             <Card key={rule.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -238,6 +242,7 @@ export default function RulesPage() {
               </CardContent>
             </Card>
           ))}
+          <Pagination pager={pager} />
         </div>
       )}
     </div>

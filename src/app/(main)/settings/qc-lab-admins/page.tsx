@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Badge } from '@/components/ui/badge';
 import { UserCog, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -34,6 +36,8 @@ export default function QcLabAdminsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const pager = usePagination('qc-lab-admins', entries);
 
   const handleAdd = async () => {
     if (!email.trim()) return;
@@ -131,6 +135,7 @@ export default function QcLabAdminsPage() {
           ) : entries.length === 0 ? (
             <p className="text-center py-4 text-slate-500">No emails yet.</p>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -140,7 +145,7 @@ export default function QcLabAdminsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((entry) => (
+                {pager.items.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>{entry.email}</TableCell>
                     <TableCell>
@@ -164,6 +169,8 @@ export default function QcLabAdminsPage() {
                 ))}
               </TableBody>
             </Table>
+            <Pagination pager={pager} />
+            </>
           )}
         </CardContent>
       </Card>

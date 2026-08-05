@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Plus, Pencil, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -44,6 +46,8 @@ export default function FreightRateSettingsPage() {
     }
     loadFreightRates();
   }, []);
+
+  const pager = usePagination('freight-rates', freightRates);
 
   // Handle edit button click
   const handleEdit = (id: string) => {
@@ -114,6 +118,7 @@ export default function FreightRateSettingsPage() {
           {loading && <p>Loading freight rates...</p>}
           {error && <p className="text-red-500">Error: {error}</p>}
           {!loading && !error && (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -132,7 +137,7 @@ export default function FreightRateSettingsPage() {
                     <TableCell colSpan={7} className="text-center">No freight rates found.</TableCell>
                   </TableRow>
                 ) : (
-                  freightRates.map((rate) => (
+                  pager.items.map((rate) => (
                     <TableRow key={rate.id}>
                       <TableCell className="font-medium">{rate.destinations?.country || 'N/A'}</TableCell>
                       <TableCell>{rate.destinations?.port || 'N/A'}</TableCell>
@@ -165,6 +170,8 @@ export default function FreightRateSettingsPage() {
                 )}
               </TableBody>
             </Table>
+            <Pagination pager={pager} />
+            </>
           )}
         </CardContent>
       </Card>

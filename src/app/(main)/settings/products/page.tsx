@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Plus, Pencil, Trash, Package } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -30,6 +32,8 @@ export default function ProductSettingsPage() {
         }
         loadProducts();
     }, []);
+
+    const pager = usePagination('products', products);
 
     const handleDelete = async (id: string, name: string) => {
         if (!window.confirm(`Are you sure you want to delete the product "${name}"?`)) {
@@ -79,6 +83,7 @@ export default function ProductSettingsPage() {
                     {loading ? (
                         <p className="text-center py-4 text-slate-500">Loading products...</p>
                     ) : (
+                        <>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -96,7 +101,7 @@ export default function ProductSettingsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    products.map((product) => (
+                                    pager.items.map((product) => (
                                         <TableRow key={product.id}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
                                             <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
@@ -129,6 +134,8 @@ export default function ProductSettingsPage() {
                                 )}
                             </TableBody>
                         </Table>
+                        <Pagination pager={pager} />
+                        </>
                     )}
                 </CardContent>
             </Card>

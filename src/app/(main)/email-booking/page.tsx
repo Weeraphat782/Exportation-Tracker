@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Mail, Search, Plus, FileText, Link2, Loader2 } from 'lucide-react';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { getQuotations, Quotation, getQuotationPayableTotalThb, generateBookingShareToken } from '@/lib/db';
 import { toast } from 'sonner';
 
@@ -132,6 +134,8 @@ export default function EmailBookingListPage() {
     );
   });
 
+  const pager = usePagination('email-booking', filteredQuotations, [searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -208,7 +212,7 @@ export default function EmailBookingListPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredQuotations.map((quotation) => (
+                  {pager.items.map((quotation) => (
                     <TableRow key={quotation.id}>
                       <TableCell>{formatDate(quotation.created_at)}</TableCell>
                       <TableCell className="font-mono text-sm">{quotation.quotation_no || quotation.id.slice(0, 8)}</TableCell>
@@ -269,6 +273,7 @@ export default function EmailBookingListPage() {
                   ))}
                 </TableBody>
               </Table>
+              <Pagination pager={pager} />
             </div>
           )}
         </CardContent>

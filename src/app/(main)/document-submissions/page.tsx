@@ -11,6 +11,8 @@ import { formatFileSize, resolveDocumentFileUrl, mapWithConcurrency } from '@/li
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import {
   Dialog,
   DialogContent,
@@ -190,13 +192,24 @@ export default function DocumentSubmissionsPage() {
   }, [submissions, searchTerm, selectedQuotation, quotations]);
 
   // Group submissions by quotation for display
-  const submissionsByQuotation = filteredSubmissions.reduce((acc, submission) => {
-    if (!acc[submission.quotation_id]) {
-      acc[submission.quotation_id] = [];
-    }
-    acc[submission.quotation_id].push(submission);
-    return acc;
-  }, {} as Record<string, DocumentSubmission[]>);
+  const submissionsByQuotation = useMemo(
+    () =>
+      filteredSubmissions.reduce((acc, submission) => {
+        if (!acc[submission.quotation_id]) {
+          acc[submission.quotation_id] = [];
+        }
+        acc[submission.quotation_id].push(submission);
+        return acc;
+      }, {} as Record<string, DocumentSubmission[]>),
+    [filteredSubmissions],
+  );
+
+  const quotationGroups = useMemo(
+    () => Object.entries(submissionsByQuotation),
+    [submissionsByQuotation],
+  );
+
+  const pager = usePagination('doc-submissions', quotationGroups, [searchTerm, selectedQuotation]);
 
   // Close modal
   const handleCloseModal = () => {
@@ -607,7 +620,7 @@ export default function DocumentSubmissionsPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {Object.entries(submissionsByQuotation).map(([quotationId, quotationSubmissions]) => {
+          {pager.items.map(([quotationId, quotationSubmissions]) => {
             const quotationInfo = getQuotationInfo(quotationId);
             const headerCompany = quotationInfo?.company_name || quotationSubmissions[0]?.company_name || 'Pending customer request';
             const headerDestination = quotationInfo?.destination || '—';
@@ -934,6 +947,7 @@ export default function DocumentSubmissionsPage() {
               </Card>
             );
           })}
+          <Pagination pager={pager} />
         </div>
       )}
 

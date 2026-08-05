@@ -37,6 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination, type UsePaginationResult } from '@/hooks/use-pagination';
 
 type DateFilterField = 'created_at' | 'pickup_date';
 
@@ -917,9 +919,14 @@ export default function ShippingCalculatorPage() {
   const filteredActiveQuotations = filterQuotations(activeQuotations);
   const filteredCompletedQuotations = filterQuotations(completedQuotations);
 
+  const filterResetDeps = [searchTerm, dateFrom, dateTo, dateField];
+  const draftPager = usePagination('quotations-draft', filteredDraftQuotations, filterResetDeps);
+  const activePager = usePagination('quotations-active', filteredActiveQuotations, filterResetDeps);
+  const completedPager = usePagination('quotations-completed', filteredCompletedQuotations, filterResetDeps);
+
   // Function to render quotations table
-  const renderQuotationsTable = (quotationsList: Quotation[], showCompleteButton: boolean = true) => {
-    if (quotationsList.length === 0) {
+  const renderQuotationsTable = (pager: UsePaginationResult<Quotation>, showCompleteButton: boolean = true) => {
+    if (pager.total === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileText className="h-12 w-12 text-gray-400 mb-4" />
@@ -950,7 +957,7 @@ export default function ShippingCalculatorPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotationsList.map((quotation) => (
+            {pager.items.map((quotation) => (
               <TableRow key={quotation.id}>
                 {isColumnVisible('date') && <TableCell className="text-xs sm:text-sm">{formatDate(quotation.created_at)}</TableCell>}
                 {isColumnVisible('id') && <TableCell className="text-xs sm:text-sm font-mono">{quotation.quotation_no || quotation.id.slice(0, 8)}</TableCell>}
@@ -1272,6 +1279,7 @@ export default function ShippingCalculatorPage() {
             ))}
           </TableBody>
         </Table>
+        <Pagination pager={pager} />
       </div>
     );
   };
@@ -1519,15 +1527,15 @@ export default function ShippingCalculatorPage() {
               </TabsList>
 
               <TabsContent value="drafts" className="mt-4">
-                {renderQuotationsTable(filteredDraftQuotations, true)}
+                {renderQuotationsTable(draftPager, true)}
               </TabsContent>
 
               <TabsContent value="active" className="mt-4">
-                {renderQuotationsTable(filteredActiveQuotations, true)}
+                {renderQuotationsTable(activePager, true)}
               </TabsContent>
 
               <TabsContent value="completed" className="mt-4">
-                {renderQuotationsTable(filteredCompletedQuotations, false)}
+                {renderQuotationsTable(completedPager, false)}
               </TabsContent>
             </Tabs>
           )}

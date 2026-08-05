@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Trash2, Edit, Pin, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -66,6 +68,7 @@ export default function CmsNewsPage() {
         a.title.toLowerCase().includes(search.toLowerCase()) ||
         a.excerpt.toLowerCase().includes(search.toLowerCase())
     );
+    const pager = usePagination('cms-news', filtered, [search]);
 
     return (
         <div className="max-w-6xl mx-auto">
@@ -110,7 +113,7 @@ export default function CmsNewsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filtered.map((article) => (
+                            {pager.items.map((article) => (
                                 <tr key={article.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
@@ -149,6 +152,7 @@ export default function CmsNewsPage() {
                             ))}
                         </tbody>
                     </table>
+                    <Pagination pager={pager} className="px-4" />
                 </div>
             )}
         </div>

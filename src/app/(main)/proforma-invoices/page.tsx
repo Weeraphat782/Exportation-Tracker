@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
 import { MobileMenuButton } from '@/components/ui/mobile-menu-button';
+import { usePagination } from '@/hooks/use-pagination';
 import {
   deleteProformaInvoice,
   getProformaInvoices,
@@ -75,6 +77,8 @@ export default function ProformaInvoicesListPage() {
       return inv.includes(q) || cust.includes(q) || qn.includes(q) || comp.includes(q);
     });
   }, [rows, search]);
+
+  const pager = usePagination('proforma', filtered, [search]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this proforma invoice? This cannot be undone.')) return;
@@ -153,7 +157,7 @@ export default function ProformaInvoicesListPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((r) => (
+                  {pager.items.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {formatDate(r.created_at)}
@@ -200,6 +204,7 @@ export default function ProformaInvoicesListPage() {
                   ))}
                 </TableBody>
               </Table>
+              <Pagination pager={pager} />
             </div>
           )}
         </CardContent>

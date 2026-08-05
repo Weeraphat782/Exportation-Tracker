@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/use-pagination';
 import { Plus, Pencil, Trash, Link2, CheckCircle2, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -36,6 +38,8 @@ export default function CompanySettingsPage() {
     }
     loadCompanies();
   }, []);
+
+  const pager = usePagination('companies', companies);
 
   // Handle edit button click
   const handleEdit = (id: string) => {
@@ -97,6 +101,7 @@ export default function CompanySettingsPage() {
           {loading && <p>Loading companies...</p>}
           {error && <p className="text-red-500">Error: {error}</p>}
           {!loading && !error && (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -114,7 +119,7 @@ export default function CompanySettingsPage() {
                     <TableCell colSpan={5} className="text-center">No companies found.</TableCell>
                   </TableRow>
                 ) : (
-                  companies.map((company) => (
+                  pager.items.map((company) => (
                     <TableRow key={company.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -181,6 +186,8 @@ export default function CompanySettingsPage() {
                 )}
               </TableBody>
             </Table>
+            <Pagination pager={pager} />
+            </>
           )}
         </CardContent>
       </Card>
