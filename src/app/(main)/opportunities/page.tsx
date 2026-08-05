@@ -9,7 +9,7 @@ import { OpportunityDialog } from '@/components/opportunities/new-opportunity-di
 import { Opportunity, OpportunityStage, isPickupToday } from '@/types/opportunity';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { getCompanies } from '@/lib/db';
+import { getCompaniesForDropdown } from '@/lib/db';
 import {
   Select,
   SelectContent,
@@ -266,7 +266,7 @@ export default function OpportunitiesPage() {
   // Fetch companies for filter
   useEffect(() => {
     const fetchCompaniesData = async () => {
-      const companiesData = await getCompanies();
+      const companiesData = await getCompaniesForDropdown();
       setCompanies(companiesData || []);
     };
     fetchCompaniesData();

@@ -34,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Opportunity } from '@/types/opportunity';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
-import { getCompanies, getDestinations, getProducts, Product } from '@/lib/db';
+import { getCompaniesForDropdown, getDestinations, getProducts, Product } from '@/lib/db';
 
 // Type for Company fetched from DB
 interface Company {
@@ -91,7 +91,7 @@ export function OpportunityDialog({
         const fetchData = async () => {
             try {
                 const [companiesData, destinationsData, productsData] = await Promise.all([
-                    getCompanies(),
+                    getCompaniesForDropdown(),
                     getDestinations(true),
                     getProducts()
                 ]);
