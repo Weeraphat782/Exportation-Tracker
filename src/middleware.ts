@@ -71,7 +71,8 @@ export function middleware(request: NextRequest) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-  if (!isPublicMarketingPath(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl;
+  if (isAuthPath(pathname) || !isPublicMarketingPath(pathname)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
