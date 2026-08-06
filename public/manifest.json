@@ -2,7 +2,7 @@
   "name": "OMG Experience",
   "short_name": "OMG Experience",
   "description": "Specialized air freight and pharmaceutical-grade logistics.",
-  "start_url": "/site",
+  "start_url": "/portal",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",

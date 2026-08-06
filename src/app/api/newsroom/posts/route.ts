@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { triggerMarketingRebuild } from '@/lib/trigger-marketing-rebuild';
+import { marketingUrl } from '@/lib/site';
 
 function revalidateNewsroomAfterPublish(slug: string) {
   revalidateTag('news:list');
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         id: retryData.id,
         slug: retryData.slug,
-        url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cargo.omgexp.com'}/newsroom/${retryData.slug}`,
+        url: marketingUrl(`/newsroom/${retryData.slug}`),
       });
     }
 
@@ -123,6 +124,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     id: data.id,
     slug: data.slug,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cargo.omgexp.com'}/newsroom/${data.slug}`,
+    url: marketingUrl(`/newsroom/${data.slug}`),
   });
 }

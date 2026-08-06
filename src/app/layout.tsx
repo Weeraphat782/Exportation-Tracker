@@ -9,7 +9,6 @@ import { Toaster } from "sonner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { jsonLdScript, organizationSchema, websiteSchema } from "@/lib/json-ld";
 import {
-  absoluteUrl,
   BRAND_NAME,
   getDefaultOgImageUrl,
   getSiteUrl,
@@ -147,12 +146,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://vitals.vercel-insights.com" />
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
-        <link
-          rel="alternate"
-          type="application/rss+xml"
-          title={`${BRAND_NAME} — Newsroom`}
-          href={absoluteUrl("/feed.xml")}
-        />
       </head>
       <body
         className={`${publicSans.className} ${publicSans.variable} ${barlow.variable} ${inter.className} ${quotationSignatureFont.variable} min-w-0 overflow-x-hidden`}

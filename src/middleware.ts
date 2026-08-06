@@ -12,16 +12,12 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_SITE_PATHS = new Set([
   '/sitemap.xml',
   '/robots.txt',
-  '/feed.xml',
-  '/llms.txt',
   '/manifest.json',
 ]);
 
 const SEO_ENDPOINTS = new Set([
   '/sitemap.xml',
   '/robots.txt',
-  '/feed.xml',
-  '/llms.txt',
 ]);
 
 function isPublicMarketingPath(pathname: string): boolean {

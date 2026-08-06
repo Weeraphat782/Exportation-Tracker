@@ -25,6 +25,20 @@ export function absoluteUrl(path: string): string {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/** Astro marketing site — canonical public URLs after domain cutover. */
+export function getMarketingUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, "") ||
+    "https://www.omgcargo.tech"
+  );
+}
+
+export function marketingUrl(path: string): string {
+  const base = getMarketingUrl();
+  if (!path || path === "/") return base;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 /** Default OG / Twitter share image (use brand asset; replace with 1200x630 asset when available). */
 export const DEFAULT_OG_IMAGE_PATH = "/logo.png";
 

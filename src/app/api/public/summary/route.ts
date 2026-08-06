@@ -1,4 +1,4 @@
-import { BRAND_LEGAL_NAME, BRAND_NAME, absoluteUrl, getSiteUrl } from "@/lib/site";
+import { BRAND_LEGAL_NAME, BRAND_NAME, getMarketingUrl, marketingUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -7,20 +7,19 @@ export async function GET() {
     brand: BRAND_NAME,
     legalName: BRAND_LEGAL_NAME,
     type: "Organization",
-    url: getSiteUrl(),
+    url: getMarketingUrl(),
     primaryService:
-      "International air freight, GDP warehousing, customs clearance, cold-chain logistics, AI-assisted export documentation",
+      "Cannabis, hemp, and kratom export air freight; Thai customs (ภ.ท.32); partner GDP warehousing and ISO-certified lab COA",
     keyPages: {
-      home: absoluteUrl("/site"),
-      services: absoluteUrl("/site/services"),
-      newsroom: absoluteUrl("/site/newsroom"),
-      resources: absoluteUrl("/site/resources"),
-      contact: absoluteUrl("/site/contact"),
+      home: marketingUrl("/"),
+      services: marketingUrl("/services"),
+      newsroom: marketingUrl("/newsroom"),
+      resources: marketingUrl("/resources"),
+      contact: marketingUrl("/contact"),
     },
     endpoints: {
-      sitemap: absoluteUrl("/sitemap.xml"),
-      rss: absoluteUrl("/feed.xml"),
-      llmsTxt: absoluteUrl("/llms.txt"),
+      rss: marketingUrl("/feed.xml"),
+      llmsTxt: marketingUrl("/llms.txt"),
     },
     lastReviewed: new Date().toISOString().slice(0, 10),
     disclaimer:
