@@ -4,11 +4,18 @@ import { formatAttributionLine } from '@/lib/contact-attribution';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const ADMIN_EMAIL = 'weeraphat.issaraphon1@gmail.com';
-const DEFAULT_SENDER = 'onboarding@resend.dev';
+const DEFAULT_ADMIN_EMAIL = 'cargo@omgexp.com';
+const DEFAULT_SENDER = 'OMG Cargo <noreply@omgcargo.tech>';
 
 function resolveSender() {
   return process.env.RESEND_FROM_EMAIL?.trim() || DEFAULT_SENDER;
+}
+
+function resolveRecipients() {
+  return (process.env.CONTACT_NOTIFY_EMAIL || DEFAULT_ADMIN_EMAIL)
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean);
 }
 
 async function sendEmailToRecipients({
@@ -67,7 +74,7 @@ export async function sendAdminNotification({
 }) {
   try {
     return await sendEmailToRecipients({
-      to: [ADMIN_EMAIL],
+      to: resolveRecipients(),
       subject,
       html,
       text,
