@@ -152,6 +152,70 @@ export async function sendDocumentUploadNotification({
   return sendAdminNotification({ subject, html, text });
 }
 
+/**
+ * Notify staff when a customer submits a new quote request (portal).
+ */
+export async function sendQuoteRequestNotification({
+  quotationNo,
+  customerName,
+  companyName,
+  requestedDestination,
+  commodityType,
+  phytoRequired,
+  palletCount,
+  notes,
+  approveUrl,
+}: {
+  quotationNo?: string | null;
+  customerName?: string | null;
+  companyName?: string | null;
+  requestedDestination?: string | null;
+  commodityType?: string | null;
+  phytoRequired?: boolean;
+  palletCount?: number;
+  notes?: string | null;
+  approveUrl: string;
+}) {
+  const company = companyName?.trim() || 'N/A';
+  const destination = requestedDestination?.trim() || 'N/A';
+  const omgNo = quotationNo?.trim() || 'N/A';
+  const subject = `New Quote Request: ${omgNo} — ${company} → ${destination}`;
+  const notesBlock = notes?.trim()
+    ? `<p><strong>Notes:</strong></p><p style="white-space: pre-wrap;">${notes.trim()}</p>`
+    : '<p><strong>Notes:</strong> —</p>';
+
+  const html = `
+    <h2>New Customer Quote Request</h2>
+    <p><strong>OMG No.:</strong> ${omgNo}</p>
+    <p><strong>Customer:</strong> ${customerName || 'N/A'}</p>
+    <p><strong>Company:</strong> ${company}</p>
+    <p><strong>Requested destination:</strong> ${destination}</p>
+    <p><strong>Commodity:</strong> ${commodityType || 'N/A'}</p>
+    <p><strong>Phyto service:</strong> ${phytoRequired ? 'Yes' : 'No'}</p>
+    <p><strong>Pallets:</strong> ${palletCount ?? 0}</p>
+    ${notesBlock}
+    <hr />
+    <p><a href="${approveUrl}">Review &amp; approve in Shipping Calculator</a></p>
+  `;
+  const text = [
+    'New Customer Quote Request',
+    '',
+    `OMG No.: ${omgNo}`,
+    `Customer: ${customerName || 'N/A'}`,
+    `Company: ${company}`,
+    `Requested destination: ${destination}`,
+    `Commodity: ${commodityType || 'N/A'}`,
+    `Phyto service: ${phytoRequired ? 'Yes' : 'No'}`,
+    `Pallets: ${palletCount ?? 0}`,
+    '',
+    notes?.trim() ? `Notes:\n${notes.trim()}` : 'Notes: —',
+    '',
+    `Review & approve: ${approveUrl}`,
+  ].join('\n');
+
+  return sendAdminNotification({ subject, html, text });
+}
+
 function formatMoney(value: number | string | null | undefined) {
   return Number(value || 0).toLocaleString('en-US', {
     minimumFractionDigits: 2,

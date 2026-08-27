@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { KanbanBoard } from '@/components/opportunities/kanban-board';
 import { ListView } from '@/components/opportunities/list-view';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, PlusCircle, LayoutGrid, List, Truck } from 'lucide-react';
+import { RefreshCw, PlusCircle, LayoutGrid, List, Truck, Search, ChevronsUpDown, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { OpportunityDialog } from '@/components/opportunities/new-opportunity-dialog';
 import { Opportunity, OpportunityStage, isPickupToday } from '@/types/opportunity';
 import { supabase } from '@/lib/supabase';
@@ -19,10 +20,100 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Trophy, XCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ViewMode = 'kanban' | 'list';
+
+function OmgFilterCombobox({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const filtered = query.trim()
+    ? options.filter((o) => o.toLowerCase().includes(query.trim().toLowerCase()))
+    : options;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) setQuery('');
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-9 w-full justify-between font-normal"
+        >
+          <span className="truncate">{value || 'All OMG Nos.'}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[260px] p-0" align="start">
+        <div className="border-b p-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              autoFocus
+              placeholder="Search OMG no..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  onChange(query.trim());
+                  setOpen(false);
+                }
+              }}
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+        </div>
+        <div className="max-h-60 overflow-auto p-1">
+          <button
+            type="button"
+            className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+          >
+            <Check className={`mr-2 h-3.5 w-3.5 ${value ? 'opacity-0' : ''}`} />
+            All OMG Nos.
+          </button>
+          {filtered.map((no) => (
+            <button
+              key={no}
+              type="button"
+              className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm font-mono hover:bg-accent"
+              onClick={() => {
+                onChange(no);
+                setOpen(false);
+              }}
+            >
+              <Check className={`mr-2 h-3.5 w-3.5 ${value === no ? '' : 'opacity-0'}`} />
+              {no}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <p className="px-2 py-3 text-xs text-muted-foreground">No matching OMG no.</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -207,6 +298,7 @@ export default function OpportunitiesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | undefined>(undefined);
   const [selectedCompany, setSelectedCompany] = useState<string>('all');
+  const [omgSearch, setOmgSearch] = useState('');
   const [keepFilter, setKeepFilter] = useState(false);
   const filterSaveReadyRef = useRef(false);
   const [showWon, setShowWon] = useState<boolean>(false);
@@ -223,10 +315,14 @@ export default function OpportunitiesPage() {
       if (savedCompany) {
         setSelectedCompany(savedCompany);
       }
+      const savedOmg = localStorage.getItem('opp_omgSearch');
+      if (savedOmg) {
+        setOmgSearch(savedOmg);
+      }
     }
   }, []);
 
-  // Persist company filter when keep-filter is enabled
+  // Persist company + OMG filters when keep-filter is enabled
   useEffect(() => {
     if (!filterSaveReadyRef.current) {
       filterSaveReadyRef.current = true;
@@ -235,11 +331,13 @@ export default function OpportunitiesPage() {
     if (keepFilter) {
       localStorage.setItem('opp_keepFilter', '1');
       localStorage.setItem('opp_selectedCompany', selectedCompany);
+      localStorage.setItem('opp_omgSearch', omgSearch);
     } else {
       localStorage.setItem('opp_keepFilter', '0');
       localStorage.removeItem('opp_selectedCompany');
+      localStorage.removeItem('opp_omgSearch');
     }
-  }, [keepFilter, selectedCompany]);
+  }, [keepFilter, selectedCompany, omgSearch]);
 
   // Hydrate saved view mode (desktop only — mobile is forced to list below)
   useEffect(() => {
@@ -271,6 +369,17 @@ export default function OpportunitiesPage() {
     };
     fetchCompaniesData();
   }, []);
+
+  const omgOptions = useMemo(() => {
+    const nos = new Set<string>();
+    for (const opp of opportunities) {
+      for (const qd of opp.quotationDetails ?? []) {
+        const no = qd.quotation_no?.trim();
+        if (no) nos.add(no);
+      }
+    }
+    return Array.from(nos).sort((a, b) => a.localeCompare(b));
+  }, [opportunities]);
 
   const handleEditOpportunity = (opportunity: Opportunity) => {
     console.log('handleEditOpportunity called with:', opportunity);
@@ -679,6 +788,18 @@ export default function OpportunitiesPage() {
             </Tabs>
           </div>
 
+          {/* OMG / Quotation searchable dropdown */}
+          <div className="flex items-center gap-2 flex-1 min-w-[200px] sm:border-l sm:pl-4">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0">OMG No.</label>
+            <div className="flex-1 min-w-[160px] max-w-xs">
+              <OmgFilterCombobox
+                value={omgSearch}
+                onChange={setOmgSearch}
+                options={omgOptions}
+              />
+            </div>
+          </div>
+
           {/* Company Filter */}
           <div className="flex items-center gap-2 flex-1 min-w-[200px] sm:border-l sm:pl-4">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Company</label>
@@ -754,6 +875,18 @@ export default function OpportunitiesPage() {
           {/* Filter opportunities based on selected filters */}
           {(() => {
             const filteredOpportunities = opportunities.filter(opp => {
+              // Filter by linked quotation OMG number
+              if (omgSearch.trim()) {
+                const q = omgSearch.trim().toLowerCase();
+                const hasQuotationMatch = opp.quotationDetails?.some(
+                  (qd) =>
+                    qd.quotation_no?.toLowerCase().includes(q) ||
+                    qd.id?.toLowerCase().includes(q)
+                );
+                if (!hasQuotationMatch) {
+                  return false;
+                }
+              }
               // Filter by company
               if (selectedCompany !== 'all' && opp.companyId !== selectedCompany) {
                 return false;

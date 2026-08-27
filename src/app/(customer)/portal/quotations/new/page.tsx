@@ -262,6 +262,11 @@ export default function NewQuoteRequestPage() {
                 setSubmittedQuotationId(result.quotationId);
                 setCurrentStep(3);
                 toast.success('Quote request submitted!');
+                void fetch('/api/notify-quote-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quotationId: result.quotationId }),
+                }).catch(() => {});
             } else {
                 toast.error(result.error || 'Failed to submit request.');
             }
