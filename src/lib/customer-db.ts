@@ -375,6 +375,7 @@ export async function saveCustomerSetting(category: string, key: string, value: 
 export async function createCustomerQuoteRequest(
   pallets: { length: number; width: number; height: number; weight: number; quantity: number }[],
   requestedDestination: string,
+  consigneeName: string,
   notes?: string,
   commodity: CommodityType = 'cannabis',
   phytoRequired: boolean = false,
@@ -418,6 +419,7 @@ export async function createCustomerQuoteRequest(
         customer_name: customerName,
         company_name: companyName,
         contact_person: customerName,
+        consignee_name: consigneeName.trim(),
         status: 'pending_approval',
         pallets: explodedPallets,
         requested_destination: requestedDestination,

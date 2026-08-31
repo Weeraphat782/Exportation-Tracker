@@ -88,6 +88,7 @@ const quotationFormSchema = z.object({
     companyId: z.string().optional(), // Optional - can be filled later
     customerName: z.string().optional(), // Optional - can be filled later
     contactPerson: z.string().optional(),
+    consignee: z.string().optional(),
     contractNo: z.string().optional(),
     destinationId: z.string().optional(), // Optional - needed for cost calculation but can save draft without it
     pallets: z.array(palletSchema).min(1, { message: 'At least one pallet is required' }), // Keep at least 1 pallet
@@ -744,6 +745,7 @@ function ShippingCalculatorPageContent() {
             companyId: paramCompanyId || '',
             customerName: paramCustomerName || '',
             contactPerson: '',
+            consignee: '',
             contractNo: '',
             destinationId: paramDestinationId || '', // Set default
             pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
@@ -1189,6 +1191,7 @@ function ShippingCalculatorPageContent() {
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
+                            consignee: typedExistingQuotation.consignee_name || '',
                             contractNo: typedExistingQuotation.contract_no || '',
                             destinationId: typedExistingQuotation.destination_id || '',
                             pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
@@ -1312,6 +1315,7 @@ function ShippingCalculatorPageContent() {
                             companyId: typedExistingQuotation.company_id || '',
                             customerName: typedExistingQuotation.customer_name || '',
                             contactPerson: typedExistingQuotation.contact_person || '',
+                            consignee: typedExistingQuotation.consignee_name || '',
                             contractNo: typedExistingQuotation.contract_no || '',
                             destinationId: typedExistingQuotation.destination_id || '',
                             pallets: Array.isArray(typedExistingQuotation.pallets) && typedExistingQuotation.pallets.length > 0
@@ -1419,6 +1423,7 @@ function ShippingCalculatorPageContent() {
                             companyId: typedQ.company_id || '',
                             customerName: typedQ.customer_name || '',
                             contactPerson: typedQ.contact_person || '',
+                            consignee: typedQ.consignee_name || '',
                             contractNo: typedQ.contract_no || '',
                             destinationId: typedQ.destination_id || '',
                             pallets: Array.isArray(typedQ.pallets) && typedQ.pallets.length > 0
@@ -1475,6 +1480,7 @@ function ShippingCalculatorPageContent() {
                         companyId: paramCompanyId || '',
                         customerName: paramCustomerName || '',
                         contactPerson: '',
+                        consignee: '',
                         contractNo: '',
                         destinationId: paramDestinationId || '',
                         pallets: [{ length: 0, width: 0, height: 0, weight: 0, quantity: 1 }],
@@ -1650,6 +1656,7 @@ function ShippingCalculatorPageContent() {
             company_id: formData.companyId || '',
             customer_name: formData.customerName || '',
             contact_person: formData.contactPerson || '',
+            consignee_name: formData.consignee || '',
             contract_no: formData.contractNo || null,
             destination_id: formData.destinationId || null,
             pallets: convertedPallets,
@@ -1838,6 +1845,7 @@ function ShippingCalculatorPageContent() {
                 deliveryServiceRequired: savedQuotation.delivery_service_required,
                 additionalCharges: savedQuotation.additional_charges,
                 contactPerson: savedQuotation.contact_person,
+                consignee: savedQuotation.consignee_name,
                 freightRate: (freshCalculationResult.totalFreightCost / (freshCalculationResult.totalChargeableWeight || 1)) || 0
             };
 
@@ -2038,6 +2046,19 @@ function ShippingCalculatorPageContent() {
                                             <Input placeholder="e.g., John Doe" {...field} />
                                         </FormControl>
                                         {errors.contactPerson && <p className="text-red-500 text-xs mt-1">{errors.contactPerson.message}</p>}
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
+                                name="consignee"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Consignee (Optional)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Party receiving the shipment" {...field} />
+                                        </FormControl>
+                                        {errors.consignee && <p className="text-red-500 text-xs mt-1">{errors.consignee.message}</p>}
                                     </FormItem>
                                 )}
                             />

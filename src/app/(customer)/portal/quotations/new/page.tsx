@@ -110,6 +110,7 @@ export default function NewQuoteRequestPage() {
     const [commodity, setCommodity] = useState<CommodityType | null>(null);
     const [pallets, setPallets] = useState<PalletInput[]>([createEmptyPallet()]);
     const [requestedDestination, setRequestedDestination] = useState('');
+    const [consignee, setConsignee] = useState('');
     const [notes, setNotes] = useState('');
     const [phytoRequired, setPhytoRequired] = useState(false);
     const [dataLoggerAttached, setDataLoggerAttached] = useState(false);
@@ -177,6 +178,17 @@ export default function NewQuoteRequestPage() {
         }
     };
 
+    const handleConsigneeChange = (value: string) => {
+        setConsignee(value);
+        if (value.trim()) {
+            setErrors(prev => {
+                const next = { ...prev };
+                delete next['consignee'];
+                return next;
+            });
+        }
+    };
+
     const clearAttachmentsError = () => {
         setErrors(prev => {
             if (!prev['attachments']) return prev;
@@ -213,6 +225,9 @@ export default function NewQuoteRequestPage() {
         const newErrors: Record<string, string> = {};
         if (!requestedDestination.trim()) {
             newErrors['requestedDestination'] = 'Shipping Destination is required';
+        }
+        if (!consignee.trim()) {
+            newErrors['consignee'] = 'Consignee is required';
         }
         pallets.forEach((p, idx) => {
             const num = idx + 1;
@@ -253,6 +268,7 @@ export default function NewQuoteRequestPage() {
             const result = await createCustomerQuoteRequest(
                 palletData,
                 requestedDestination,
+                consignee.trim(),
                 submitNotes,
                 commodity,
                 phytoRequired
@@ -514,6 +530,22 @@ export default function NewQuoteRequestPage() {
                         />
                         {errors['requestedDestination'] && (
                             <p className="text-xs text-red-500 mt-1">{errors['requestedDestination']}</p>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-sm border border-gray-100 p-5">
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                            Consignee (Who receives the shipment) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g. ABC Imports Ltd / John Smith"
+                            value={consignee}
+                            onChange={(e) => handleConsigneeChange(e.target.value)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${errors['consignee'] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                        />
+                        {errors['consignee'] && (
+                            <p className="text-xs text-red-500 mt-1">{errors['consignee']}</p>
                         )}
                     </div>
 

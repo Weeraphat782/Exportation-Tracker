@@ -859,6 +859,13 @@ export function KanbanCard({ opportunity, onEdit, onDelete, onWinCase, onLoseCas
 
           {/* Compact Details - Only show key info */}
           <div className="space-y-0.5 mb-2 text-xs">
+            {targetQuotation?.consignee_name && (
+              <div className="flex items-center gap-1 text-slate-700 truncate">
+                <UserCircle2 className="h-3 w-3 shrink-0 text-slate-500" />
+                <span className="font-medium">Consignee:</span>
+                <span className="truncate">{targetQuotation.consignee_name}</span>
+              </div>
+            )}
             {opportunity.destinationName && (
               <div className="text-blue-700 font-medium truncate">
                 📍 {opportunity.destinationName}

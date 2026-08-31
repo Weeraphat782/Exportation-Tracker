@@ -49,6 +49,7 @@ export interface Opportunity {
         wht_amount?: number | null;
         wht_enabled?: boolean | null;
         quotation_no?: string;
+        consignee_name?: string | null;
         customer_user_id?: string | null;
         phyto_required?: boolean;
         notes?: string | null;

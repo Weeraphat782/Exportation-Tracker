@@ -48,6 +48,7 @@ const ALL_COLUMNS = [
   { id: 'id', label: 'Run No.', default: true },
   { id: 'company', label: 'Company', default: true },
   { id: 'customer', label: 'Customer', default: true },
+  { id: 'consignee', label: 'Consignee', default: true },
   { id: 'destination', label: 'Destination', default: true },
   { id: 'internal_remark', label: 'Internal Remark', default: false },
   { id: 'status', label: 'Status', default: true },
@@ -947,6 +948,7 @@ export default function ShippingCalculatorPage() {
               {isColumnVisible('id') && <TableHead className="min-w-[80px] text-xs sm:text-sm">ID</TableHead>}
               {isColumnVisible('company') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Company</TableHead>}
               {isColumnVisible('customer') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Customer</TableHead>}
+              {isColumnVisible('consignee') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Consignee</TableHead>}
               {isColumnVisible('destination') && <TableHead className="min-w-[100px] text-xs sm:text-sm">Destination</TableHead>}
               {isColumnVisible('internal_remark') && <TableHead className="min-w-[120px] text-xs sm:text-sm">Internal Remark</TableHead>}
               {isColumnVisible('status') && <TableHead className="min-w-[80px] text-xs sm:text-sm">Status</TableHead>}
@@ -969,6 +971,7 @@ export default function ShippingCalculatorPage() {
                   </TableCell>
                 )}
                 {isColumnVisible('customer') && <TableCell className="text-xs sm:text-sm">{quotation.customer_name || '-'}</TableCell>}
+                {isColumnVisible('consignee') && <TableCell className="text-xs sm:text-sm">{quotation.consignee_name || '-'}</TableCell>}
                 {isColumnVisible('destination') && (
                   <TableCell className="text-xs sm:text-sm">
                     <div className="max-w-[240px] sm:max-w-[280px]">

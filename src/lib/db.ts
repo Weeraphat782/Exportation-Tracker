@@ -341,6 +341,7 @@ export interface Quotation {
   product_id?: string | null; // Added field
   customer_name: string;
   contact_person: string;
+  consignee_name?: string | null;
   contract_no?: string | null;
   destination_id: string | null;
   shipping_date?: string | null;
