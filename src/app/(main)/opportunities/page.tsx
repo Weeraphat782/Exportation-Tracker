@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { KanbanBoard } from '@/components/opportunities/kanban-board';
 import { ListView } from '@/components/opportunities/list-view';
+import { PickupCalendarView } from '@/components/opportunities/pickup-calendar-view';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, PlusCircle, LayoutGrid, List, Truck, Search, ChevronsUpDown, Check } from 'lucide-react';
+import { RefreshCw, PlusCircle, LayoutGrid, List, Truck, Search, ChevronsUpDown, Check, CalendarDays } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { OpportunityDialog } from '@/components/opportunities/new-opportunity-dialog';
 import { Opportunity, OpportunityStage, isPickupToday } from '@/types/opportunity';
@@ -24,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Trophy, XCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ViewMode = 'kanban' | 'list';
+type ViewMode = 'kanban' | 'list' | 'calendar';
 
 function OmgFilterCombobox({
   value,
@@ -346,7 +347,7 @@ export default function OpportunitiesPage() {
     if (typeof window === 'undefined') return;
     if (window.innerWidth < 768) return;
     const saved = localStorage.getItem('opp_viewMode');
-    if (saved === 'kanban' || saved === 'list') {
+    if (saved === 'kanban' || saved === 'list' || saved === 'calendar') {
       setViewMode(saved);
     }
   }, []);
@@ -777,7 +778,7 @@ export default function OpportunitiesPage() {
                 }
               }}
             >
-              <TabsList className="grid w-[180px] grid-cols-2 h-9 p-1">
+              <TabsList className="grid w-[260px] grid-cols-3 h-9 p-1">
                 <TabsTrigger value="kanban" className="text-xs flex items-center gap-1.5">
                   <LayoutGrid className="h-3.5 w-3.5" />
                   Kanban
@@ -785,6 +786,10 @@ export default function OpportunitiesPage() {
                 <TabsTrigger value="list" className="text-xs flex items-center gap-1.5">
                   <List className="h-3.5 w-3.5" />
                   List
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="text-xs flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Calendar
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -918,7 +923,7 @@ export default function OpportunitiesPage() {
                   initialOpportunities={filteredOpportunities}
                 />
               </div>
-            ) : (
+            ) : viewMode === 'list' ? (
               <div className="flex-1 overflow-auto h-[calc(100vh-200px)]">
                 <ListView
                   opportunities={filteredOpportunities}
@@ -928,6 +933,13 @@ export default function OpportunitiesPage() {
                   onLoseCase={handleLoseCase}
                   onRefresh={fetchOpportunities}
                   onOpportunityPatch={handleOpportunityPatch}
+                />
+              </div>
+            ) : (
+              <div className="h-[calc(100vh-200px)]">
+                <PickupCalendarView
+                  opportunities={filteredOpportunities}
+                  onEdit={handleEditOpportunity}
                 />
               </div>
             );
