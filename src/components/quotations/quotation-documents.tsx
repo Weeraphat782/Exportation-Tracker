@@ -124,9 +124,7 @@ export function QuotationDocuments({
 
     const processedCategories = docCategories.map(cat => {
         const types = cat.types.map(type => {
-            const isUploaded = uploadedTypesNormalized.some(upType =>
-                upType === normalize(type.id) || upType.includes(normalize(type.id)) || normalize(type.id).includes(upType)
-            );
+            const isUploaded = uploadedTypesNormalized.some((upType) => upType === normalize(type.id));
             return { ...type, isUploaded };
         });
         const matchedCount = types.filter(t => t.isUploaded).length;
