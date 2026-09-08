@@ -48,6 +48,43 @@ const markInputSchema = fromJsonSchema<{
   additionalProperties: false,
 });
 
+const buildInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  net_weight_kg?: number;
+  routing?: string;
+  airline?: string;
+  preferred_shipment_date?: string;
+  mawb?: string;
+  consignee?: string;
+  number_of_pieces?: string;
+  pallet_dimensions?: string;
+  origin?: string;
+  product?: string;
+  destination?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    net_weight_kg: {
+      type: 'number',
+      description: 'Net weight KG from Commercial Invoice (override when pallets are 0)',
+    },
+    routing: { type: 'string', description: 'Routing e.g. BKK-ZRH' },
+    airline: { type: 'string' },
+    preferred_shipment_date: { type: 'string' },
+    mawb: { type: 'string' },
+    consignee: { type: 'string' },
+    number_of_pieces: { type: 'string' },
+    pallet_dimensions: { type: 'string' },
+    origin: { type: 'string', description: 'Origin airport code e.g. BKK' },
+    product: { type: 'string' },
+    destination: { type: 'string' },
+  },
+  additionalProperties: false,
+});
+
 // ponytail: advertised schema via fromJsonSchema (SDK AJV); Zod 3 refines in handlers.
 const listSchema = z.object({
   status: z.string().optional(),
@@ -65,6 +102,22 @@ const refSchema = z
 
 const markSchema = refSchema.and(
   z.object({ drafted_by: z.string().optional() })
+);
+
+const buildSchema = refSchema.and(
+  z.object({
+    net_weight_kg: z.number().positive().optional(),
+    routing: z.string().min(1).optional(),
+    airline: z.string().optional(),
+    preferred_shipment_date: z.string().optional(),
+    mawb: z.string().optional(),
+    consignee: z.string().optional(),
+    number_of_pieces: z.string().optional(),
+    pallet_dimensions: z.string().optional(),
+    origin: z.string().optional(),
+    product: z.string().optional(),
+    destination: z.string().optional(),
+  })
 );
 
 function jsonText(data: unknown) {
@@ -135,12 +188,12 @@ export function registerBookingTools(server: McpServer): void {
     'build_booking_email_draft',
     {
       description:
-        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail.',
-      inputSchema: refInputSchema,
+        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail. Pass net_weight_kg from Commercial Invoice when pallet weights are 0.',
+      inputSchema: buildInputSchema,
     },
     async (args) => {
-      const ref = parseOrThrow(refSchema, args);
-      const draft = await buildBookingEmailDraft(ref);
+      const parsed = parseOrThrow(buildSchema, args);
+      const draft = await buildBookingEmailDraft(parsed);
       if (!draft) return jsonText({ error: 'Quotation not found.' });
       return jsonText(draft);
     }

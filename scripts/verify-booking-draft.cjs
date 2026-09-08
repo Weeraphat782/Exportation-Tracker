@@ -70,6 +70,20 @@ function assembleBookingDraft(quotation, emailData, recipients) {
   };
 }
 
+function airportCodeFromPort(port) {
+  if (!port) return '';
+  const t = port.trim();
+  const paren = t.match(/\(([A-Za-z]{3})\)/);
+  if (paren) return paren[1].toUpperCase();
+  if (/^[A-Za-z]{3}$/.test(t)) return t.toUpperCase();
+  return t;
+}
+
+function buildRouting(originCode, port) {
+  const dest = airportCodeFromPort(port);
+  return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
+}
+
 const recipients = {
   to: 'montri@handleinterfreight.com',
   cc: [
@@ -129,5 +143,33 @@ assert.match(draft.body, /Best Regards,\nWeeraphat/);
 assert.equal(draft.to, 'montri@handleinterfreight.com');
 assert.ok(draft.cc.includes('consol_ap@handleinterfreight.com'));
 assert.equal(draft.from, 'cargo@omgexp.com');
+
+// ponytail: chargeable weight must never appear as net when pallets sum to 0
+const zeroPalletBody = formatBookingEmail({
+  product: 'Dried Cannabis Flower',
+  destination: 'Zurich, ZRH',
+  netWeight: undefined,
+  airline: 'TG',
+  origin: 'BKK',
+  routing: buildRouting('BKK', 'ZRH'),
+});
+assert.match(zeroPalletBody, /\[Weight\] KG/);
+assert.doesNotMatch(zeroPalletBody, /629/);
+
+// Grok override: CI net weight + explicit routing
+const overrideBody = formatBookingEmail({
+  product: 'Dried Cannabis Flower',
+  destination: 'Zurich, ZRH',
+  netWeight: 341.6,
+  airline: 'TG',
+  origin: 'BKK',
+  routing: 'BKK-ZRH',
+});
+assert.match(overrideBody, /341\.6 KG/);
+assert.match(overrideBody, /ROUTING: BKK-ZRH/);
+
+assert.equal(buildRouting('BKK', 'ZRH'), 'BKK-ZRH');
+assert.equal(airportCodeFromPort('Zurich (ZRH)'), 'ZRH');
+assert.equal(airportCodeFromPort(''), '');
 
 console.log('booking draft check passed');

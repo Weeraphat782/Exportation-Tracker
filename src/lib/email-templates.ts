@@ -115,11 +115,8 @@ export function generateBookingEmailFromQuotation(quotation: Quotation, addition
     }
   }
   
-  // If no pallet data, try to use total_actual_weight or fallback to chargeable_weight
-  if (actualWeight === 0) {
-    actualWeight = quotation.total_actual_weight || quotation.chargeable_weight || 0;
-  }
-  
+  // ponytail: net weight = pallet sum only; never chargeable/volume/manual — use CI override via MCP if pallets are 0.
+
   // Calculate number of pieces (only pallets)
   let numberOfPieces = '';
   if (totalPallets > 0) {

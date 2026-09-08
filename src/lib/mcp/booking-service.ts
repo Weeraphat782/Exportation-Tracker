@@ -7,6 +7,7 @@ import {
 import { getBookingRecipients } from '@/lib/booking-recipients';
 import {
   assembleBookingDraft,
+  buildRouting,
   productLabelFromCommodity,
   summarizePallets,
   type BookingEmailDraft,
@@ -18,6 +19,24 @@ import type { DocumentSubmission, Pallet, Quotation } from '@/lib/db';
 
 export type { BookingEmailDraft } from '@/lib/mcp/booking-draft';
 export { assembleBookingDraft, productLabelFromCommodity, summarizePallets };
+
+export type QuotationWithPort = Quotation & { destination_port?: string | null };
+
+export interface BuildBookingEmailDraftRef {
+  quotation_id?: string;
+  omg_number?: string;
+  net_weight_kg?: number;
+  routing?: string;
+  airline?: string;
+  preferred_shipment_date?: string;
+  mawb?: string;
+  consignee?: string;
+  number_of_pieces?: string;
+  pallet_dimensions?: string;
+  origin?: string;
+  product?: string;
+  destination?: string;
+}
 
 export interface ExtractedBookingFields {
   quotation_id: string;
@@ -50,8 +69,10 @@ const QUOTATION_SELECT = `
 `;
 
 const WEIGHT_DOC_TYPES = new Set(['packing-list', 'commercial-invoice']);
+const VERIFY_DOC_NOTE =
+  'Commercial Invoice / Export Packing List total net KG is the source of truth; do not use chargeable weight.';
 
-function mapQuotationRow(data: Record<string, unknown>): Quotation {
+function mapQuotationRow(data: Record<string, unknown>): QuotationWithPort {
   const company = data.company as { name?: string } | null;
   const dest = data.destination_country as { country?: string; port?: string } | null;
   return {
@@ -60,6 +81,7 @@ function mapQuotationRow(data: Record<string, unknown>): Quotation {
     destination: dest
       ? `${dest.country || ''}${dest.port ? `, ${dest.port}` : ''}`.trim()
       : (data.destination as string | null),
+    destination_port: dest?.port ?? null,
   };
 }
 
@@ -80,7 +102,7 @@ async function ensureBookingShareToken(
 async function fetchQuotationByRef(
   supabase: SupabaseClient,
   ref: { quotation_id?: string; omg_number?: string }
-): Promise<Quotation | null> {
+): Promise<QuotationWithPort | null> {
   if (ref.quotation_id) {
     const { data, error } = await supabase
       .from('quotations')
@@ -104,7 +126,7 @@ async function fetchQuotationByRef(
 
 async function buildEmailDataForQuotation(
   supabase: SupabaseClient,
-  quotation: Quotation
+  quotation: QuotationWithPort
 ): Promise<EmailBookingData> {
   const saved = quotation.booking_details as EmailBookingData | null;
   const product = productLabelFromCommodity(quotation.commodity_type);
@@ -112,17 +134,40 @@ async function buildEmailDataForQuotation(
   const token = await ensureBookingShareToken(supabase, quotation.id, quotation.booking_share_token);
   const documentListUrl = token ? buildBookingDocumentListUrl(absoluteUrl(''), token) : '';
   const destination = quotation.destination || quotation.requested_destination || base.destination || '';
+  const origin = saved?.origin || 'BKK';
+  const routing = saved?.routing || buildRouting(origin, quotation.destination_port);
 
   return {
     ...base,
     product: saved?.product || product,
     destination,
+    origin,
+    routing,
     consignee: saved?.consignee || quotation.consignee_name || '',
     airline: saved?.airline || 'TG',
     documentListUrl,
     recipientName: saved?.recipientName || getBookingRecipients().recipientName,
     senderName: saved?.senderName || getBookingRecipients().senderName,
   };
+}
+
+function applyDraftOverrides(
+  emailData: EmailBookingData,
+  ref: BuildBookingEmailDraftRef
+): EmailBookingData {
+  const out = { ...emailData };
+  if (ref.net_weight_kg != null) out.netWeight = ref.net_weight_kg;
+  if (ref.routing) out.routing = ref.routing;
+  if (ref.airline) out.airline = ref.airline;
+  if (ref.preferred_shipment_date) out.preferredShipmentDate = ref.preferred_shipment_date;
+  if (ref.mawb) out.mawb = ref.mawb;
+  if (ref.consignee) out.consignee = ref.consignee;
+  if (ref.number_of_pieces) out.numberOfPieces = ref.number_of_pieces;
+  if (ref.pallet_dimensions) out.palletDimensions = ref.pallet_dimensions;
+  if (ref.origin) out.origin = ref.origin;
+  if (ref.product) out.product = ref.product;
+  if (ref.destination) out.destination = ref.destination;
+  return out;
 }
 
 export async function listNewQuotations(opts?: {
@@ -202,8 +247,11 @@ export async function extractBookingFields(ref: {
 
   const { quotation, documents } = detail;
   const pallets = (Array.isArray(quotation.pallets) ? quotation.pallets : []) as Pallet[];
-  const { declaredNetWeightKg, piecesSummary, palletDimensions } = summarizePallets(pallets, quotation);
+  const { declaredNetWeightKg, netWeightSource, piecesSummary, palletDimensions } =
+    summarizePallets(pallets);
   const saved = quotation.booking_details as EmailBookingData | null;
+  const origin = saved?.origin || 'BKK';
+  const routing = saved?.routing || buildRouting(origin, quotation.destination_port);
 
   const verifyDocs = await Promise.all(
     documents
@@ -214,7 +262,7 @@ export async function extractBookingFields(ref: {
         download_url: d.file_path
           ? await getFileUrl(d.file_path, d.storage_provider || 'r2')
           : d.file_url || null,
-        note: 'Preferred source of truth for net weight — verify against declared quotation weight.',
+        note: VERIFY_DOC_NOTE,
       }))
   );
 
@@ -227,33 +275,34 @@ export async function extractBookingFields(ref: {
     product: productLabelFromCommodity(quotation.commodity_type),
     destination: quotation.destination || quotation.requested_destination || '',
     net_weight_kg: declaredNetWeightKg,
-    net_weight_source: 'quotation_pallets',
+    net_weight_source: netWeightSource,
     net_weight_confidence: confidence,
     airline: saved?.airline || 'TG',
     shipper: quotation.company_name || '',
     consignee: quotation.consignee_name || saved?.consignee || '',
     pieces_summary: piecesSummary,
     pallet_dimensions: palletDimensions,
-    routing: saved?.routing || '',
-    origin: saved?.origin || 'BKK',
+    routing,
+    origin,
     verify_from_documents: verifyDocs,
   };
 }
 
-export async function buildBookingEmailDraft(ref: {
-  quotation_id?: string;
-  omg_number?: string;
-}): Promise<BookingEmailDraft | null> {
+export async function buildBookingEmailDraft(
+  ref: BuildBookingEmailDraftRef
+): Promise<BookingEmailDraft | null> {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error('Server configuration error.');
 
   const quotation = await fetchQuotationByRef(supabase, ref);
   if (!quotation) return null;
 
-  const emailData = await buildEmailDataForQuotation(supabase, quotation);
+  const emailData = applyDraftOverrides(
+    await buildEmailDataForQuotation(supabase, quotation),
+    ref
+  );
   const recipients = getBookingRecipients();
-  const draftedAt = (quotation as Quotation & { booking_email_drafted_at?: string | null })
-    .booking_email_drafted_at;
+  const draftedAt = quotation.booking_email_drafted_at;
 
   return assembleBookingDraft(quotation, emailData, recipients, {
     alreadyDrafted: !!draftedAt,
@@ -271,8 +320,7 @@ export async function markBookingEmailDrafted(ref: {
   const quotation = await fetchQuotationByRef(supabase, ref);
   if (!quotation) return { ok: false, already_drafted: false };
 
-  const row = quotation as Quotation & { booking_email_drafted_at?: string | null };
-  if (row.booking_email_drafted_at) {
+  if (quotation.booking_email_drafted_at) {
     return { ok: true, already_drafted: true, quotation_id: quotation.id };
   }
 

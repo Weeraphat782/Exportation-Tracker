@@ -31,11 +31,23 @@ export function productLabelFromCommodity(commodity?: string | null): string {
   }
 }
 
-export function summarizePallets(
-  pallets: Pallet[],
-  quote?: Pick<Quotation, 'total_actual_weight' | 'chargeable_weight'>
-): {
+export function airportCodeFromPort(port?: string | null): string {
+  if (!port) return '';
+  const t = port.trim();
+  const paren = t.match(/\(([A-Za-z]{3})\)/);
+  if (paren) return paren[1].toUpperCase();
+  if (/^[A-Za-z]{3}$/.test(t)) return t.toUpperCase();
+  return t;
+}
+
+export function buildRouting(originCode: string, port?: string | null): string {
+  const dest = airportCodeFromPort(port);
+  return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
+}
+
+export function summarizePallets(pallets: Pallet[]): {
   declaredNetWeightKg: number | null;
+  netWeightSource: 'quotation_pallets' | 'unavailable';
   piecesSummary: string;
   palletDimensions: string;
 } {
@@ -48,9 +60,6 @@ export function summarizePallets(
     pieces += qty;
     weight += (Number(p.weight) || 0) * qty;
   }
-  if (weight === 0 && quote) {
-    weight = quote.total_actual_weight || quote.chargeable_weight || 0;
-  }
   if (pallets.length > 0) {
     const first = pallets[0];
     dims = `${first.length || 0} × ${first.width || 0} × ${first.height || 0} cm`;
@@ -58,6 +67,7 @@ export function summarizePallets(
 
   return {
     declaredNetWeightKg: weight > 0 ? weight : null,
+    netWeightSource: weight > 0 ? 'quotation_pallets' : 'unavailable',
     piecesSummary: pieces > 0 ? `${pieces} Pallets` : '',
     palletDimensions: dims,
   };
