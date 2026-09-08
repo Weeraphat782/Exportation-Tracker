@@ -675,6 +675,7 @@ export default function ShipmentDetailPage() {
                                 quotationId: id,
                                 docTypesAdded: [item.documentType],
                             }),
+                            keepalive: true,
                         }).catch(() => {});
                     }
                 }

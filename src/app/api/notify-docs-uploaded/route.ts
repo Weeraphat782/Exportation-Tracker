@@ -3,6 +3,7 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { BOOKING_WEIGHT_DOC_TYPES, emitQuotationDocsUploaded } from '@/lib/webhooks';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseServerClient();
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Quotation not found.' }, { status: 404 });
     }
 
-    void emitQuotationDocsUploaded(supabase, quotationId, docTypesAdded);
+    await emitQuotationDocsUploaded(supabase, quotationId, docTypesAdded);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -156,7 +156,7 @@ async function resolveOpportunityOwnerId(
   if (data?.id) return data.id;
 
   throw new Error(
-    `Cannot resolve opportunity owner for email ${email}; set OPPORTUNITY_OWNER_EMAIL to a staff profile email`
+    'Set OPPORTUNITY_OWNER_EMAIL (or pass owner_email/owner_id) to a staff profile so the Op card shows in the Opportunities UI'
   );
 }
 
@@ -557,35 +557,26 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
   };
 }
 
-export async function getOpCard(ref: GetOpCardRef): Promise<{
-  op_card_id: string;
-  topic: string | null;
-  stage: string | null;
-  owner_id: string | null;
-  customer_name: string | null;
-  linked_quotation_id: string | null;
-  omg_number: string | null;
-  url: string;
-} | null> {
+export async function getOpCard(ref: GetOpCardRef): Promise<Record<string, unknown> | null> {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error('Server configuration error.');
 
   let opCardId = ref.op_card_id?.trim();
   let linkedQuotationId: string | null = null;
-  let omgNumber: string | null = null;
+  let quotationNo: string | null = null;
 
   if (!opCardId) {
     const quotation = await fetchQuotationByRef(supabase, ref);
     if (!quotation) return null;
     linkedQuotationId = quotation.id;
-    omgNumber = quotation.quotation_no || null;
+    quotationNo = quotation.quotation_no || null;
     if (!quotation.opportunity_id) return null;
     opCardId = quotation.opportunity_id;
   }
 
   const { data: opp, error: oppError } = await supabase
     .from('opportunities')
-    .select('id, topic, stage, owner_id, customer_name')
+    .select('*')
     .eq('id', opCardId)
     .maybeSingle();
 
@@ -593,23 +584,25 @@ export async function getOpCard(ref: GetOpCardRef): Promise<{
   if (!opp) return null;
 
   if (!linkedQuotationId) {
-    const { data: quote } = await supabase
+    const { data: quotes, error: quoteError } = await supabase
       .from('quotations')
       .select('id, quotation_no')
       .eq('opportunity_id', opp.id)
-      .maybeSingle();
-    linkedQuotationId = quote?.id ?? null;
-    omgNumber = quote?.quotation_no ?? null;
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (quoteError) {
+      console.error('[getOpCard] reverse quotation lookup failed:', quoteError.message);
+    }
+    linkedQuotationId = quotes?.[0]?.id ?? null;
+    quotationNo = quotes?.[0]?.quotation_no ?? null;
   }
 
   return {
+    ...opp,
     op_card_id: opp.id,
-    topic: opp.topic ?? null,
-    stage: opp.stage ?? null,
-    owner_id: opp.owner_id ?? null,
-    customer_name: opp.customer_name ?? null,
     linked_quotation_id: linkedQuotationId,
-    omg_number: omgNumber,
+    quotation_no: quotationNo,
+    omg_number: quotationNo,
     url: `/opportunities/${opp.id}`,
   };
 }

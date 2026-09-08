@@ -5,6 +5,7 @@ import { sendDocumentUploadNotification } from '@/lib/mail'
 import { BOOKING_WEIGHT_DOC_TYPES, emitQuotationDocsUploaded } from '@/lib/webhooks'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 // This route confirms a file upload (done via signed URL) and saves the DB record.
 export async function POST(request: NextRequest) {
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (dbData?.id && BOOKING_WEIGHT_DOC_TYPES.has(documentType)) {
-      void emitQuotationDocsUploaded(supabase, quotationId, [documentType])
+      await emitQuotationDocsUploaded(supabase, quotationId, [documentType])
     }
 
     // ---> START: Update Quotation Status

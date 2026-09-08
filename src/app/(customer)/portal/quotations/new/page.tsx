@@ -397,6 +397,7 @@ export default function NewQuoteRequestPage() {
                             quotationId: submittedQuotationId,
                             docTypesAdded: [item.documentType],
                         }),
+                        keepalive: true,
                     }).catch(() => {});
                 }
             }
