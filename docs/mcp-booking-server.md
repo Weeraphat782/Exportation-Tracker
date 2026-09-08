@@ -69,9 +69,20 @@ Or **grok.com → Connectors → New Connector → Custom** with the same URL an
 
 ## Webhook `quotation.created`
 
-Fired from `POST /api/notify-quote-request` after a customer portal submit (fire-and-forget).
+Fired from `POST /api/notify-quote-request` after a customer portal submit. The route **awaits** the outbound POST (with one retry on 5xx/timeout) before returning — required on Vercel so the serverless function is not frozen mid-delivery.
 
 Example payload: [scripts/fixtures/quotation-created-webhook.example.json](../scripts/fixtures/quotation-created-webhook.example.json)
+
+### Delivery verification (admin)
+
+After each customer submit, **Vercel Production logs** should show within seconds:
+
+```text
+[webhook] quotation.created OMG09017 id=<uuid> -> 200 in 342ms: ...
+```
+
+- **Missing log** or **non-2xx** → Grok was not woken. Check Production env vars `QUOTATION_WEBHOOK_URL` and `WEBHOOK_SIGNING_SECRET` match the **current** Grok routine card (URL + `crsr_...` key), then redeploy.
+- Success criteria: each new submit produces a Grok Bot chat notification within ~1 minute (even if booking draft is skipped for missing net/docs).
 
 ## Webhook `quotation.docs_uploaded`
 
@@ -106,7 +117,7 @@ No HMAC. The app sends:
 - `Content-Type: application/json`
 - `X-OMG-Event: quotation.created` or `quotation.docs_uploaded`
 
-HTTP status and response body are logged (secrets never logged). Retries once on 5xx/timeout.
+HTTP status, response body snippet, and latency (ms) are logged with OMG# and quotation_id (secrets never logged). Non-2xx and timeouts log as errors. Retries once on 5xx/timeout.
 
 Test from your machine (replace URL and key from the Grok routine card):
 

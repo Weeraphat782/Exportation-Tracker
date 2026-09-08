@@ -6,6 +6,7 @@ import { emitQuotationCreated } from '@/lib/webhooks';
 import type { DocumentSubmission, Quotation } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   const supabase = getSupabaseServerClient();
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
       .eq('quotation_id', quotationId)
       .order('submitted_at', { ascending: false });
 
-    void emitQuotationCreated(
+    await emitQuotationCreated(
       supabase,
       quote as Quotation,
       (docs ?? []) as DocumentSubmission[]

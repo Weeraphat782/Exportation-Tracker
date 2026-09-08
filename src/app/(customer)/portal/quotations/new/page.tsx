@@ -282,6 +282,7 @@ export default function NewQuoteRequestPage() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ quotationId: result.quotationId }),
+                    keepalive: true,
                 }).catch(() => {});
             } else {
                 toast.error(result.error || 'Failed to submit request.');

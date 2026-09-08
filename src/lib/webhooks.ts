@@ -48,6 +48,11 @@ export interface QuotationDocsUploadedPayload {
 
 const WEBHOOK_TIMEOUT_MS = 10_000;
 
+export interface WebhookDeliveryContext {
+  omg?: string | null;
+  quotationId?: string;
+}
+
 function webhookConfig(): { url: string; key: string } | null {
   const url = process.env.QUOTATION_WEBHOOK_URL?.trim();
   const key = process.env.WEBHOOK_SIGNING_SECRET?.trim();
@@ -55,14 +60,35 @@ function webhookConfig(): { url: string; key: string } | null {
   return { url, key };
 }
 
-/** POST to Grok routine webhook; logs status/body (never secrets); retries once on 5xx/timeout. */
-async function postWebhook(event: string, body: string): Promise<void> {
+function webhookContextLabel(context?: WebhookDeliveryContext): string {
+  if (!context?.omg && !context?.quotationId) return '';
+  const parts: string[] = [];
+  if (context.omg) parts.push(context.omg);
+  if (context.quotationId) parts.push(`id=${context.quotationId}`);
+  return ` ${parts.join(' ')}`;
+}
+
+/** POST to Grok routine webhook; logs status/body/latency (never secrets); retries once on 5xx/timeout. */
+async function postWebhook(
+  event: string,
+  body: string,
+  context?: WebhookDeliveryContext
+): Promise<void> {
   const cfg = webhookConfig();
-  if (!cfg) return;
+  if (!cfg) {
+    console.warn(
+      `[webhook] ${event}${webhookContextLabel(context)} skipped: QUOTATION_WEBHOOK_URL or WEBHOOK_SIGNING_SECRET unset`
+    );
+    return;
+  }
+
+  const ctxLabel = webhookContextLabel(context);
 
   const attempt = async (isRetry: boolean): Promise<boolean> => {
+    const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+    const retryTag = isRetry ? ' (retry)' : '';
     try {
       const res = await fetch(cfg.url, {
         method: 'POST',
@@ -74,16 +100,29 @@ async function postWebhook(event: string, body: string): Promise<void> {
         body,
         signal: controller.signal,
       });
+      const latencyMs = Date.now() - started;
       const responseText = await res.text().catch(() => '');
       const preview = responseText.slice(0, 500);
-      console.log(
-        `[webhook] ${event} ${isRetry ? '(retry) ' : ''}→ ${res.status}${preview ? `: ${preview}` : ''}`
+      const suffix = preview ? `: ${preview}` : '';
+
+      if (res.ok) {
+        console.log(
+          `[webhook] ${event}${ctxLabel}${retryTag} -> ${res.status} in ${latencyMs}ms${suffix}`
+        );
+        return true;
+      }
+
+      console.error(
+        `[webhook] ${event}${ctxLabel}${retryTag} -> ${res.status} in ${latencyMs}ms${suffix}`
       );
       if (res.status >= 500) return false;
       return true;
     } catch (err) {
+      const latencyMs = Date.now() - started;
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[webhook] ${event} ${isRetry ? '(retry) ' : ''}failed: ${msg}`);
+      console.error(
+        `[webhook] ${event}${ctxLabel}${retryTag} failed in ${latencyMs}ms: ${msg}`
+      );
       return false;
     } finally {
       clearTimeout(timer);
@@ -186,7 +225,7 @@ export async function buildQuotationDocsUploadedPayload(
   };
 }
 
-/** Fire-and-forget outbound webhook; never throws to caller. */
+/** Outbound quotation.created webhook; never throws to caller. Await in request path on Vercel. */
 export async function emitQuotationCreated(
   supabase: SupabaseClient,
   quote: Quotation,
@@ -194,9 +233,15 @@ export async function emitQuotationCreated(
 ): Promise<void> {
   try {
     const payload = await buildQuotationCreatedPayload(supabase, quote, docs);
-    await postWebhook('quotation.created', JSON.stringify(payload));
+    await postWebhook('quotation.created', JSON.stringify(payload), {
+      omg: payload.omg_number,
+      quotationId: payload.quotation_id,
+    });
   } catch (err) {
-    console.error('[webhook] quotation.created build failed:', err);
+    console.error(
+      `[webhook] quotation.created ${quote.quotation_no || quote.id} build failed:`,
+      err
+    );
   }
 }
 
@@ -226,7 +271,10 @@ export async function emitQuotationDocsUploaded(
       quote as Quotation,
       types
     );
-    await postWebhook('quotation.docs_uploaded', JSON.stringify(payload));
+    await postWebhook('quotation.docs_uploaded', JSON.stringify(payload), {
+      omg: payload.omg_number,
+      quotationId: payload.quotation_id,
+    });
   } catch (err) {
     console.error('[webhook] quotation.docs_uploaded failed:', err);
   }
