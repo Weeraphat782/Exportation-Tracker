@@ -115,35 +115,6 @@ function summarizePallets(pallets, actualWeightKg, packagingType = 'pallet') {
   return { declaredNetWeightKg: null, netWeightSource: 'unavailable', piecesSummary, palletDimensions: dims, pieces };
 }
 
-/** Fake doc extractor for unit tests (no Gemini). */
-async function resolveNetWeightFake(quotation, docExtracts) {
-  const pallets = Array.isArray(quotation.pallets) ? quotation.pallets : [];
-  const palletSummary = summarizePallets(pallets, quotation.total_actual_weight);
-  if (palletSummary.declaredNetWeightKg != null && palletSummary.netWeightSource === 'quotation_pallets') {
-    return { net_weight_kg: palletSummary.declaredNetWeightKg, net_weight_source: 'quotation_pallets', net_weight_confidence: 'high' };
-  }
-  if (palletSummary.declaredNetWeightKg != null && palletSummary.netWeightSource === 'quotation_actual_weight') {
-    return { net_weight_kg: palletSummary.declaredNetWeightKg, net_weight_source: 'quotation_actual_weight', net_weight_confidence: 'high' };
-  }
-  const ciKg = docExtracts['commercial-invoice'] ?? null;
-  const plKg = docExtracts['packing-list'] ?? null;
-  if (ciKg != null) {
-    const alternatives = [{ source: 'commercial-invoice', kg: ciKg }];
-    if (plKg != null) alternatives.push({ source: 'packing-list', kg: plKg });
-    const disagree = plKg != null && Math.abs(ciKg - plKg) / Math.max(ciKg, plKg) > 0.05;
-    return {
-      net_weight_kg: ciKg,
-      net_weight_source: 'commercial-invoice',
-      net_weight_confidence: plKg == null ? 'medium' : disagree ? 'low' : 'high',
-      net_weight_alternatives: plKg != null ? alternatives : undefined,
-    };
-  }
-  if (plKg != null) {
-    return { net_weight_kg: plKg, net_weight_source: 'packing-list', net_weight_confidence: 'medium' };
-  }
-  return { net_weight_kg: null, net_weight_source: 'unavailable', net_weight_confidence: 'low' };
-}
-
 function buildOpCardPayload(quotation, overrides) {
   const customerName = (quotation.company_name || quotation.customer_name || '').trim();
   if (!customerName) {
@@ -288,41 +259,15 @@ assert.throws(
   /Missing required fields/
 );
 
-// piecesLabel
+// piecesLabel: pallet default, box/carton overrides
 assert.equal(piecesLabel(2, 'pallet'), '2 Pallets');
 assert.equal(piecesLabel(48, 'box'), '48 Boxes');
 assert.equal(piecesLabel(12, 'carton'), '12 Cartons');
 assert.equal(piecesLabel(0, 'pallet'), '');
 
-// resolveNetWeightFake precedence (never chargeable)
-(async () => {
-  const fromCi = await resolveNetWeightFake(
-    { pallets: [], total_actual_weight: 0, chargeable_weight: 629 },
-    { 'commercial-invoice': 341.6 }
-  );
-  assert.equal(fromCi.net_weight_kg, 341.6);
-  assert.equal(fromCi.net_weight_source, 'commercial-invoice');
-  assert.notEqual(fromCi.net_weight_kg, 629);
+// summarizePallets packaging override renders Boxes without touching weight
+const boxSummary = summarizePallets([{ weight: 0, quantity: 48 }], 0, 'box');
+assert.equal(boxSummary.piecesSummary, '48 Boxes');
+assert.equal(boxSummary.declaredNetWeightKg, null); // no chargeable invented
 
-  const fromPl = await resolveNetWeightFake(
-    { pallets: [], total_actual_weight: 0 },
-    { 'packing-list': 340 }
-  );
-  assert.equal(fromPl.net_weight_source, 'packing-list');
-
-  const disagree = await resolveNetWeightFake(
-    { pallets: [], total_actual_weight: 0 },
-    { 'commercial-invoice': 341.6, 'packing-list': 200 }
-  );
-  assert.equal(disagree.net_weight_confidence, 'low');
-  assert.equal(disagree.net_weight_alternatives.length, 2);
-
-  const palletsWin = await resolveNetWeightFake(
-    { pallets: [{ weight: 500, quantity: 1 }], total_actual_weight: 341.6 },
-    { 'commercial-invoice': 341.6 }
-  );
-  assert.equal(palletsWin.net_weight_source, 'quotation_pallets');
-  assert.equal(palletsWin.net_weight_kg, 500);
-
-  console.log('booking draft check passed');
-})();
+console.log('booking draft check passed');

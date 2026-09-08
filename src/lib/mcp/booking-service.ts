@@ -15,7 +15,6 @@ import {
   type BookingEmailDraft,
   type PackagingType,
 } from '@/lib/mcp/booking-draft';
-import { extractWeightFromDocument, type PackagingUnit } from '@/lib/mcp/extract-net-weight';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { absoluteUrl } from '@/lib/site';
 import { getFileUrl } from '@/lib/storage';
@@ -23,20 +22,6 @@ import type { DocumentSubmission, Pallet, Quotation } from '@/lib/db';
 
 export type { BookingEmailDraft } from '@/lib/mcp/booking-draft';
 export { assembleBookingDraft, piecesLabel, productLabelFromCommodity, summarizePallets };
-
-export interface NetWeightAlternative {
-  source: string;
-  kg: number;
-}
-
-export interface ResolvedNetWeight {
-  net_weight_kg: number | null;
-  net_weight_source: string;
-  net_weight_confidence: 'low' | 'medium' | 'high';
-  net_weight_alternatives?: NetWeightAlternative[];
-  document_packaging?: PackagingUnit | null;
-  document_pieces?: number | null;
-}
 
 export type QuotationWithPort = Quotation & { destination_port?: string | null };
 
@@ -82,12 +67,9 @@ export interface ExtractedBookingFields {
   net_weight_kg: number | null;
   net_weight_source: string;
   net_weight_confidence: 'low' | 'medium' | 'high';
-  net_weight_alternatives?: NetWeightAlternative[];
   chargeable_weight: number | null;
   packaging_type: PackagingType;
   pieces: number;
-  document_packaging?: PackagingUnit | null;
-  document_pieces?: number | null;
   airline: string;
   shipper: string;
   consignee: string;
@@ -112,92 +94,9 @@ const QUOTATION_SELECT = `
 
 const WEIGHT_DOC_TYPES = new Set(['packing-list', 'commercial-invoice']);
 const WEIGHT_DOC_ORDER = ['commercial-invoice', 'packing-list'];
+// ponytail: Grok (vision LLM) reads these doc URLs and persists via update_quotation_net_weight.
 const VERIFY_DOC_NOTE =
-  'Net weight read from Commercial Invoice first, then Export Packing List. Call update_quotation_net_weight to persist. Never use chargeable weight.';
-
-function latestDocByType(
-  documents: DocumentSubmission[],
-  documentType: string
-): DocumentSubmission | undefined {
-  return documents.find((d) => d.document_type === documentType);
-}
-
-/** Resolve net weight: pallets → total_actual_weight → CI Gemini → PL Gemini. Never chargeable. */
-export async function resolveNetWeight(
-  quotation: QuotationWithPort,
-  documents: DocumentSubmission[]
-): Promise<ResolvedNetWeight> {
-  const pallets = (Array.isArray(quotation.pallets) ? quotation.pallets : []) as Pallet[];
-  const palletSummary = summarizePallets(pallets, quotation.total_actual_weight);
-
-  if (palletSummary.declaredNetWeightKg != null && palletSummary.netWeightSource === 'quotation_pallets') {
-    return {
-      net_weight_kg: palletSummary.declaredNetWeightKg,
-      net_weight_source: 'quotation_pallets',
-      net_weight_confidence: 'high',
-    };
-  }
-
-  if (
-    palletSummary.declaredNetWeightKg != null &&
-    palletSummary.netWeightSource === 'quotation_actual_weight'
-  ) {
-    return {
-      net_weight_kg: palletSummary.declaredNetWeightKg,
-      net_weight_source: 'quotation_actual_weight',
-      net_weight_confidence: 'high',
-    };
-  }
-
-  const ciDoc = latestDocByType(documents, 'commercial-invoice');
-  const plDoc = latestDocByType(documents, 'packing-list');
-
-  const [ciExtract, plExtract] = await Promise.all([
-    ciDoc ? extractWeightFromDocument(ciDoc) : Promise.resolve(null),
-    plDoc ? extractWeightFromDocument(plDoc) : Promise.resolve(null),
-  ]);
-
-  const ciKg = ciExtract?.net_weight_kg ?? null;
-  const plKg = plExtract?.net_weight_kg ?? null;
-
-  const docPackaging = ciExtract?.packaging_unit ?? plExtract?.packaging_unit ?? null;
-  const docPieces = ciExtract?.pieces ?? plExtract?.pieces ?? null;
-
-  if (ciKg != null) {
-    const alternatives: NetWeightAlternative[] = [{ source: 'commercial-invoice', kg: ciKg }];
-    if (plKg != null) alternatives.push({ source: 'packing-list', kg: plKg });
-
-    const disagree =
-      plKg != null && Math.abs(ciKg - plKg) / Math.max(ciKg, plKg) > 0.05;
-
-    return {
-      net_weight_kg: ciKg,
-      net_weight_source: 'commercial-invoice',
-      net_weight_confidence: plKg == null ? 'medium' : disagree ? 'low' : 'high',
-      net_weight_alternatives: plKg != null ? alternatives : undefined,
-      document_packaging: docPackaging,
-      document_pieces: docPieces,
-    };
-  }
-
-  if (plKg != null) {
-    return {
-      net_weight_kg: plKg,
-      net_weight_source: 'packing-list',
-      net_weight_confidence: 'medium',
-      document_packaging: docPackaging,
-      document_pieces: docPieces,
-    };
-  }
-
-  return {
-    net_weight_kg: null,
-    net_weight_source: 'unavailable',
-    net_weight_confidence: 'low',
-    document_packaging: docPackaging,
-    document_pieces: docPieces,
-  };
-}
+  'Read total net KG from Commercial Invoice first, then Export Packing List; then call update_quotation_net_weight. Never use chargeable weight.';
 
 function mapQuotationRow(data: Record<string, unknown>): QuotationWithPort {
   const company = data.company as { name?: string } | null;
@@ -378,12 +277,8 @@ export async function extractBookingFields(ref: {
   const { quotation, documents } = detail;
   const pallets = (Array.isArray(quotation.pallets) ? quotation.pallets : []) as Pallet[];
   const packagingType: PackagingType = 'pallet';
-  const { piecesSummary, palletDimensions, pieces } = summarizePallets(
-    pallets,
-    quotation.total_actual_weight,
-    packagingType
-  );
-  const resolved = await resolveNetWeight(quotation, documents);
+  const { declaredNetWeightKg, netWeightSource, piecesSummary, palletDimensions, pieces } =
+    summarizePallets(pallets, quotation.total_actual_weight, packagingType);
   const saved = quotation.booking_details as EmailBookingData | null;
   const origin = saved?.origin || 'BKK';
   const routing = saved?.routing || buildRouting(origin, quotation.destination_port);
@@ -406,20 +301,22 @@ export async function extractBookingFields(ref: {
     }))
   );
 
+  // Net from quotation only. If pallets are 0, Grok reads verify_from_documents and
+  // persists via update_quotation_net_weight (confidence stays low until then).
+  const confidence: ExtractedBookingFields['net_weight_confidence'] =
+    declaredNetWeightKg != null ? 'high' : 'low';
+
   return {
     quotation_id: quotation.id,
     omg_number: quotation.quotation_no || null,
     product: productLabelFromCommodity(quotation.commodity_type),
     destination: quotation.destination || quotation.requested_destination || '',
-    net_weight_kg: resolved.net_weight_kg,
-    net_weight_source: resolved.net_weight_source,
-    net_weight_confidence: resolved.net_weight_confidence,
-    net_weight_alternatives: resolved.net_weight_alternatives,
+    net_weight_kg: declaredNetWeightKg,
+    net_weight_source: netWeightSource,
+    net_weight_confidence: confidence,
     chargeable_weight: quotation.chargeable_weight ?? null,
     packaging_type: packagingType,
     pieces,
-    document_packaging: resolved.document_packaging,
-    document_pieces: resolved.document_pieces,
     airline: saved?.airline || 'TG',
     shipper: quotation.company_name || '',
     consignee: quotation.consignee_name || saved?.consignee || '',
@@ -440,23 +337,12 @@ export async function buildBookingEmailDraft(
   const quotation = await fetchQuotationByRef(supabase, ref);
   if (!quotation) return null;
 
-  const { data: docs } = await supabase
-    .from('document_submissions')
-    .select('*')
-    .eq('quotation_id', quotation.id)
-    .order('submitted_at', { ascending: false });
-
-  const documents = (docs ?? []) as DocumentSubmission[];
-  const resolved = ref.net_weight_kg == null ? await resolveNetWeight(quotation, documents) : null;
-
-  const draftRef: BuildBookingEmailDraftRef = { ...ref };
-  if (draftRef.net_weight_kg == null && resolved?.net_weight_kg != null) {
-    draftRef.net_weight_kg = resolved.net_weight_kg;
-  }
-
+  // Net from quotation pallets / total_actual_weight or explicit override.
+  // If still empty, Grok should pass net_weight_kg (read from CI) or call
+  // update_quotation_net_weight first, else the draft shows [Weight] KG.
   const emailData = applyDraftOverrides(
     await buildEmailDataForQuotation(supabase, quotation),
-    draftRef
+    ref
   );
   const recipients = getBookingRecipients();
   const draftedAt = quotation.booking_email_drafted_at;

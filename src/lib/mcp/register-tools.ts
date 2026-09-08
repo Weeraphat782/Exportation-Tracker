@@ -241,7 +241,7 @@ export function registerBookingTools(server: McpServer): void {
     'extract_booking_fields',
     {
       description:
-        'Normalized booking fields for email drafting. Net weight from pallets, total_actual_weight, or Gemini read of Commercial Invoice / packing list. Returns packaging_type, pieces, chargeable_weight (info only). Never uses chargeable as net.',
+        'Normalized booking fields for email drafting. Net weight from quotation pallets / total_actual_weight; when 0, read verify_from_documents (Commercial Invoice then packing list) and persist via update_quotation_net_weight. Returns packaging_type, pieces, chargeable_weight (info only). Never uses chargeable as net.',
       inputSchema: refInputSchema,
     },
     async (args) => {
@@ -256,7 +256,7 @@ export function registerBookingTools(server: McpServer): void {
     'build_booking_email_draft',
     {
       description:
-        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail. Auto-reads net from CI/PL when pallets are 0. Optional packaging_type + pieces for NUMBER OF PIECE.',
+        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail. Pass net_weight_kg from Commercial Invoice when pallet weights are 0. Optional packaging_type + pieces for NUMBER OF PIECE.',
       inputSchema: buildInputSchema,
     },
     async (args) => {

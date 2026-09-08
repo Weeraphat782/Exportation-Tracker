@@ -2,7 +2,7 @@
 
 Remote **Streamable HTTP** MCP server hosted inside the Next.js app at `https://cargo.omgexp.com/api/mcp`.
 
-Grok Bot connects over the public internet with a static Bearer token. When a customer submits a quotation, the app POSTs a `quotation.created` payload to your Grok routine webhook URL; when Commercial Invoice or packing list docs arrive later, it POSTs `quotation.docs_uploaded`. The bot then calls MCP tools to fetch details and build a booking email draft (**no mail is sent by MCP**).
+Grok Bot connects over the public internet with a static Bearer token. When a customer submits a quotation, the app POSTs a `quotation.created` payload to your Grok routine webhook URL; when Commercial Invoice or packing list docs arrive later, it POSTs `quotation.docs_uploaded`. The bot then calls MCP tools to fetch details, **reads the document URLs itself** to get net weight, and builds a booking email draft (**no mail is sent by MCP**).
 
 ## Environment variables
 
@@ -11,8 +11,6 @@ Grok Bot connects over the public internet with a static Bearer token. When a cu
 | `MCP_API_TOKEN` | Yes | **We generate** this (random secret). Set on Vercel only. Give the same value to Grok Bot as `Authorization: Bearer <token>` when connecting `https://cargo.omgexp.com/api/mcp`. Grok does **not** generate this. |
 | `QUOTATION_WEBHOOK_URL` | Yes (for push) | **From Grok Bot** — routine webhook POST URL. Set on Vercel only. |
 | `WEBHOOK_SIGNING_SECRET` | Yes (for push) | **From Grok Bot** — routine “Webhook key” / sender key (usually `crsr_...`). Set on Vercel only. Sent outbound as `Authorization: Bearer <key>`. We do **not** invent this and cannot configure a custom secret back into Grok. |
-| `GEMINI_API_KEY` | Yes (for doc net) | Server-side vision read of Commercial Invoice / packing list PDFs in `extract_booking_fields`. |
-| `GEMINI_VISION_MODEL` | No | Default `gemini-3.1-flash-lite-preview` |
 | `BOOKING_EMAIL_TO` | No | Default `montri@handleinterfreight.com` |
 | `BOOKING_EMAIL_CC` | No | Comma-separated CC list |
 | `BOOKING_EMAIL_FROM` | No | Default `cargo@omgexp.com` |
@@ -32,7 +30,7 @@ Run migration: `Tr/migrations/012_add_booking_email_drafted.sql`
 | `list_new_quotations` | Pending quotes (default `pending_approval`), excludes drafted |
 | `get_quotation` | Full detail + attachment metadata |
 | `get_quotation_documents` | Signed download URLs |
-| `extract_booking_fields` | Net weight, packaging, routing + doc URLs; reads CI/PL via Gemini when pallets are 0 |
+| `extract_booking_fields` | Net weight (quotation), packaging, routing + doc URLs for Grok to read when pallets are 0 |
 | `update_quotation_net_weight` | Write net KG to `total_actual_weight` (not chargeable) |
 | `create_op_card` | Create/link Opportunity from quotation (idempotent) |
 | `build_booking_email_draft` | Subject + body + to/cc (OMG format); auto net from docs |
@@ -122,17 +120,18 @@ curl -X POST "$QUOTATION_WEBHOOK_URL" \
 
 ## Net weight from documents
 
-`extract_booking_fields` and `build_booking_email_draft` resolve net weight in this order:
+`extract_booking_fields` returns net weight from the **quotation only**:
 
-1. Sum of `quotations.pallets[].weight × quantity` (if > 0)
-2. `quotations.total_actual_weight` (if > 0)
-3. Gemini read of **Commercial Invoice** total net / QTY KG
-4. Gemini read of **Export Packing List**
-5. `null` / `unavailable`
+1. Sum of `quotations.pallets[].weight × quantity` (if > 0) → `source: quotation_pallets`, confidence `high`
+2. `quotations.total_actual_weight` (if > 0) → `source: quotation_actual_weight`, confidence `high`
+3. Otherwise `null` → `source: unavailable`, confidence `low`
 
-**Never** uses `chargeable_weight`, `manual_chargeable_weight`, or volume as net.
+**Never** uses `chargeable_weight`, `manual_chargeable_weight`, or volume as net. `chargeable_weight` is returned as info only.
 
-Returns separately: `net_weight_kg`, `net_weight_source`, `net_weight_confidence`, optional `net_weight_alternatives` (when CI vs PL disagree > ~5%), and `chargeable_weight` (info only).
+When net is `unavailable`, **Grok reads the documents itself**: `extract_booking_fields` returns `verify_from_documents[]` with signed `download_url`s (Commercial Invoice first, then Export Packing List). Grok reads the total net / QTY KG from the CI and then either:
+
+- calls `update_quotation_net_weight` to persist it (so `get_quotation` / future drafts show it), and/or
+- passes `net_weight_kg` directly to `build_booking_email_draft`.
 
 Document List URL in the email body is enough — **no file attachments** in MCP or Grok Gmail drafts.
 
@@ -140,13 +139,13 @@ Document List URL in the email body is enough — **no file attachments** in MCP
 
 - Default `packaging_type: "pallet"` — NUMBER OF PIECE renders as `"N Pallets"`.
 - Pass `packaging_type: "box"` or `"carton"` + `pieces` to `build_booking_email_draft` for `"N Boxes"` / `"N Cartons"`.
-- `extract_booking_fields` exposes `document_packaging` / `document_pieces` hints from CI/PL for Grok to detect true mismatches (UI default pallet vs docs showing boxes).
+- When Grok reads the CI/PL and sees the customer meant boxes/cartons (UI default left it as pallets by mistake), it passes `packaging_type` + `pieces` to `build_booking_email_draft`.
 - **Do not** auto-convert a real pallet booking to boxes; only override when documents clearly show boxes/cartons. No UI packaging-default change.
 
 ## Suggested Grok routine flow
 
 1. Receive `quotation.created` or `quotation.docs_uploaded` webhook (or poll `list_new_quotations`)
-2. `extract_booking_fields` — net + packaging hints from CI/PL
+2. `extract_booking_fields` — get quotation net + `verify_from_documents` URLs; **Grok reads the Commercial Invoice** for total net KG
 3. `update_quotation_net_weight` — persist correct net (`source: "commercial-invoice"`)
 4. `create_op_card` — create/link Opportunity (idempotent if already exists)
 5. `build_booking_email_draft` — optional `packaging_type` / `pieces` if doc mismatch
