@@ -4,6 +4,7 @@ import {
   buildBookingEmailDraft,
   createOpCard,
   extractBookingFields,
+  getOpCard,
   getQuotationDetail,
   getQuotationDocuments,
   listNewQuotations,
@@ -123,6 +124,8 @@ const opCardInputSchema = fromJsonSchema<{
   topic?: string;
   stage?: string;
   notes?: string;
+  owner_email?: string;
+  owner_id?: string;
 }>({
   type: 'object',
   properties: {
@@ -131,6 +134,22 @@ const opCardInputSchema = fromJsonSchema<{
     topic: { type: 'string', description: 'Override opportunity topic (default quotation_no or company)' },
     stage: { type: 'string', description: 'Override stage (default inquiry)' },
     notes: { type: 'string', description: 'Override opportunity notes' },
+    owner_email: { type: 'string', description: 'Staff owner email (default OPPORTUNITY_OWNER_EMAIL env)' },
+    owner_id: { type: 'string', description: 'Staff owner profile UUID (overrides owner_email)' },
+  },
+  additionalProperties: false,
+});
+
+const getOpCardInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  op_card_id?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    op_card_id: { type: 'string', description: 'Opportunity UUID' },
   },
   additionalProperties: false,
 });
@@ -185,8 +204,18 @@ const opCardSchema = refSchema.and(
     topic: z.string().optional(),
     stage: z.string().optional(),
     notes: z.string().optional(),
+    owner_email: z.string().email().optional(),
+    owner_id: z.string().uuid().optional(),
   })
 );
+
+const getOpCardSchema = z
+  .object({
+    quotation_id: z.string().uuid().optional(),
+    omg_number: z.string().min(1).optional(),
+    op_card_id: z.string().uuid().optional(),
+  })
+  .refine((a) => a.quotation_id || a.omg_number || a.op_card_id, 'Provide quotation_id, omg_number, or op_card_id');
 
 function jsonText(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -293,9 +322,24 @@ export function registerBookingTools(server: McpServer): void {
     'create_op_card',
     {
       description:
-        'Create Opportunity / Op card from quotation (same as UI New Opportunity). Returns existing if already linked.',
+        'Create Opportunity / Op card from quotation (same as UI New Opportunity). Assigns staff owner_id so card appears in Opportunities list. Returns existing if already linked; repairs owner_id if mismatched.',
       inputSchema: opCardInputSchema,
     },
     async (args) => jsonText(await createOpCard(parseOrThrow(opCardSchema, args)))
+  );
+
+  server.registerTool(
+    'get_op_card',
+    {
+      description:
+        'Fetch Opportunity / Op card by quotation_id, omg_number, or op_card_id. Returns owner_id and linked quotation for debugging visibility.',
+      inputSchema: getOpCardInputSchema,
+    },
+    async (args) => {
+      const ref = parseOrThrow(getOpCardSchema, args);
+      const card = await getOpCard(ref);
+      if (!card) return jsonText({ error: 'Opportunity not found.' });
+      return jsonText(card);
+    }
   );
 }

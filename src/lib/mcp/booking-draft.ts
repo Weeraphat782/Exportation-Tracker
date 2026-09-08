@@ -139,6 +139,7 @@ export function summarizePallets(
 /** Mirror handleSaveOpportunity insert payload from opportunities/page.tsx */
 export function buildOpCardPayload(
   quotation: Quotation,
+  ownerId: string,
   overrides?: OpCardOverrides
 ): OpCardInsertPayload {
   const customerName = (quotation.company_name || quotation.customer_name || '').trim();
@@ -168,7 +169,7 @@ export function buildOpCardPayload(
     product_details: null,
     notes: overrides?.notes?.trim() || quotation.notes || null,
     destination_id: quotation.destination_id || null,
-    owner_id: quotation.user_id || null,
+    owner_id: ownerId,
     pickup_date: null,
   };
 }

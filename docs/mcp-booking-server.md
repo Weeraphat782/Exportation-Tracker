@@ -16,6 +16,7 @@ Grok Bot connects over the public internet with a static Bearer token. When a cu
 | `BOOKING_EMAIL_FROM` | No | Default `cargo@omgexp.com` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-side quotation/doc access |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Used for Document List URL (`/booking/{token}`) |
+| `OPPORTUNITY_OWNER_EMAIL` | No | Staff email for MCP-created Op cards (default `vieww.weeraphat@gmail.com`). Resolved to `profiles.id` for `owner_id` so cards appear in the Opportunities UI. |
 
 **Where to get Grok webhook values:** Grok Bot desktop app → routine trigger card → copy the POST URL and webhook/sender key.
 
@@ -32,7 +33,8 @@ Run migration: `Tr/migrations/012_add_booking_email_drafted.sql`
 | `get_quotation_documents` | Signed download URLs |
 | `extract_booking_fields` | Net weight (quotation), packaging, routing + doc URLs for Grok to read when pallets are 0 |
 | `update_quotation_net_weight` | Write net KG to `total_actual_weight` (not chargeable) |
-| `create_op_card` | Create/link Opportunity from quotation (idempotent) |
+| `create_op_card` | Create/link Opportunity from quotation (idempotent); assigns staff `owner_id` |
+| `get_op_card` | Fetch Op card by quotation/OMG/op_card_id (debug visibility + owner_id) |
 | `build_booking_email_draft` | Subject + body + to/cc (OMG format); auto net from docs |
 | `mark_booking_email_drafted` | Idempotent drafted flag |
 
@@ -198,7 +200,28 @@ Fallback: poll `list_new_quotations` if webhook missed.
 }
 ```
 
-Second call with same OMG# returns the same `op_card_id` with `"created": false`.
+Second call with same OMG# returns the same `op_card_id` with `"created": false`. If an existing card has the wrong `owner_id` (e.g. customer instead of staff), the second call **repairs** it and returns `"repaired": true`.
+
+**Debug Op card visibility:**
+
+```json
+{
+  "omg_number": "OMG09017"
+}
+```
+
+Use `get_op_card` — check `owner_id` matches the staff profile for `OPPORTUNITY_OWNER_EMAIL`. Cards only appear in the Opportunities UI when `owner_id` equals the logged-in staff user's id.
+
+## Op card owner (visibility)
+
+The Opportunities list filters by `owner_id = logged-in staff user`. MCP `create_op_card` resolves owner in this order:
+
+1. Explicit `owner_id` in tool args
+2. Explicit `owner_email` in tool args
+3. `OPPORTUNITY_OWNER_EMAIL` env var
+4. Hardcoded fallback `vieww.weeraphat@gmail.com`
+
+Set `OPPORTUNITY_OWNER_EMAIL=vieww.weeraphat@gmail.com` on Vercel Production. Re-call `create_op_card` for OMG09017 / OMG09014 to repair existing cards with wrong owner.
 
 ## Local check
 

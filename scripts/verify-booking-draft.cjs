@@ -115,7 +115,7 @@ function summarizePallets(pallets, actualWeightKg, packagingType = 'pallet') {
   return { declaredNetWeightKg: null, netWeightSource: 'unavailable', piecesSummary, palletDimensions: dims, pieces };
 }
 
-function buildOpCardPayload(quotation, overrides) {
+function buildOpCardPayload(quotation, ownerId, overrides) {
   const customerName = (quotation.company_name || quotation.customer_name || '').trim();
   if (!customerName) {
     throw new Error('Missing required fields: customer_name (set company_name or customer_name on quotation)');
@@ -139,7 +139,7 @@ function buildOpCardPayload(quotation, overrides) {
     product_details: null,
     notes: overrides?.notes?.trim() || quotation.notes || null,
     destination_id: quotation.destination_id || null,
-    owner_id: quotation.user_id || null,
+    owner_id: ownerId,
     pickup_date: null,
   };
 }
@@ -246,16 +246,20 @@ assert.equal(fromPallets.declaredNetWeightKg, 700);
 assert.equal(fromPallets.netWeightSource, 'quotation_pallets');
 
 // buildOpCardPayload
+const STAFF_OWNER_ID = 'staff-uuid-0000-0000-0000-000000000001';
 const opPayload = buildOpCardPayload(
   { id: 'abc12345-0000-0000-0000-000000000000', quotation_no: 'OMG09014', company_name: 'PACCAN GROW', company_id: 'c1', total_cost: 1000, user_id: 'u1', delivery_vehicle_type: '4wheel', destination_id: 'd1', notes: null, customer_name: '' },
+  STAFF_OWNER_ID,
   {}
 );
 assert.equal(opPayload.topic, 'OMG09014');
 assert.equal(opPayload.customer_name, 'PACCAN GROW');
 assert.equal(opPayload.stage, 'inquiry');
+assert.equal(opPayload.owner_id, STAFF_OWNER_ID);
+assert.notEqual(opPayload.owner_id, 'u1');
 
 assert.throws(
-  () => buildOpCardPayload({ id: 'abc12345-0000-0000-0000-000000000000', company_name: '', customer_name: '' }, {}),
+  () => buildOpCardPayload({ id: 'abc12345-0000-0000-0000-000000000000', company_name: '', customer_name: '' }, STAFF_OWNER_ID, {}),
   /Missing required fields/
 );
 

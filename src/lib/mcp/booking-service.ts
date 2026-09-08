@@ -57,7 +57,17 @@ export interface CreateOpCardRef {
   topic?: string;
   stage?: string;
   notes?: string;
+  owner_email?: string;
+  owner_id?: string;
 }
+
+export interface GetOpCardRef {
+  quotation_id?: string;
+  omg_number?: string;
+  op_card_id?: string;
+}
+
+const DEFAULT_OPPORTUNITY_OWNER_EMAIL = 'vieww.weeraphat@gmail.com';
 
 export interface ExtractedBookingFields {
   quotation_id: string;
@@ -123,6 +133,31 @@ async function ensureBookingShareToken(
     .update({ booking_share_token: token })
     .eq('id', quotationId);
   return error ? null : token;
+}
+
+async function resolveOpportunityOwnerId(
+  supabase: SupabaseClient,
+  ref: { owner_id?: string; owner_email?: string }
+): Promise<string> {
+  if (ref.owner_id?.trim()) return ref.owner_id.trim();
+
+  const email =
+    ref.owner_email?.trim() ||
+    process.env.OPPORTUNITY_OWNER_EMAIL?.trim() ||
+    DEFAULT_OPPORTUNITY_OWNER_EMAIL;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .ilike('email', email)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (data?.id) return data.id;
+
+  throw new Error(
+    `Cannot resolve opportunity owner for email ${email}; set OPPORTUNITY_OWNER_EMAIL to a staff profile email`
+  );
 }
 
 async function fetchQuotationByRef(
@@ -439,6 +474,8 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
   op_card_id: string;
   url: string;
   created: boolean;
+  owner_id: string;
+  repaired: boolean;
 }> {
   const supabase = getSupabaseServerClient();
   if (!supabase) throw new Error('Server configuration error.');
@@ -446,7 +483,28 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
   const quotation = await fetchQuotationByRef(supabase, ref);
   if (!quotation) throw new Error('Quotation not found.');
 
+  const ownerId = await resolveOpportunityOwnerId(supabase, ref);
+
   if (quotation.opportunity_id) {
+    let repaired = false;
+    const { data: existing, error: fetchError } = await supabase
+      .from('opportunities')
+      .select('id, owner_id')
+      .eq('id', quotation.opportunity_id)
+      .maybeSingle();
+
+    if (fetchError) throw new Error(fetchError.message);
+
+    if (existing && existing.owner_id !== ownerId) {
+      const { error: repairError } = await supabase
+        .from('opportunities')
+        .update({ owner_id: ownerId })
+        .eq('id', existing.id);
+
+      if (repairError) throw new Error(repairError.message);
+      repaired = true;
+    }
+
     return {
       ok: true,
       quotation_id: quotation.id,
@@ -454,14 +512,20 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
       op_card_id: quotation.opportunity_id,
       url: `/opportunities/${quotation.opportunity_id}`,
       created: false,
+      owner_id: ownerId,
+      repaired,
     };
   }
 
-  const payload = buildOpCardPayload(quotation, {
-    topic: ref.topic,
-    stage: ref.stage,
-    notes: ref.notes,
-  });
+  const payload = buildOpCardPayload(
+    quotation,
+    ownerId,
+    {
+      topic: ref.topic,
+      stage: ref.stage,
+      notes: ref.notes,
+    }
+  );
 
   const { data, error } = await supabase
     .from('opportunities')
@@ -488,5 +552,64 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
     op_card_id: data.id,
     url: `/opportunities/${data.id}`,
     created: true,
+    owner_id: ownerId,
+    repaired: false,
+  };
+}
+
+export async function getOpCard(ref: GetOpCardRef): Promise<{
+  op_card_id: string;
+  topic: string | null;
+  stage: string | null;
+  owner_id: string | null;
+  customer_name: string | null;
+  linked_quotation_id: string | null;
+  omg_number: string | null;
+  url: string;
+} | null> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Server configuration error.');
+
+  let opCardId = ref.op_card_id?.trim();
+  let linkedQuotationId: string | null = null;
+  let omgNumber: string | null = null;
+
+  if (!opCardId) {
+    const quotation = await fetchQuotationByRef(supabase, ref);
+    if (!quotation) return null;
+    linkedQuotationId = quotation.id;
+    omgNumber = quotation.quotation_no || null;
+    if (!quotation.opportunity_id) return null;
+    opCardId = quotation.opportunity_id;
+  }
+
+  const { data: opp, error: oppError } = await supabase
+    .from('opportunities')
+    .select('id, topic, stage, owner_id, customer_name')
+    .eq('id', opCardId)
+    .maybeSingle();
+
+  if (oppError) throw new Error(oppError.message);
+  if (!opp) return null;
+
+  if (!linkedQuotationId) {
+    const { data: quote } = await supabase
+      .from('quotations')
+      .select('id, quotation_no')
+      .eq('opportunity_id', opp.id)
+      .maybeSingle();
+    linkedQuotationId = quote?.id ?? null;
+    omgNumber = quote?.quotation_no ?? null;
+  }
+
+  return {
+    op_card_id: opp.id,
+    topic: opp.topic ?? null,
+    stage: opp.stage ?? null,
+    owner_id: opp.owner_id ?? null,
+    customer_name: opp.customer_name ?? null,
+    linked_quotation_id: linkedQuotationId,
+    omg_number: omgNumber,
+    url: `/opportunities/${opp.id}`,
   };
 }
