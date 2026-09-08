@@ -427,6 +427,9 @@ export interface Quotation {
   booking_air_freight?: import('./email-templates').BookingAirFreightResponse | Record<string, unknown> | null;
   booking_status?: 'draft' | 'sent' | 'confirmed' | string | null;
   booking_confirmed_at?: string | null;
+  /** MCP / Grok Bot already drafted booking email */
+  booking_email_drafted_at?: string | null;
+  booking_email_drafted_by?: string | null;
 }
 
 export interface DocumentSubmission {

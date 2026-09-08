@@ -1,0 +1,23 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "quotation_no": "OMG06017",
+  "status": "pending_approval",
+  "created_at": "2026-09-07T10:30:00.000Z",
+  "company_name": "PACCAN GROW Co., Ltd.",
+  "consignee_name": "CZW PHARMA GmbH",
+  "commodity_type": "cannabis",
+  "destination": "Munich, Germany",
+  "requested_destination": "Munich, Germany",
+  "pallets": [
+    { "length": 120, "width": 100, "height": 160, "weight": 471.5, "quantity": 1 },
+    { "length": 120, "width": 100, "height": 160, "weight": 471.5, "quantity": 1 }
+  ],
+  "total_actual_weight": 943,
+  "chargeable_weight": 943,
+  "booking_share_token": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "booking_details": {
+    "airline": "TG",
+    "routing": "BKK-ZRH",
+    "preferredShipmentDate": "2026-09-15"
+  }
+}

@@ -1,4 +1,4 @@
-import { Quotation } from './db';
+import type { Quotation } from './db';
 
 /** Air Freight team response submitted via public booking link */
 export interface BookingAirFreightResponse {

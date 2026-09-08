@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { sendQuoteRequestNotification } from '@/lib/mail';
 import { absoluteUrl } from '@/lib/site';
+import { emitQuotationCreated } from '@/lib/webhooks';
+import type { DocumentSubmission, Quotation } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,9 +23,7 @@ export async function POST(request: NextRequest) {
 
     const { data: quote, error } = await supabase
       .from('quotations')
-      .select(
-        'id, quotation_no, status, customer_name, company_name, requested_destination, commodity_type, phyto_required, notes, pallets'
-      )
+      .select('*')
       .eq('id', quotationId)
       .single();
 
@@ -52,6 +52,18 @@ export async function POST(request: NextRequest) {
     } catch (emailErr) {
       console.error('[notify-quote-request] Email notification failed:', emailErr);
     }
+
+    const { data: docs } = await supabase
+      .from('document_submissions')
+      .select('*')
+      .eq('quotation_id', quotationId)
+      .order('submitted_at', { ascending: false });
+
+    void emitQuotationCreated(
+      supabase,
+      quote as Quotation,
+      (docs ?? []) as DocumentSubmission[]
+    );
 
     return NextResponse.json({ ok: true });
   } catch (err) {
