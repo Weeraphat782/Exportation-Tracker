@@ -5,6 +5,7 @@ import {
 } from '../email-templates';
 import type { BookingRecipients } from '../booking-recipients';
 import type { Pallet, Quotation } from '../db';
+import { STAGE_LABELS } from '../../types/opportunity';
 
 export interface BookingEmailDraft {
   subject: string;
@@ -172,6 +173,43 @@ export function buildOpCardPayload(
     owner_id: ownerId,
     pickup_date: null,
   };
+}
+
+export const VALID_OP_STAGES = new Set(Object.keys(STAGE_LABELS));
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function buildOpCardUpdatePayload(fields: {
+  stage?: string;
+  pickup_date?: string;
+  notes?: string;
+  payment_date?: string;
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (fields.stage != null) {
+    if (!VALID_OP_STAGES.has(fields.stage)) {
+      throw new Error(`Invalid stage "${fields.stage}"`);
+    }
+    out.stage = fields.stage;
+  }
+  if (fields.pickup_date != null) {
+    if (!DATE_RE.test(fields.pickup_date)) {
+      throw new Error('pickup_date must be YYYY-MM-DD');
+    }
+    out.pickup_date = fields.pickup_date;
+  }
+  if (fields.payment_date != null) {
+    if (!DATE_RE.test(fields.payment_date)) {
+      throw new Error('payment_date must be YYYY-MM-DD');
+    }
+    out.payment_date = fields.payment_date;
+  }
+  if (fields.notes != null) out.notes = fields.notes;
+  if (Object.keys(out).length === 0) {
+    throw new Error(
+      'Provide at least one field to update (stage, pickup_date, notes, payment_date)'
+    );
+  }
+  return out;
 }
 
 export function assembleBookingDraft(

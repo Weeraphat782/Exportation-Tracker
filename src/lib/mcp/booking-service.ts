@@ -8,6 +8,7 @@ import { getBookingRecipients } from '@/lib/booking-recipients';
 import {
   assembleBookingDraft,
   buildOpCardPayload,
+  buildOpCardUpdatePayload,
   buildRouting,
   piecesLabel,
   productLabelFromCommodity,
@@ -65,6 +66,16 @@ export interface GetOpCardRef {
   quotation_id?: string;
   omg_number?: string;
   op_card_id?: string;
+}
+
+export interface UpdateOpCardRef {
+  quotation_id?: string;
+  omg_number?: string;
+  op_card_id?: string;
+  stage?: string;
+  pickup_date?: string;
+  notes?: string;
+  payment_date?: string;
 }
 
 const DEFAULT_OPPORTUNITY_OWNER_EMAIL = 'vieww.weeraphat@gmail.com';
@@ -158,6 +169,20 @@ async function resolveOpportunityOwnerId(
   throw new Error(
     'Set OPPORTUNITY_OWNER_EMAIL (or pass owner_email/owner_id) to a staff profile so the Op card shows in the Opportunities UI'
   );
+}
+
+async function resolveOpCardId(
+  supabase: SupabaseClient,
+  ref: { quotation_id?: string; omg_number?: string; op_card_id?: string }
+): Promise<string> {
+  if (ref.op_card_id?.trim()) return ref.op_card_id.trim();
+
+  const quotation = await fetchQuotationByRef(supabase, ref);
+  if (!quotation) throw new Error('Quotation not found.');
+  if (!quotation.opportunity_id) {
+    throw new Error('No Op card linked to this quotation — call create_op_card first.');
+  }
+  return quotation.opportunity_id;
 }
 
 async function fetchQuotationByRef(
@@ -505,6 +530,15 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
       repaired = true;
     }
 
+    if (ref.stage != null || ref.notes != null) {
+      const patch = buildOpCardUpdatePayload({ stage: ref.stage, notes: ref.notes });
+      const { error: patchError } = await supabase
+        .from('opportunities')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', quotation.opportunity_id);
+      if (patchError) throw new Error(patchError.message);
+    }
+
     return {
       ok: true,
       quotation_id: quotation.id,
@@ -555,6 +589,24 @@ export async function createOpCard(ref: CreateOpCardRef): Promise<{
     owner_id: ownerId,
     repaired: false,
   };
+}
+
+export async function updateOpCard(ref: UpdateOpCardRef): Promise<Record<string, unknown>> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Server configuration error.');
+
+  const opCardId = await resolveOpCardId(supabase, ref);
+  const payload = {
+    ...buildOpCardUpdatePayload(ref),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from('opportunities').update(payload).eq('id', opCardId);
+  if (error) throw new Error(error.message);
+
+  const card = await getOpCard({ op_card_id: opCardId });
+  if (!card) throw new Error('Opportunity not found after update.');
+  return card;
 }
 
 export async function getOpCard(ref: GetOpCardRef): Promise<Record<string, unknown> | null> {

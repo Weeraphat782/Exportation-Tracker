@@ -34,6 +34,7 @@ Run migration: `Tr/migrations/012_add_booking_email_drafted.sql`
 | `extract_booking_fields` | Net weight (quotation), packaging, routing + doc URLs for Grok to read when pallets are 0 |
 | `update_quotation_net_weight` | Write net KG to `total_actual_weight` (not chargeable) |
 | `create_op_card` | Create/link Opportunity from quotation (idempotent); assigns staff `owner_id` |
+| `update_op_card` | Update existing Op card stage, pickup_date, notes, payment_date |
 | `get_op_card` | Fetch Op card by quotation/OMG/op_card_id (debug visibility + owner_id) |
 | `build_booking_email_draft` | Subject + body + to/cc (OMG format); auto net from docs |
 | `mark_booking_email_drafted` | Idempotent drafted flag |
@@ -161,9 +162,10 @@ Document List URL in the email body is enough — **no file attachments** in MCP
 2. `extract_booking_fields` — get quotation net + `verify_from_documents` URLs; **Grok reads the Commercial Invoice** for total net KG
 3. `update_quotation_net_weight` — persist correct net (`source: "commercial-invoice"`)
 4. `create_op_card` — create/link Opportunity (idempotent if already exists)
-5. `build_booking_email_draft` — optional `packaging_type` / `pieces` if doc mismatch
-6. **Grok creates Gmail draft** in cargo@omgexp.com (MCP never sends email; no attachments)
-7. `mark_booking_email_drafted` (idempotent)
+5. `update_op_card` — move stage / set pickup_date after booking email drafted (e.g. `waiting_for_pickup`)
+6. `build_booking_email_draft` — optional `packaging_type` / `pieces` if doc mismatch
+7. **Grok creates Gmail draft** in cargo@omgexp.com (MCP never sends email; no attachments)
+8. `mark_booking_email_drafted` (idempotent)
 
 MCP **never sends email**. Pricing / rates are out of scope (handled by humans).
 
@@ -200,7 +202,19 @@ Fallback: poll `list_new_quotations` if webhook missed.
 }
 ```
 
-Second call with same OMG# returns the same `op_card_id` with `"created": false`. If an existing card has the wrong `owner_id` (e.g. customer instead of staff), the second call **repairs** it and returns `"repaired": true`.
+Second call with same OMG# returns the same `op_card_id` with `"created": false`. If an existing card has the wrong `owner_id` (e.g. customer instead of staff), the second call **repairs** it and returns `"repaired": true`. Pass `stage`/`notes` on create to patch an already-linked card; use `update_op_card` for `pickup_date` / `payment_date`.
+
+**Update Op card (stage + pickup):**
+
+```json
+{
+  "omg_number": "OMG09014",
+  "stage": "waiting_for_pickup",
+  "pickup_date": "2026-09-11"
+}
+```
+
+Returns the full opportunity row (same shape as `get_op_card`) after update.
 
 **Debug Op card visibility:**
 

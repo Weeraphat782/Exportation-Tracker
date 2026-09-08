@@ -9,6 +9,7 @@ import {
   getQuotationDocuments,
   listNewQuotations,
   markBookingEmailDrafted,
+  updateOpCard,
   updateQuotationNetWeight,
 } from '@/lib/mcp/booking-service';
 
@@ -154,6 +155,44 @@ const getOpCardInputSchema = fromJsonSchema<{
   additionalProperties: false,
 });
 
+const OP_STAGES = [
+  'inquiry',
+  'quoting',
+  'pending_docs',
+  'pending_booking',
+  'booking_requested',
+  'awb_received',
+  'waiting_for_pickup',
+  'picked_up',
+  'payment_received',
+] as const;
+
+const updateOpCardInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  op_card_id?: string;
+  stage?: string;
+  pickup_date?: string;
+  notes?: string;
+  payment_date?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    op_card_id: { type: 'string', description: 'Opportunity UUID' },
+    stage: {
+      type: 'string',
+      enum: [...OP_STAGES],
+      description: 'Opportunity stage e.g. waiting_for_pickup',
+    },
+    pickup_date: { type: 'string', description: 'Pickup date YYYY-MM-DD' },
+    notes: { type: 'string', description: 'Opportunity notes (replaces field)' },
+    payment_date: { type: 'string', description: 'Payment date YYYY-MM-DD' },
+  },
+  additionalProperties: false,
+});
+
 // ponytail: advertised schema via fromJsonSchema (SDK AJV); Zod 3 refines in handlers.
 const listSchema = z.object({
   status: z.string().optional(),
@@ -216,6 +255,29 @@ const getOpCardSchema = z
     op_card_id: z.string().uuid().optional(),
   })
   .refine((a) => a.quotation_id || a.omg_number || a.op_card_id, 'Provide quotation_id, omg_number, or op_card_id');
+
+const updateOpCardRefSchema = z
+  .object({
+    quotation_id: z.string().uuid().optional(),
+    omg_number: z.string().min(1).optional(),
+    op_card_id: z.string().uuid().optional(),
+  })
+  .refine((a) => a.quotation_id || a.omg_number || a.op_card_id, 'Provide quotation_id, omg_number, or op_card_id');
+
+const updateOpCardSchema = updateOpCardRefSchema.and(
+  z.object({
+    stage: z.enum(OP_STAGES).optional(),
+    pickup_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'pickup_date must be YYYY-MM-DD')
+      .optional(),
+    notes: z.string().optional(),
+    payment_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'payment_date must be YYYY-MM-DD')
+      .optional(),
+  })
+);
 
 function jsonText(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -322,10 +384,20 @@ export function registerBookingTools(server: McpServer): void {
     'create_op_card',
     {
       description:
-        'Create Opportunity / Op card from quotation (same as UI New Opportunity). Assigns staff owner_id so card appears in Opportunities list. Returns existing if already linked; repairs owner_id if mismatched.',
+        'Create Opportunity / Op card from quotation (same as UI New Opportunity). Assigns staff owner_id so card appears in Opportunities list. Returns existing if already linked; repairs owner_id if mismatched. On existing cards, applies stage/notes if passed — use update_op_card for pickup_date/payment_date.',
       inputSchema: opCardInputSchema,
     },
     async (args) => jsonText(await createOpCard(parseOrThrow(opCardSchema, args)))
+  );
+
+  server.registerTool(
+    'update_op_card',
+    {
+      description:
+        'Update existing Opportunity stage, pickup_date, notes, and/or payment_date. Returns full get_op_card payload after update.',
+      inputSchema: updateOpCardInputSchema,
+    },
+    async (args) => jsonText(await updateOpCard(parseOrThrow(updateOpCardSchema, args)))
   );
 
   server.registerTool(

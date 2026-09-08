@@ -144,6 +144,33 @@ function buildOpCardPayload(quotation, ownerId, overrides) {
   };
 }
 
+const VALID_OP_STAGES = new Set([
+  'inquiry', 'quoting', 'pending_docs', 'pending_booking', 'booking_requested',
+  'awb_received', 'waiting_for_pickup', 'picked_up', 'payment_received',
+]);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function buildOpCardUpdatePayload(fields) {
+  const out = {};
+  if (fields.stage != null) {
+    if (!VALID_OP_STAGES.has(fields.stage)) throw new Error(`Invalid stage "${fields.stage}"`);
+    out.stage = fields.stage;
+  }
+  if (fields.pickup_date != null) {
+    if (!DATE_RE.test(fields.pickup_date)) throw new Error('pickup_date must be YYYY-MM-DD');
+    out.pickup_date = fields.pickup_date;
+  }
+  if (fields.payment_date != null) {
+    if (!DATE_RE.test(fields.payment_date)) throw new Error('payment_date must be YYYY-MM-DD');
+    out.payment_date = fields.payment_date;
+  }
+  if (fields.notes != null) out.notes = fields.notes;
+  if (Object.keys(out).length === 0) {
+    throw new Error('Provide at least one field to update (stage, pickup_date, notes, payment_date)');
+  }
+  return out;
+}
+
 const recipients = {
   to: 'montri@handleinterfreight.com',
   cc: [
@@ -262,6 +289,18 @@ assert.throws(
   () => buildOpCardPayload({ id: 'abc12345-0000-0000-0000-000000000000', company_name: '', customer_name: '' }, STAFF_OWNER_ID, {}),
   /Missing required fields/
 );
+
+// buildOpCardUpdatePayload
+const updatePayload = buildOpCardUpdatePayload({
+  stage: 'waiting_for_pickup',
+  pickup_date: '2026-09-11',
+});
+assert.equal(updatePayload.stage, 'waiting_for_pickup');
+assert.equal(updatePayload.pickup_date, '2026-09-11');
+
+assert.throws(() => buildOpCardUpdatePayload({ stage: 'not_a_stage' }), /Invalid stage/);
+assert.throws(() => buildOpCardUpdatePayload({ pickup_date: '09-11-2026' }), /pickup_date must be YYYY-MM-DD/);
+assert.throws(() => buildOpCardUpdatePayload({}), /Provide at least one field/);
 
 // piecesLabel: pallet default, box/carton overrides
 assert.equal(piecesLabel(2, 'pallet'), '2 Pallets');
