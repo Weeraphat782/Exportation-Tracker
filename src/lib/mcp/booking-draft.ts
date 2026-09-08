@@ -69,14 +69,25 @@ export function buildRouting(originCode: string, port?: string | null): string {
   return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
 }
 
+export type PackagingType = 'pallet' | 'box' | 'carton';
+
+export function piecesLabel(pieces: number, packagingType: PackagingType = 'pallet'): string {
+  if (pieces <= 0) return '';
+  const label =
+    packagingType === 'box' ? 'Boxes' : packagingType === 'carton' ? 'Cartons' : 'Pallets';
+  return `${pieces} ${label}`;
+}
+
 export function summarizePallets(
   pallets: Pallet[],
-  actualWeightKg?: number | null
+  actualWeightKg?: number | null,
+  packagingType: PackagingType = 'pallet'
 ): {
   declaredNetWeightKg: number | null;
   netWeightSource: 'quotation_pallets' | 'quotation_actual_weight' | 'unavailable';
   piecesSummary: string;
   palletDimensions: string;
+  pieces: number;
 } {
   let weight = 0;
   let pieces = 0;
@@ -92,7 +103,7 @@ export function summarizePallets(
     dims = `${first.length || 0} × ${first.width || 0} × ${first.height || 0} cm`;
   }
 
-  const piecesSummary = pieces > 0 ? `${pieces} Pallets` : '';
+  const piecesSummary = piecesLabel(pieces, packagingType);
   const palletDimensions = dims;
 
   if (weight > 0) {
@@ -101,6 +112,7 @@ export function summarizePallets(
       netWeightSource: 'quotation_pallets',
       piecesSummary,
       palletDimensions,
+      pieces,
     };
   }
 
@@ -111,6 +123,7 @@ export function summarizePallets(
       netWeightSource: 'quotation_actual_weight',
       piecesSummary,
       palletDimensions,
+      pieces,
     };
   }
 
@@ -119,6 +132,7 @@ export function summarizePallets(
     netWeightSource: 'unavailable',
     piecesSummary,
     palletDimensions,
+    pieces,
   };
 }
 

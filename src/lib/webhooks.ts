@@ -5,6 +5,8 @@ import { getFileUrl } from '@/lib/storage';
 import type { DocumentSubmission, Pallet, Quotation } from '@/lib/db';
 import { productLabelFromCommodity, summarizePallets } from '@/lib/mcp/booking-draft';
 
+export const BOOKING_WEIGHT_DOC_TYPES = new Set(['commercial-invoice', 'packing-list']);
+
 export interface QuotationCreatedPayload {
   event: 'quotation.created';
   emitted_at: string;
@@ -30,6 +32,66 @@ export interface QuotationCreatedPayload {
     file_name: string;
     download_url: string | null;
   }>;
+}
+
+export interface QuotationDocsUploadedPayload {
+  event: 'quotation.docs_uploaded';
+  emitted_at: string;
+  quotation_id: string;
+  omg_number: string | null;
+  quotation_no: string | null;
+  status: string;
+  updated_at: string;
+  doc_types_added: string[];
+  document_list_url: string | null;
+}
+
+const WEBHOOK_TIMEOUT_MS = 10_000;
+
+function webhookConfig(): { url: string; key: string } | null {
+  const url = process.env.QUOTATION_WEBHOOK_URL?.trim();
+  const key = process.env.WEBHOOK_SIGNING_SECRET?.trim();
+  if (!url || !key) return null;
+  return { url, key };
+}
+
+/** POST to Grok routine webhook; logs status/body (never secrets); retries once on 5xx/timeout. */
+async function postWebhook(event: string, body: string): Promise<void> {
+  const cfg = webhookConfig();
+  if (!cfg) return;
+
+  const attempt = async (isRetry: boolean): Promise<boolean> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+    try {
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cfg.key}`,
+          'X-OMG-Event': event,
+        },
+        body,
+        signal: controller.signal,
+      });
+      const responseText = await res.text().catch(() => '');
+      const preview = responseText.slice(0, 500);
+      console.log(
+        `[webhook] ${event} ${isRetry ? '(retry) ' : ''}→ ${res.status}${preview ? `: ${preview}` : ''}`
+      );
+      if (res.status >= 500) return false;
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[webhook] ${event} ${isRetry ? '(retry) ' : ''}failed: ${msg}`);
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const ok = await attempt(false);
+  if (!ok) await attempt(true);
 }
 
 async function ensureBookingShareToken(
@@ -103,31 +165,69 @@ export async function buildQuotationCreatedPayload(
   };
 }
 
+export async function buildQuotationDocsUploadedPayload(
+  supabase: SupabaseClient,
+  quote: Quotation,
+  docTypesAdded: string[]
+): Promise<QuotationDocsUploadedPayload> {
+  const token = await ensureBookingShareToken(supabase, quote.id, quote.booking_share_token);
+  const documentListUrl = token ? buildBookingDocumentListUrl(absoluteUrl(''), token) : null;
+
+  return {
+    event: 'quotation.docs_uploaded',
+    emitted_at: new Date().toISOString(),
+    quotation_id: quote.id,
+    omg_number: quote.quotation_no || null,
+    quotation_no: quote.quotation_no || null,
+    status: quote.status,
+    updated_at: quote.updated_at || new Date().toISOString(),
+    doc_types_added: docTypesAdded,
+    document_list_url: documentListUrl,
+  };
+}
+
 /** Fire-and-forget outbound webhook; never throws to caller. */
 export async function emitQuotationCreated(
   supabase: SupabaseClient,
   quote: Quotation,
   docs: DocumentSubmission[] = []
 ): Promise<void> {
-  const url = process.env.QUOTATION_WEBHOOK_URL?.trim();
-  // Grok routine webhook key (crsr_...), provided BY Grok — not invented by us.
-  const webhookKey = process.env.WEBHOOK_SIGNING_SECRET?.trim();
-  if (!url || !webhookKey) return;
-
   try {
     const payload = await buildQuotationCreatedPayload(supabase, quote, docs);
-    const body = JSON.stringify(payload);
-    // ponytail: Grok expects Authorization Bearer; swap header if routine format changes.
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${webhookKey}`,
-        'X-OMG-Event': 'quotation.created',
-      },
-      body,
-    });
+    await postWebhook('quotation.created', JSON.stringify(payload));
   } catch (err) {
-    console.error('[webhook] quotation.created failed:', err);
+    console.error('[webhook] quotation.created build failed:', err);
+  }
+}
+
+/** Notify Grok when booking-relevant docs (CI / packing list) are uploaded later. */
+export async function emitQuotationDocsUploaded(
+  supabase: SupabaseClient,
+  quotationId: string,
+  docTypesAdded: string[]
+): Promise<void> {
+  const types = [...new Set(docTypesAdded.filter((t) => BOOKING_WEIGHT_DOC_TYPES.has(t)))];
+  if (types.length === 0) return;
+
+  try {
+    const { data: quote, error } = await supabase
+      .from('quotations')
+      .select('*')
+      .eq('id', quotationId)
+      .maybeSingle();
+
+    if (error || !quote) {
+      console.error('[webhook] quotation.docs_uploaded: quote not found', quotationId);
+      return;
+    }
+
+    const payload = await buildQuotationDocsUploadedPayload(
+      supabase,
+      quote as Quotation,
+      types
+    );
+    await postWebhook('quotation.docs_uploaded', JSON.stringify(payload));
+  } catch (err) {
+    console.error('[webhook] quotation.docs_uploaded failed:', err);
   }
 }

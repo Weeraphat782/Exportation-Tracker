@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { sendTelegramDocumentUploadNotification } from '@/lib/telegram-admin-notify'
 import { sendDocumentUploadNotification } from '@/lib/mail'
+import { BOOKING_WEIGHT_DOC_TYPES, emitQuotationDocsUploaded } from '@/lib/webhooks'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
         { error: `Database record failed: ${dbError.message}` },
         { status: 500 }
       )
+    }
+
+    if (dbData?.id && BOOKING_WEIGHT_DOC_TYPES.has(documentType)) {
+      void emitQuotationDocsUploaded(supabase, quotationId, [documentType])
     }
 
     // ---> START: Update Quotation Status

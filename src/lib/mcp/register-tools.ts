@@ -64,6 +64,8 @@ const buildInputSchema = fromJsonSchema<{
   origin?: string;
   product?: string;
   destination?: string;
+  packaging_type?: 'pallet' | 'box' | 'carton';
+  pieces?: number;
 }>({
   type: 'object',
   properties: {
@@ -78,11 +80,17 @@ const buildInputSchema = fromJsonSchema<{
     preferred_shipment_date: { type: 'string' },
     mawb: { type: 'string' },
     consignee: { type: 'string' },
-    number_of_pieces: { type: 'string' },
+    number_of_pieces: { type: 'string', description: 'Full override e.g. "12 Boxes"' },
     pallet_dimensions: { type: 'string' },
     origin: { type: 'string', description: 'Origin airport code e.g. BKK' },
     product: { type: 'string' },
     destination: { type: 'string' },
+    packaging_type: {
+      type: 'string',
+      enum: ['pallet', 'box', 'carton'],
+      description: 'Packaging unit for NUMBER OF PIECE (default pallet)',
+    },
+    pieces: { type: 'integer', minimum: 1, description: 'Piece count with packaging_type' },
   },
   additionalProperties: false,
 });
@@ -159,6 +167,8 @@ const buildSchema = refSchema.and(
     origin: z.string().optional(),
     product: z.string().optional(),
     destination: z.string().optional(),
+    packaging_type: z.enum(['pallet', 'box', 'carton']).optional(),
+    pieces: z.number().int().min(1).optional(),
   })
 );
 
@@ -231,7 +241,7 @@ export function registerBookingTools(server: McpServer): void {
     'extract_booking_fields',
     {
       description:
-        'Normalized booking fields for email drafting. Net weight from quotation pallets; packing list / invoice URLs for verification.',
+        'Normalized booking fields for email drafting. Net weight from pallets, total_actual_weight, or Gemini read of Commercial Invoice / packing list. Returns packaging_type, pieces, chargeable_weight (info only). Never uses chargeable as net.',
       inputSchema: refInputSchema,
     },
     async (args) => {
@@ -246,7 +256,7 @@ export function registerBookingTools(server: McpServer): void {
     'build_booking_email_draft',
     {
       description:
-        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail. Pass net_weight_kg from Commercial Invoice when pallet weights are 0.',
+        'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail. Auto-reads net from CI/PL when pallets are 0. Optional packaging_type + pieces for NUMBER OF PIECE.',
       inputSchema: buildInputSchema,
     },
     async (args) => {

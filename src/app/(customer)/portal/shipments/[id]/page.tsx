@@ -667,6 +667,16 @@ export default function ShipmentDetailPage() {
                 if (success) {
                     ok++;
                     uploadedTypeNames.push(item.documentTypeName);
+                    if (['commercial-invoice', 'packing-list'].includes(item.documentType)) {
+                        void fetch('/api/notify-docs-uploaded', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                quotationId: id,
+                                docTypesAdded: [item.documentType],
+                            }),
+                        }).catch(() => {});
+                    }
                 }
             }
             if (ok > 0) {

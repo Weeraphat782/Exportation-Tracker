@@ -387,6 +387,17 @@ export default function NewQuoteRequestPage() {
                 } as Omit<DocumentSubmission, 'id' | 'submitted_at'>);
 
                 if (success) ok++;
+
+                if (success && ['commercial-invoice', 'packing-list'].includes(item.documentType)) {
+                    void fetch('/api/notify-docs-uploaded', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            quotationId: submittedQuotationId,
+                            docTypesAdded: [item.documentType],
+                        }),
+                    }).catch(() => {});
+                }
             }
             if (ok > 0) {
                 toast.success(`Uploaded ${ok} file(s)`);

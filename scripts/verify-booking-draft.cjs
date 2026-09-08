@@ -84,7 +84,14 @@ function buildRouting(originCode, port) {
   return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
 }
 
-function summarizePallets(pallets, actualWeightKg) {
+function piecesLabel(pieces, packagingType = 'pallet') {
+  if (pieces <= 0) return '';
+  const label =
+    packagingType === 'box' ? 'Boxes' : packagingType === 'carton' ? 'Cartons' : 'Pallets';
+  return `${pieces} ${label}`;
+}
+
+function summarizePallets(pallets, actualWeightKg, packagingType = 'pallet') {
   let weight = 0;
   let pieces = 0;
   let dims = '';
@@ -97,15 +104,44 @@ function summarizePallets(pallets, actualWeightKg) {
     const first = pallets[0];
     dims = `${first.length || 0} × ${first.width || 0} × ${first.height || 0} cm`;
   }
-  const piecesSummary = pieces > 0 ? `${pieces} Pallets` : '';
+  const piecesSummary = piecesLabel(pieces, packagingType);
   if (weight > 0) {
-    return { declaredNetWeightKg: weight, netWeightSource: 'quotation_pallets', piecesSummary, palletDimensions: dims };
+    return { declaredNetWeightKg: weight, netWeightSource: 'quotation_pallets', piecesSummary, palletDimensions: dims, pieces };
   }
   const stored = Number(actualWeightKg) || 0;
   if (stored > 0) {
-    return { declaredNetWeightKg: stored, netWeightSource: 'quotation_actual_weight', piecesSummary, palletDimensions: dims };
+    return { declaredNetWeightKg: stored, netWeightSource: 'quotation_actual_weight', piecesSummary, palletDimensions: dims, pieces };
   }
-  return { declaredNetWeightKg: null, netWeightSource: 'unavailable', piecesSummary, palletDimensions: dims };
+  return { declaredNetWeightKg: null, netWeightSource: 'unavailable', piecesSummary, palletDimensions: dims, pieces };
+}
+
+/** Fake doc extractor for unit tests (no Gemini). */
+async function resolveNetWeightFake(quotation, docExtracts) {
+  const pallets = Array.isArray(quotation.pallets) ? quotation.pallets : [];
+  const palletSummary = summarizePallets(pallets, quotation.total_actual_weight);
+  if (palletSummary.declaredNetWeightKg != null && palletSummary.netWeightSource === 'quotation_pallets') {
+    return { net_weight_kg: palletSummary.declaredNetWeightKg, net_weight_source: 'quotation_pallets', net_weight_confidence: 'high' };
+  }
+  if (palletSummary.declaredNetWeightKg != null && palletSummary.netWeightSource === 'quotation_actual_weight') {
+    return { net_weight_kg: palletSummary.declaredNetWeightKg, net_weight_source: 'quotation_actual_weight', net_weight_confidence: 'high' };
+  }
+  const ciKg = docExtracts['commercial-invoice'] ?? null;
+  const plKg = docExtracts['packing-list'] ?? null;
+  if (ciKg != null) {
+    const alternatives = [{ source: 'commercial-invoice', kg: ciKg }];
+    if (plKg != null) alternatives.push({ source: 'packing-list', kg: plKg });
+    const disagree = plKg != null && Math.abs(ciKg - plKg) / Math.max(ciKg, plKg) > 0.05;
+    return {
+      net_weight_kg: ciKg,
+      net_weight_source: 'commercial-invoice',
+      net_weight_confidence: plKg == null ? 'medium' : disagree ? 'low' : 'high',
+      net_weight_alternatives: plKg != null ? alternatives : undefined,
+    };
+  }
+  if (plKg != null) {
+    return { net_weight_kg: plKg, net_weight_source: 'packing-list', net_weight_confidence: 'medium' };
+  }
+  return { net_weight_kg: null, net_weight_source: 'unavailable', net_weight_confidence: 'low' };
 }
 
 function buildOpCardPayload(quotation, overrides) {
@@ -252,4 +288,41 @@ assert.throws(
   /Missing required fields/
 );
 
-console.log('booking draft check passed');
+// piecesLabel
+assert.equal(piecesLabel(2, 'pallet'), '2 Pallets');
+assert.equal(piecesLabel(48, 'box'), '48 Boxes');
+assert.equal(piecesLabel(12, 'carton'), '12 Cartons');
+assert.equal(piecesLabel(0, 'pallet'), '');
+
+// resolveNetWeightFake precedence (never chargeable)
+(async () => {
+  const fromCi = await resolveNetWeightFake(
+    { pallets: [], total_actual_weight: 0, chargeable_weight: 629 },
+    { 'commercial-invoice': 341.6 }
+  );
+  assert.equal(fromCi.net_weight_kg, 341.6);
+  assert.equal(fromCi.net_weight_source, 'commercial-invoice');
+  assert.notEqual(fromCi.net_weight_kg, 629);
+
+  const fromPl = await resolveNetWeightFake(
+    { pallets: [], total_actual_weight: 0 },
+    { 'packing-list': 340 }
+  );
+  assert.equal(fromPl.net_weight_source, 'packing-list');
+
+  const disagree = await resolveNetWeightFake(
+    { pallets: [], total_actual_weight: 0 },
+    { 'commercial-invoice': 341.6, 'packing-list': 200 }
+  );
+  assert.equal(disagree.net_weight_confidence, 'low');
+  assert.equal(disagree.net_weight_alternatives.length, 2);
+
+  const palletsWin = await resolveNetWeightFake(
+    { pallets: [{ weight: 500, quantity: 1 }], total_actual_weight: 341.6 },
+    { 'commercial-invoice': 341.6 }
+  );
+  assert.equal(palletsWin.net_weight_source, 'quotation_pallets');
+  assert.equal(palletsWin.net_weight_kg, 500);
+
+  console.log('booking draft check passed');
+})();
