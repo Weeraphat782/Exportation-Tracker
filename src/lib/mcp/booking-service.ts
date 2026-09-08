@@ -7,6 +7,7 @@ import {
 import { getBookingRecipients } from '@/lib/booking-recipients';
 import {
   assembleBookingDraft,
+  buildOpCardPayload,
   buildRouting,
   productLabelFromCommodity,
   summarizePallets,
@@ -36,6 +37,22 @@ export interface BuildBookingEmailDraftRef {
   origin?: string;
   product?: string;
   destination?: string;
+}
+
+export interface UpdateQuotationNetWeightRef {
+  quotation_id?: string;
+  omg_number?: string;
+  net_weight_kg: number;
+  source: string;
+  note?: string;
+}
+
+export interface CreateOpCardRef {
+  quotation_id?: string;
+  omg_number?: string;
+  topic?: string;
+  stage?: string;
+  notes?: string;
 }
 
 export interface ExtractedBookingFields {
@@ -69,8 +86,9 @@ const QUOTATION_SELECT = `
 `;
 
 const WEIGHT_DOC_TYPES = new Set(['packing-list', 'commercial-invoice']);
+const WEIGHT_DOC_ORDER = ['commercial-invoice', 'packing-list'];
 const VERIFY_DOC_NOTE =
-  'Commercial Invoice / Export Packing List total net KG is the source of truth; do not use chargeable weight.';
+  'Read total net KG from Commercial Invoice first, then Export Packing List; then call update_quotation_net_weight. Never use chargeable weight.';
 
 function mapQuotationRow(data: Record<string, unknown>): QuotationWithPort {
   const company = data.company as { name?: string } | null;
@@ -248,15 +266,20 @@ export async function extractBookingFields(ref: {
   const { quotation, documents } = detail;
   const pallets = (Array.isArray(quotation.pallets) ? quotation.pallets : []) as Pallet[];
   const { declaredNetWeightKg, netWeightSource, piecesSummary, palletDimensions } =
-    summarizePallets(pallets);
+    summarizePallets(pallets, quotation.total_actual_weight);
   const saved = quotation.booking_details as EmailBookingData | null;
   const origin = saved?.origin || 'BKK';
   const routing = saved?.routing || buildRouting(origin, quotation.destination_port);
 
+  const weightDocs = documents
+    .filter((d) => WEIGHT_DOC_TYPES.has(d.document_type))
+    .sort(
+      (a, b) =>
+        WEIGHT_DOC_ORDER.indexOf(a.document_type) - WEIGHT_DOC_ORDER.indexOf(b.document_type)
+    );
+
   const verifyDocs = await Promise.all(
-    documents
-      .filter((d) => WEIGHT_DOC_TYPES.has(d.document_type))
-      .map(async (d) => ({
+    weightDocs.map(async (d) => ({
         document_type: d.document_type,
         file_name: d.original_file_name || d.file_name,
         download_url: d.file_path
@@ -335,4 +358,107 @@ export async function markBookingEmailDrafted(ref: {
 
   if (error) throw new Error(error.message);
   return { ok: true, already_drafted: false, quotation_id: quotation.id };
+}
+
+export async function updateQuotationNetWeight(ref: UpdateQuotationNetWeightRef): Promise<{
+  ok: boolean;
+  quotation_id: string;
+  omg_number: string | null;
+  net_weight_kg: number;
+  previous_net_weight_kg: number | null;
+  source: string;
+}> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Server configuration error.');
+
+  const quotation = await fetchQuotationByRef(supabase, ref);
+  if (!quotation) throw new Error('Quotation not found.');
+
+  const previous = quotation.total_actual_weight ?? null;
+  const updatePayload: Record<string, unknown> = {
+    total_actual_weight: ref.net_weight_kg,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (ref.note?.trim()) {
+    const stamp = `[MCP net ${new Date().toISOString()}] ${ref.source}: ${ref.note.trim()}`;
+    updatePayload.internal_remark = quotation.internal_remark
+      ? `${quotation.internal_remark}\n${stamp}`
+      : stamp;
+  }
+
+  const { error } = await supabase
+    .from('quotations')
+    .update(updatePayload)
+    .eq('id', quotation.id);
+
+  if (error) throw new Error(error.message);
+
+  return {
+    ok: true,
+    quotation_id: quotation.id,
+    omg_number: quotation.quotation_no || null,
+    net_weight_kg: ref.net_weight_kg,
+    previous_net_weight_kg: previous,
+    source: ref.source,
+  };
+}
+
+export async function createOpCard(ref: CreateOpCardRef): Promise<{
+  ok: boolean;
+  quotation_id: string;
+  omg_number: string | null;
+  op_card_id: string;
+  url: string;
+  created: boolean;
+}> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Server configuration error.');
+
+  const quotation = await fetchQuotationByRef(supabase, ref);
+  if (!quotation) throw new Error('Quotation not found.');
+
+  if (quotation.opportunity_id) {
+    return {
+      ok: true,
+      quotation_id: quotation.id,
+      omg_number: quotation.quotation_no || null,
+      op_card_id: quotation.opportunity_id,
+      url: `/opportunities/${quotation.opportunity_id}`,
+      created: false,
+    };
+  }
+
+  const payload = buildOpCardPayload(quotation, {
+    topic: ref.topic,
+    stage: ref.stage,
+    notes: ref.notes,
+  });
+
+  const { data, error } = await supabase
+    .from('opportunities')
+    .insert([payload])
+    .select('id')
+    .single();
+
+  if (error || !data) throw new Error(error?.message || 'Failed to create opportunity.');
+
+  const { error: linkError } = await supabase
+    .from('quotations')
+    .update({
+      opportunity_id: data.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', quotation.id);
+
+  if (linkError) throw new Error(linkError.message);
+
+  return {
+    ok: true,
+    quotation_id: quotation.id,
+    omg_number: quotation.quotation_no || null,
+    op_card_id: data.id,
+    url: `/opportunities/${data.id}`,
+    created: true,
+  };
 }

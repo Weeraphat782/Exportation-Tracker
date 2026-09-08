@@ -84,6 +84,59 @@ function buildRouting(originCode, port) {
   return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
 }
 
+function summarizePallets(pallets, actualWeightKg) {
+  let weight = 0;
+  let pieces = 0;
+  let dims = '';
+  for (const p of pallets) {
+    const qty = Number(p.quantity) || 1;
+    pieces += qty;
+    weight += (Number(p.weight) || 0) * qty;
+  }
+  if (pallets.length > 0) {
+    const first = pallets[0];
+    dims = `${first.length || 0} × ${first.width || 0} × ${first.height || 0} cm`;
+  }
+  const piecesSummary = pieces > 0 ? `${pieces} Pallets` : '';
+  if (weight > 0) {
+    return { declaredNetWeightKg: weight, netWeightSource: 'quotation_pallets', piecesSummary, palletDimensions: dims };
+  }
+  const stored = Number(actualWeightKg) || 0;
+  if (stored > 0) {
+    return { declaredNetWeightKg: stored, netWeightSource: 'quotation_actual_weight', piecesSummary, palletDimensions: dims };
+  }
+  return { declaredNetWeightKg: null, netWeightSource: 'unavailable', piecesSummary, palletDimensions: dims };
+}
+
+function buildOpCardPayload(quotation, overrides) {
+  const customerName = (quotation.company_name || quotation.customer_name || '').trim();
+  if (!customerName) {
+    throw new Error('Missing required fields: customer_name (set company_name or customer_name on quotation)');
+  }
+  const topic =
+    overrides?.topic?.trim() ||
+    quotation.quotation_no ||
+    customerName ||
+    `Quote ${quotation.id.slice(0, 8)}`;
+  return {
+    topic,
+    customer_name: customerName,
+    company_id: quotation.company_id || null,
+    amount: quotation.total_cost || 0,
+    currency: 'THB',
+    stage: overrides?.stage?.trim() || 'inquiry',
+    probability: 10,
+    close_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    vehicle_type: quotation.delivery_vehicle_type || null,
+    container_size: null,
+    product_details: null,
+    notes: overrides?.notes?.trim() || quotation.notes || null,
+    destination_id: quotation.destination_id || null,
+    owner_id: quotation.user_id || null,
+    pickup_date: null,
+  };
+}
+
 const recipients = {
   to: 'montri@handleinterfreight.com',
   cc: [
@@ -171,5 +224,32 @@ assert.match(overrideBody, /ROUTING: BKK-ZRH/);
 assert.equal(buildRouting('BKK', 'ZRH'), 'BKK-ZRH');
 assert.equal(airportCodeFromPort('Zurich (ZRH)'), 'ZRH');
 assert.equal(airportCodeFromPort(''), '');
+
+// Net resolution: never use chargeable (629)
+const fromActual = summarizePallets([], 341.6);
+assert.equal(fromActual.declaredNetWeightKg, 341.6);
+assert.equal(fromActual.netWeightSource, 'quotation_actual_weight');
+
+const unavailable = summarizePallets([], 0);
+assert.equal(unavailable.declaredNetWeightKg, null);
+assert.equal(unavailable.netWeightSource, 'unavailable');
+
+const fromPallets = summarizePallets([{ weight: 700, quantity: 1, length: 0, width: 0, height: 0 }], 629);
+assert.equal(fromPallets.declaredNetWeightKg, 700);
+assert.equal(fromPallets.netWeightSource, 'quotation_pallets');
+
+// buildOpCardPayload
+const opPayload = buildOpCardPayload(
+  { id: 'abc12345-0000-0000-0000-000000000000', quotation_no: 'OMG09014', company_name: 'PACCAN GROW', company_id: 'c1', total_cost: 1000, user_id: 'u1', delivery_vehicle_type: '4wheel', destination_id: 'd1', notes: null, customer_name: '' },
+  {}
+);
+assert.equal(opPayload.topic, 'OMG09014');
+assert.equal(opPayload.customer_name, 'PACCAN GROW');
+assert.equal(opPayload.stage, 'inquiry');
+
+assert.throws(
+  () => buildOpCardPayload({ id: 'abc12345-0000-0000-0000-000000000000', company_name: '', customer_name: '' }, {}),
+  /Missing required fields/
+);
 
 console.log('booking draft check passed');

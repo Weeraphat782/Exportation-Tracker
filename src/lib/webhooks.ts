@@ -68,7 +68,10 @@ export async function buildQuotationCreatedPayload(
   docs: DocumentSubmission[] = []
 ): Promise<QuotationCreatedPayload> {
   const pallets = (Array.isArray(quote.pallets) ? quote.pallets : []) as Pallet[];
-  const { declaredNetWeightKg, piecesSummary, palletDimensions } = summarizePallets(pallets);
+  const { declaredNetWeightKg, piecesSummary, palletDimensions } = summarizePallets(
+    pallets,
+    quote.total_actual_weight
+  );
   const bookingDetails =
     quote.booking_details && typeof quote.booking_details === 'object'
       ? (quote.booking_details as Record<string, unknown>)

@@ -18,6 +18,30 @@ export interface BookingEmailDraft {
   document_list_url: string | null;
 }
 
+export interface OpCardOverrides {
+  topic?: string;
+  stage?: string;
+  notes?: string;
+}
+
+export interface OpCardInsertPayload {
+  topic: string;
+  customer_name: string;
+  company_id: string | null;
+  amount: number;
+  currency: string;
+  stage: string;
+  probability: number;
+  close_date: string | null;
+  vehicle_type: string | null;
+  container_size: string | null;
+  product_details: string | null;
+  notes: string | null;
+  destination_id: string | null;
+  owner_id: string | null;
+  pickup_date: string | null;
+}
+
 export function productLabelFromCommodity(commodity?: string | null): string {
   switch (commodity) {
     case 'hemp':
@@ -45,9 +69,12 @@ export function buildRouting(originCode: string, port?: string | null): string {
   return dest ? `${(originCode || 'BKK').trim()}-${dest}` : '';
 }
 
-export function summarizePallets(pallets: Pallet[]): {
+export function summarizePallets(
+  pallets: Pallet[],
+  actualWeightKg?: number | null
+): {
   declaredNetWeightKg: number | null;
-  netWeightSource: 'quotation_pallets' | 'unavailable';
+  netWeightSource: 'quotation_pallets' | 'quotation_actual_weight' | 'unavailable';
   piecesSummary: string;
   palletDimensions: string;
 } {
@@ -65,11 +92,70 @@ export function summarizePallets(pallets: Pallet[]): {
     dims = `${first.length || 0} × ${first.width || 0} × ${first.height || 0} cm`;
   }
 
+  const piecesSummary = pieces > 0 ? `${pieces} Pallets` : '';
+  const palletDimensions = dims;
+
+  if (weight > 0) {
+    return {
+      declaredNetWeightKg: weight,
+      netWeightSource: 'quotation_pallets',
+      piecesSummary,
+      palletDimensions,
+    };
+  }
+
+  const stored = Number(actualWeightKg) || 0;
+  if (stored > 0) {
+    return {
+      declaredNetWeightKg: stored,
+      netWeightSource: 'quotation_actual_weight',
+      piecesSummary,
+      palletDimensions,
+    };
+  }
+
   return {
-    declaredNetWeightKg: weight > 0 ? weight : null,
-    netWeightSource: weight > 0 ? 'quotation_pallets' : 'unavailable',
-    piecesSummary: pieces > 0 ? `${pieces} Pallets` : '',
-    palletDimensions: dims,
+    declaredNetWeightKg: null,
+    netWeightSource: 'unavailable',
+    piecesSummary,
+    palletDimensions,
+  };
+}
+
+/** Mirror handleSaveOpportunity insert payload from opportunities/page.tsx */
+export function buildOpCardPayload(
+  quotation: Quotation,
+  overrides?: OpCardOverrides
+): OpCardInsertPayload {
+  const customerName = (quotation.company_name || quotation.customer_name || '').trim();
+  if (!customerName) {
+    throw new Error(
+      'Missing required fields: customer_name (set company_name or customer_name on quotation)'
+    );
+  }
+
+  const topic =
+    overrides?.topic?.trim() ||
+    quotation.quotation_no ||
+    customerName ||
+    `Quote ${quotation.id.slice(0, 8)}`;
+
+  return {
+    topic,
+    customer_name: customerName,
+    company_id: quotation.company_id || null,
+    amount: quotation.total_cost || 0,
+    currency: 'THB',
+    stage: overrides?.stage?.trim() || 'inquiry',
+    probability: 10,
+    close_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    vehicle_type: quotation.delivery_vehicle_type || null,
+    container_size: null,
+    product_details: null,
+    notes: overrides?.notes?.trim() || quotation.notes || null,
+    destination_id: quotation.destination_id || null,
+    owner_id: quotation.user_id || null,
+    pickup_date: null,
   };
 }
 

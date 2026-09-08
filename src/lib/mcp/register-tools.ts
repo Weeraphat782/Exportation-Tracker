@@ -2,11 +2,13 @@ import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
   buildBookingEmailDraft,
+  createOpCard,
   extractBookingFields,
   getQuotationDetail,
   getQuotationDocuments,
   listNewQuotations,
   markBookingEmailDrafted,
+  updateQuotationNetWeight,
 } from '@/lib/mcp/booking-service';
 
 const refInputSchema = fromJsonSchema<{ quotation_id?: string; omg_number?: string }>({
@@ -85,6 +87,46 @@ const buildInputSchema = fromJsonSchema<{
   additionalProperties: false,
 });
 
+const updateNetInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  net_weight_kg: number;
+  source: string;
+  note?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    net_weight_kg: { type: 'number', description: 'Correct net weight in KG (writes total_actual_weight)' },
+    source: {
+      type: 'string',
+      description: 'Provenance e.g. commercial-invoice, packing-list, manual',
+    },
+    note: { type: 'string', description: 'Optional audit note appended to internal_remark' },
+  },
+  required: ['net_weight_kg', 'source'],
+  additionalProperties: false,
+});
+
+const opCardInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  topic?: string;
+  stage?: string;
+  notes?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    topic: { type: 'string', description: 'Override opportunity topic (default quotation_no or company)' },
+    stage: { type: 'string', description: 'Override stage (default inquiry)' },
+    notes: { type: 'string', description: 'Override opportunity notes' },
+  },
+  additionalProperties: false,
+});
+
 // ponytail: advertised schema via fromJsonSchema (SDK AJV); Zod 3 refines in handlers.
 const listSchema = z.object({
   status: z.string().optional(),
@@ -117,6 +159,22 @@ const buildSchema = refSchema.and(
     origin: z.string().optional(),
     product: z.string().optional(),
     destination: z.string().optional(),
+  })
+);
+
+const updateNetSchema = refSchema.and(
+  z.object({
+    net_weight_kg: z.number().positive(),
+    source: z.string().min(1),
+    note: z.string().optional(),
+  })
+);
+
+const opCardSchema = refSchema.and(
+  z.object({
+    topic: z.string().optional(),
+    stage: z.string().optional(),
+    notes: z.string().optional(),
   })
 );
 
@@ -209,5 +267,25 @@ export function registerBookingTools(server: McpServer): void {
       const parsed = parseOrThrow(markSchema, args);
       return jsonText(await markBookingEmailDrafted(parsed));
     }
+  );
+
+  server.registerTool(
+    'update_quotation_net_weight',
+    {
+      description:
+        'Write correct net weight to quotation total_actual_weight (not chargeable). Idempotent re-set is ok.',
+      inputSchema: updateNetInputSchema,
+    },
+    async (args) => jsonText(await updateQuotationNetWeight(parseOrThrow(updateNetSchema, args)))
+  );
+
+  server.registerTool(
+    'create_op_card',
+    {
+      description:
+        'Create Opportunity / Op card from quotation (same as UI New Opportunity). Returns existing if already linked.',
+      inputSchema: opCardInputSchema,
+    },
+    async (args) => jsonText(await createOpCard(parseOrThrow(opCardSchema, args)))
   );
 }
