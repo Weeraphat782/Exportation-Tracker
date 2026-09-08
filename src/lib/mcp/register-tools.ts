@@ -1,4 +1,4 @@
-import type { McpServer } from '@modelcontextprotocol/server';
+import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
   buildBookingEmailDraft,
@@ -9,7 +9,46 @@ import {
   markBookingEmailDrafted,
 } from '@/lib/mcp/booking-service';
 
-// ponytail: MCP server expects Zod 4 schemas; project uses Zod 3 — validate in handlers instead.
+const refInputSchema = fromJsonSchema<{ quotation_id?: string; omg_number?: string }>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+  },
+  additionalProperties: false,
+});
+
+const listInputSchema = fromJsonSchema<{
+  status?: string;
+  since?: string;
+  exclude_drafted?: boolean;
+  limit?: number;
+}>({
+  type: 'object',
+  properties: {
+    status: { type: 'string', description: 'Quotation status filter (default pending_approval)' },
+    since: { type: 'string', description: 'ISO timestamp lower bound' },
+    exclude_drafted: { type: 'boolean' },
+    limit: { type: 'integer', minimum: 1, maximum: 100 },
+  },
+  additionalProperties: false,
+});
+
+const markInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  drafted_by?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    drafted_by: { type: 'string', description: 'Who drafted (default grok-bot)' },
+  },
+  additionalProperties: false,
+});
+
+// ponytail: advertised schema via fromJsonSchema (SDK AJV); Zod 3 refines in handlers.
 const listSchema = z.object({
   status: z.string().optional(),
   since: z.string().optional(),
@@ -44,6 +83,7 @@ export function registerBookingTools(server: McpServer): void {
     {
       description:
         'List quotations awaiting booking email (default status=pending_approval, excludes already drafted).',
+      inputSchema: listInputSchema,
     },
     async (args) => jsonText(await listNewQuotations(parseOrThrow(listSchema, args)))
   );
@@ -52,6 +92,7 @@ export function registerBookingTools(server: McpServer): void {
     'get_quotation',
     {
       description: 'Full quotation detail + attachment metadata by quotation_id or OMG number.',
+      inputSchema: refInputSchema,
     },
     async (args) => {
       const ref = parseOrThrow(refSchema, args);
@@ -65,6 +106,7 @@ export function registerBookingTools(server: McpServer): void {
     'get_quotation_documents',
     {
       description: 'List customer documents with signed download URLs for a quotation.',
+      inputSchema: refInputSchema,
     },
     async (args) => {
       const ref = parseOrThrow(refSchema, args);
@@ -79,6 +121,7 @@ export function registerBookingTools(server: McpServer): void {
     {
       description:
         'Normalized booking fields for email drafting. Net weight from quotation pallets; packing list / invoice URLs for verification.',
+      inputSchema: refInputSchema,
     },
     async (args) => {
       const ref = parseOrThrow(refSchema, args);
@@ -93,6 +136,7 @@ export function registerBookingTools(server: McpServer): void {
     {
       description:
         'Build booking request email subject + body + to/cc in OMG standard format. Does not send mail.',
+      inputSchema: refInputSchema,
     },
     async (args) => {
       const ref = parseOrThrow(refSchema, args);
@@ -106,6 +150,7 @@ export function registerBookingTools(server: McpServer): void {
     'mark_booking_email_drafted',
     {
       description: 'Mark quotation as drafted (idempotent — safe to retry for same OMG#).',
+      inputSchema: markInputSchema,
     },
     async (args) => {
       const parsed = parseOrThrow(markSchema, args);
