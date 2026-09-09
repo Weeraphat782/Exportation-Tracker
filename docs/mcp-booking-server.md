@@ -33,6 +33,7 @@ Run migration: `Tr/migrations/012_add_booking_email_drafted.sql`
 | `get_quotation_documents` | Signed download URLs |
 | `extract_booking_fields` | Net weight (quotation), packaging, routing + doc URLs for Grok to read when pallets are 0 |
 | `update_quotation_net_weight` | Write net KG to `total_actual_weight` (not chargeable) |
+| `approve_quotation` | Staff approve customer quote (`pending_approval` -> `draft`/`docs_uploaded`); never changes destination or pricing |
 | `create_op_card` | Create/link Opportunity from quotation (idempotent); assigns staff `owner_id` |
 | `update_op_card` | Update existing Op card stage, pickup_date, notes, payment_date |
 | `get_op_card` | Fetch Op card by quotation/OMG/op_card_id (debug visibility + owner_id) |
@@ -159,19 +160,31 @@ Document List URL in the email body is enough — **no file attachments** in MCP
 ## Suggested Grok routine flow
 
 1. Receive `quotation.created` or `quotation.docs_uploaded` webhook (or poll `list_new_quotations`)
-2. `extract_booking_fields` — get quotation net + `verify_from_documents` URLs; **Grok reads the Commercial Invoice** for total net KG
-3. `update_quotation_net_weight` — persist correct net (`source: "commercial-invoice"`)
-4. `create_op_card` — create/link Opportunity (idempotent if already exists)
-5. `update_op_card` — move stage / set pickup_date after booking email drafted (e.g. `waiting_for_pickup`)
-6. `build_booking_email_draft` — optional `packaging_type` / `pieces` if doc mismatch
-7. **Grok creates Gmail draft** in cargo@omgexp.com (MCP never sends email; no attachments)
-8. `mark_booking_email_drafted` (idempotent)
+2. `approve_quotation` — staff approve customer quote (if still `pending_approval`); optional `company_name` override; destination/pricing left untouched
+3. `extract_booking_fields` — get quotation net + `verify_from_documents` URLs; **Grok reads the Commercial Invoice** for total net KG
+4. `update_quotation_net_weight` — persist correct net (`source: "commercial-invoice"`)
+5. `create_op_card` — create/link Opportunity (idempotent if already exists)
+6. `update_op_card` — move stage / set pickup_date after booking email drafted (e.g. `waiting_for_pickup`)
+7. `build_booking_email_draft` — optional `packaging_type` / `pieces` if doc mismatch
+8. **Grok creates Gmail draft** in cargo@omgexp.com (MCP never sends email; no attachments)
+9. `mark_booking_email_drafted` (idempotent)
 
 MCP **never sends email**. Pricing / rates are out of scope (handled by humans).
 
 Fallback: poll `list_new_quotations` if webhook missed.
 
 ### Example tool calls
+
+**Approve customer quote (staff):**
+
+```json
+{
+  "omg_number": "OMG09014",
+  "company_name": "PACCAN GROW Co., Ltd."
+}
+```
+
+Returns `status_before`, `status_after` (`draft` or `docs_uploaded` if CI/PL uploaded), `company_name`, `destination_id`, `destination_untouched: true`. Second call returns `already_approved: true`. Never changes destination, rates, or chargeable weight. Reassigns `user_id` to staff from `OPPORTUNITY_OWNER_EMAIL`.
 
 **Update net weight from Commercial Invoice:**
 

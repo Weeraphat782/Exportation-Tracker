@@ -212,6 +212,20 @@ export function buildOpCardUpdatePayload(fields: {
   return out;
 }
 
+export function resolveApproveCompanyName(
+  q: { company_name?: string | null; customer_name?: string | null },
+  override?: string
+): string {
+  const name =
+    override?.trim() || q.company_name?.trim() || q.customer_name?.trim() || '';
+  if (!name) {
+    throw new Error(
+      'Company required to approve — set company_name (no company/customer/shipper on quotation)'
+    );
+  }
+  return name;
+}
+
 export function assembleBookingDraft(
   quotation: Quotation,
   emailData: EmailBookingData,

@@ -10,6 +10,7 @@ import {
   buildOpCardPayload,
   buildOpCardUpdatePayload,
   buildRouting,
+  resolveApproveCompanyName,
   piecesLabel,
   productLabelFromCommodity,
   summarizePallets,
@@ -76,6 +77,12 @@ export interface UpdateOpCardRef {
   pickup_date?: string;
   notes?: string;
   payment_date?: string;
+}
+
+export interface ApproveQuotationRef {
+  quotation_id?: string;
+  omg_number?: string;
+  company_name?: string;
 }
 
 const DEFAULT_OPPORTUNITY_OWNER_EMAIL = 'vieww.weeraphat@gmail.com';
@@ -169,6 +176,27 @@ async function resolveOpportunityOwnerId(
   throw new Error(
     'Set OPPORTUNITY_OWNER_EMAIL (or pass owner_email/owner_id) to a staff profile so the Op card shows in the Opportunities UI'
   );
+}
+
+async function quotationHasDocuments(
+  supabase: SupabaseClient,
+  quotationId: string,
+  opportunityId?: string | null
+): Promise<boolean> {
+  const { count: qCount } = await supabase
+    .from('document_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('quotation_id', quotationId);
+
+  if ((qCount ?? 0) > 0) return true;
+  if (!opportunityId) return false;
+
+  const { count: oCount } = await supabase
+    .from('document_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('opportunity_id', opportunityId);
+
+  return (oCount ?? 0) > 0;
 }
 
 async function resolveOpCardId(
@@ -607,6 +635,109 @@ export async function updateOpCard(ref: UpdateOpCardRef): Promise<Record<string,
   const card = await getOpCard({ op_card_id: opCardId });
   if (!card) throw new Error('Opportunity not found after update.');
   return card;
+}
+
+function approveQuotationResult(
+  quotation: QuotationWithPort,
+  opts: {
+    already_approved: boolean;
+    status_before: string;
+    status_after: string;
+    company_name: string;
+  }
+) {
+  return {
+    ok: true,
+    quotation_id: quotation.id,
+    omg_number: quotation.quotation_no || null,
+    already_approved: opts.already_approved,
+    status_before: opts.status_before,
+    status_after: opts.status_after,
+    company_name: opts.company_name,
+    destination_id: quotation.destination_id ?? null,
+    destination_untouched: true,
+  };
+}
+
+export async function approveQuotation(ref: ApproveQuotationRef): Promise<{
+  ok: boolean;
+  quotation_id: string;
+  omg_number: string | null;
+  already_approved: boolean;
+  status_before: string;
+  status_after: string;
+  company_name: string;
+  destination_id: string | null;
+  destination_untouched: boolean;
+}> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) throw new Error('Server configuration error.');
+
+  const quotation = await fetchQuotationByRef(supabase, ref);
+  if (!quotation) throw new Error('Quotation not found.');
+
+  const statusBefore = quotation.status || 'unknown';
+
+  if (statusBefore !== 'pending_approval') {
+    let companyName = quotation.company_name?.trim() || quotation.customer_name?.trim() || '';
+    if (ref.company_name?.trim()) {
+      companyName = resolveApproveCompanyName(quotation, ref.company_name);
+    } else if (!companyName) {
+      try {
+        companyName = resolveApproveCompanyName(quotation);
+      } catch {
+        companyName = '';
+      }
+    }
+    return approveQuotationResult(quotation, {
+      already_approved: true,
+      status_before: statusBefore,
+      status_after: statusBefore,
+      company_name: companyName,
+    });
+  }
+
+  const companyName = resolveApproveCompanyName(quotation, ref.company_name);
+  const staffId = await resolveOpportunityOwnerId(supabase, {});
+  const hasDocs = await quotationHasDocuments(
+    supabase,
+    quotation.id,
+    quotation.opportunity_id
+  );
+  const statusAfter = hasDocs ? 'docs_uploaded' : 'draft';
+
+  const { data: updated, error } = await supabase
+    .from('quotations')
+    .update({
+      status: statusAfter,
+      company_name: companyName,
+      user_id: staffId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', quotation.id)
+    .eq('status', 'pending_approval')
+    .select('status')
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  if (!updated) {
+    const refreshed = await fetchQuotationByRef(supabase, ref);
+    if (!refreshed) throw new Error('Quotation not found after approve attempt.');
+    return approveQuotationResult(refreshed, {
+      already_approved: true,
+      status_before: statusBefore,
+      status_after: refreshed.status || statusBefore,
+      company_name: companyName,
+    });
+  }
+
+  return approveQuotationResult(quotation, {
+    already_approved: false,
+    status_before: statusBefore,
+    status_after: statusAfter,
+    company_name: companyName,
+  });
 }
 
 export async function getOpCard(ref: GetOpCardRef): Promise<Record<string, unknown> | null> {

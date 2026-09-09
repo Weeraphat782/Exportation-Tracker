@@ -302,6 +302,19 @@ assert.throws(() => buildOpCardUpdatePayload({ stage: 'not_a_stage' }), /Invalid
 assert.throws(() => buildOpCardUpdatePayload({ pickup_date: '09-11-2026' }), /pickup_date must be YYYY-MM-DD/);
 assert.throws(() => buildOpCardUpdatePayload({}), /Provide at least one field/);
 
+function resolveApproveCompanyName(q, override) {
+  const name = (override?.trim() || q.company_name?.trim() || q.customer_name?.trim() || '');
+  if (!name) {
+    throw new Error('Company required to approve — set company_name (no company/customer/shipper on quotation)');
+  }
+  return name;
+}
+
+assert.equal(resolveApproveCompanyName({ company_name: 'PACCAN', customer_name: 'X' }, 'Override Co'), 'Override Co');
+assert.equal(resolveApproveCompanyName({ company_name: 'PACCAN', customer_name: 'X' }), 'PACCAN');
+assert.equal(resolveApproveCompanyName({ company_name: '', customer_name: 'Customer Co' }), 'Customer Co');
+assert.throws(() => resolveApproveCompanyName({ company_name: '', customer_name: '' }), /Company required/);
+
 // piecesLabel: pallet default, box/carton overrides
 assert.equal(piecesLabel(2, 'pallet'), '2 Pallets');
 assert.equal(piecesLabel(48, 'box'), '48 Boxes');

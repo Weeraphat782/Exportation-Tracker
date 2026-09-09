@@ -1,6 +1,7 @@
 import { fromJsonSchema, type McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
+  approveQuotation,
   buildBookingEmailDraft,
   createOpCard,
   extractBookingFields,
@@ -18,6 +19,24 @@ const refInputSchema = fromJsonSchema<{ quotation_id?: string; omg_number?: stri
   properties: {
     quotation_id: { type: 'string', description: 'Quotation UUID' },
     omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+  },
+  additionalProperties: false,
+});
+
+const approveInputSchema = fromJsonSchema<{
+  quotation_id?: string;
+  omg_number?: string;
+  company_name?: string;
+}>({
+  type: 'object',
+  properties: {
+    quotation_id: { type: 'string', description: 'Quotation UUID' },
+    omg_number: { type: 'string', description: 'OMG number, e.g. OMG09014' },
+    company_name: {
+      type: 'string',
+      description:
+        'Override Company name if empty on quotation (required to approve). Never changes destination or pricing.',
+    },
   },
   additionalProperties: false,
 });
@@ -238,6 +257,12 @@ const updateNetSchema = refSchema.and(
   })
 );
 
+const approveSchema = refSchema.and(
+  z.object({
+    company_name: z.string().min(1).optional(),
+  })
+);
+
 const opCardSchema = refSchema.and(
   z.object({
     topic: z.string().optional(),
@@ -378,6 +403,16 @@ export function registerBookingTools(server: McpServer): void {
       inputSchema: updateNetInputSchema,
     },
     async (args) => jsonText(await updateQuotationNetWeight(parseOrThrow(updateNetSchema, args)))
+  );
+
+  server.registerTool(
+    'approve_quotation',
+    {
+      description:
+        'Staff approve customer quote request (pending_approval -> draft or docs_uploaded). Sets company_name if missing. Reassigns user_id to OPPORTUNITY_OWNER_EMAIL staff. NEVER changes destination_id, destination, rates, chargeable_weight, manual_rate, or any pricing. Idempotent if already approved.',
+      inputSchema: approveInputSchema,
+    },
+    async (args) => jsonText(await approveQuotation(parseOrThrow(approveSchema, args)))
   );
 
   server.registerTool(
