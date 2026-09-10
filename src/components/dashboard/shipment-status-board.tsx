@@ -8,7 +8,9 @@ import {
   Loader2,
   Package,
   Plane,
+  Search,
   Truck,
+  X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -23,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { DatePickerField } from '@/components/ui/date-picker-field';
 import { Pagination } from '@/components/ui/pagination';
 import { usePagination } from '@/hooks/use-pagination';
@@ -91,15 +94,25 @@ function KpiCard({
 export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: ShipmentStatusBoardProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [search, setSearch] = useState('');
   const [savingPaymentId, setSavingPaymentId] = useState<string | null>(null);
   const summary = useMemo(() => summarizeShipmentRows(rows), [rows]);
 
   const filteredRows = useMemo(() => {
-    if (filter === 'all') return rows;
-    return rows.filter((r) => r.opStatus === filter);
-  }, [rows, filter]);
+    const byStatus = filter === 'all' ? rows : rows.filter((r) => r.opStatus === filter);
+    const q = search.trim().toLowerCase();
+    if (!q) return byStatus;
+    return byStatus.filter(
+      (r) =>
+        r.companyName.toLowerCase().includes(q) ||
+        r.customerName.toLowerCase().includes(q) ||
+        r.topic.toLowerCase().includes(q) ||
+        r.quotations.some((x) => (x.quotation_no || '').toLowerCase().includes(q)) ||
+        r.awbNumbers.some((a) => a.toLowerCase().includes(q))
+    );
+  }, [rows, filter, search]);
 
-  const pager = usePagination('shipment-board', filteredRows, [filter]);
+  const pager = usePagination('shipment-board', filteredRows, [filter, search]);
 
   const handlePaymentDateChange = async (opportunityId: string, date: string) => {
     setSavingPaymentId(opportunityId);
@@ -183,6 +196,25 @@ export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: Shipm
           <CardDescription>Click a row to open the booking card</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="relative mb-4 max-w-md">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="ค้นหา OMG / ชื่อลูกค้า / บริษัท"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 pl-8 pr-8 text-sm"
+            />
+            {search.trim() && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch('')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterKey)}>
             <TabsList className="mb-4 flex flex-wrap h-auto gap-1">
               <TabsTrigger value="all">All ({summary.total.count})</TabsTrigger>
@@ -203,7 +235,9 @@ export function ShipmentStatusBoard({ rows, isLoading, onPaymentUpdated }: Shipm
             <TabsContent value={filter} className="mt-0">
               {filteredRows.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-10">
-                  No shipments in this category.
+                  {search.trim()
+                    ? 'No shipments match your search.'
+                    : 'No shipments in this category.'}
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-md border">
