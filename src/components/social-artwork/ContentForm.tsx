@@ -123,10 +123,11 @@ function FieldWithStyle({
 export function ContentForm({ templates, content, onChange }: ContentFormProps) {
   const hasT3 = templates.includes('T3');
   const hasT4 = templates.includes('T4');
+  const hasT5 = templates.includes('T5');
   const hasT0 = templates.includes('T0');
   const hasT1 = templates.includes('T1');
   const hasT2b = templates.includes('T2b');
-  const showHeadline = templates.some((t) => t !== 'T0' && t !== 'T4');
+  const showHeadline = templates.some((t) => t !== 'T0' && t !== 'T4' && t !== 'T5');
   const showPromo = templatesNeedPromo(templates);
 
   return (
@@ -245,6 +246,73 @@ export function ContentForm({ templates, content, onChange }: ContentFormProps) 
         </>
       )}
 
+      {hasT5 && (
+        <>
+          <FieldWithStyle label="Effective pill (top right)" styleKey="eyebrow" content={content} onChange={onChange}>
+            <input
+              value={content.eyebrow}
+              maxLength={40}
+              onChange={(e) => onChange({ eyebrow: e.target.value })}
+            />
+          </FieldWithStyle>
+          <FieldWithStyle
+            label="Headline — wrap highlight word in *asterisks*"
+            styleKey="headline"
+            content={content}
+            onChange={onChange}
+          >
+            <textarea
+              rows={2}
+              value={content.headline}
+              onChange={(e) => onChange({ headline: e.target.value.slice(0, 100) })}
+            />
+          </FieldWithStyle>
+          <FieldWithStyle label="Body — use **double asterisks** for bold" styleKey="body" content={content} onChange={onChange}>
+            <textarea
+              rows={3}
+              value={content.body}
+              onChange={(e) => onChange({ body: e.target.value.slice(0, 400) })}
+            />
+          </FieldWithStyle>
+          <Field label="Follow-up note (muted)">
+            <textarea
+              rows={2}
+              value={content.bodyNote}
+              onChange={(e) => onChange({ bodyNote: e.target.value.slice(0, 200) })}
+            />
+          </Field>
+          <Field label="Reject card label">
+            <input value={content.rejectLabel} onChange={(e) => onChange({ rejectLabel: e.target.value })} />
+          </Field>
+          <Field label="Reject card text">
+            <textarea
+              rows={2}
+              value={content.rejectText}
+              onChange={(e) => onChange({ rejectText: e.target.value })}
+            />
+          </Field>
+          <Field label="Accept card label">
+            <input value={content.acceptLabel} onChange={(e) => onChange({ acceptLabel: e.target.value })} />
+          </Field>
+          <Field label="Accept card text">
+            <textarea
+              rows={2}
+              value={content.acceptText}
+              onChange={(e) => onChange({ acceptText: e.target.value })}
+            />
+          </Field>
+          <Field label="Airline name (footer)">
+            <input value={content.airlineName} onChange={(e) => onChange({ airlineName: e.target.value })} />
+          </Field>
+          <Field label="Route line (footer)">
+            <input value={content.routeLine} onChange={(e) => onChange({ routeLine: e.target.value })} />
+          </Field>
+          <Field label="Website (footer)">
+            <input value={content.contactWebsite} onChange={(e) => onChange({ contactWebsite: e.target.value })} />
+          </Field>
+        </>
+      )}
+
       {hasT4 && (
         <>
           <FieldWithStyle label="Header title" styleKey="fareHeader" content={content} onChange={onChange}>
@@ -294,7 +362,7 @@ export function ContentForm({ templates, content, onChange }: ContentFormProps) 
         </>
       )}
 
-      {templates.some((t) => t !== 'T0') && (
+      {templates.some((t) => t !== 'T0' && t !== 'T5') && (
         <details className="sa-form-group">
           <summary>Footer & legal text</summary>
           <Field label="Phone">

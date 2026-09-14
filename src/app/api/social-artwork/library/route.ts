@@ -3,8 +3,16 @@ import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { deleteFromR2, uploadToR2 } from '@/lib/r2';
 
 const TABLE = 'social_artwork_images';
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SIZE = 15 * 1024 * 1024;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const VIDEO_TYPES = ['video/mp4'];
+const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
+
+function parseKind(raw: FormDataEntryValue | null): 'photo' | 'artwork' | 'video' {
+  if (raw === 'artwork') return 'artwork';
+  if (raw === 'video') return 'video';
+  return 'photo';
+}
 
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseServerClient();
@@ -19,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   const kind = request.nextUrl.searchParams.get('kind');
   let query = supabase.from(TABLE).select('*').order('created_at', { ascending: false }).limit(200);
-  if (kind === 'photo' || kind === 'artwork') query = query.eq('kind', kind);
+  if (kind === 'photo' || kind === 'artwork' || kind === 'video') query = query.eq('kind', kind);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,17 +40,25 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const file = form.get('file') as File | null;
-  const kind = form.get('kind') === 'artwork' ? 'artwork' : 'photo';
+  const kind = parseKind(form.get('kind'));
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Only JPG, PNG or WebP allowed' }, { status: 400 });
+  const allowedTypes = kind === 'video' ? VIDEO_TYPES : IMAGE_TYPES;
+  const maxSize = kind === 'video' ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  if (!allowedTypes.includes(file.type)) {
+    return NextResponse.json(
+      { error: kind === 'video' ? 'Only MP4 allowed' : 'Only JPG, PNG or WebP allowed' },
+      { status: 400 },
+    );
   }
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: 'File too large (max 15MB)' }, { status: 400 });
+  if (file.size > maxSize) {
+    return NextResponse.json(
+      { error: kind === 'video' ? 'File too large (max 200MB)' : 'File too large (max 15MB)' },
+      { status: 400 },
+    );
   }
 
-  const safeName = (file.name || 'image').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeName = (file.name || (kind === 'video' ? 'video.mp4' : 'image')).replace(/[^a-zA-Z0-9._-]/g, '_');
   const key = `social-artwork/${kind}/${Date.now()}_${safeName}`;
   await uploadToR2(key, Buffer.from(await file.arrayBuffer()), file.type);
 

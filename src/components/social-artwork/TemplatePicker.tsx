@@ -3,7 +3,7 @@
 import type { TemplateId } from './brand';
 import { TEMPLATE_META } from './brand';
 
-const ORDER: TemplateId[] = ['T0', 'T1', 'T2', 'T2b', 'T2c', 'T3', 'T4'];
+const ORDER: TemplateId[] = ['T0', 'T1', 'T2', 'T2b', 'T2c', 'T3', 'T4', 'T5'];
 
 interface TemplatePickerProps {
   selected: TemplateId[];

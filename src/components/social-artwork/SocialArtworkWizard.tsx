@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -22,6 +23,11 @@ import { exportAllArtwork } from './export';
 import { TemplateRenderer } from './templates';
 import './social-artwork.css';
 
+const VideoPanel = dynamic(
+  () => import('./video/VideoPanel').then((m) => ({ default: m.VideoPanel })),
+  { ssr: false },
+);
+
 const STEPS = [
   { id: 'templates', label: 'Templates' },
   { id: 'format', label: 'Format' },
@@ -37,7 +43,7 @@ type LayerSizesMap = Partial<Record<TemplateId, LayerSizes>>;
 
 export interface LibraryItem {
   id: string;
-  kind: 'photo' | 'artwork';
+  kind: 'photo' | 'artwork' | 'video';
   url: string;
   label: string | null;
   template: string | null;
@@ -88,6 +94,7 @@ export default function SocialArtworkWizard() {
   const [hiddenLayers, setHiddenLayers] = useState<HiddenLayersMap>({});
   const [layerSizes, setLayerSizes] = useState<LayerSizesMap>({});
   const [albumPhotos, setAlbumPhotos] = useState<LibraryItem[]>([]);
+  const [videoPostIndex, setVideoPostIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [unsplashQuery, setUnsplashQuery] = useState('');
   const [unsplashCount, setUnsplashCount] = useState(4);
@@ -207,7 +214,10 @@ export default function SocialArtworkWizard() {
 
   const canNext = () => {
     if (step === 'templates') return selectedTemplates.length > 0;
-    if (step === 'image' && needsPhoto) return selectedPhotoUrls.length > 0;
+    if (step === 'image' && needsPhoto) {
+      if (selectedTemplate === 'T5') return true;
+      return selectedPhotoUrls.length > 0;
+    }
     return true;
   };
 
@@ -484,6 +494,8 @@ export default function SocialArtworkWizard() {
               selected={selectedTemplates}
               onChange={(ids) => {
                 setSelectedTemplates(ids);
+                if (ids[0] === 'T5') setFormat('linkedin');
+                else if (format === 'linkedin') setFormat('post');
                 if (ids[0]) {
                   setSelectedPhotoUrls([]);
                   setPosts(buildPosts(ids[0], []));
@@ -498,24 +510,34 @@ export default function SocialArtworkWizard() {
             <h2>Choose format</h2>
             <p className="sa-panel-desc">Where will you publish these artworks?</p>
             <div className="sa-format-cards">
-              <button
-                type="button"
-                className={`sa-format-card${format === 'post' ? ' active' : ''}`}
-                onClick={() => setFormat('post')}
-              >
-                <strong>Post</strong>
-                <span>1080 × 1080</span>
-                <small>Facebook & Instagram feed</small>
-              </button>
-              <button
-                type="button"
-                className={`sa-format-card${format === 'story' ? ' active' : ''}`}
-                onClick={() => setFormat('story')}
-              >
-                <strong>Story</strong>
-                <span>1080 × 1920</span>
-                <small>Facebook & Instagram story</small>
-              </button>
+              {selectedTemplate === 'T5' ? (
+                <button type="button" className="sa-format-card active" disabled>
+                  <strong>LinkedIn</strong>
+                  <span>1200 × 628</span>
+                  <small>LinkedIn landscape post</small>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`sa-format-card${format === 'post' ? ' active' : ''}`}
+                    onClick={() => setFormat('post')}
+                  >
+                    <strong>Post</strong>
+                    <span>1080 × 1080</span>
+                    <small>Facebook & Instagram feed</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sa-format-card${format === 'story' ? ' active' : ''}`}
+                    onClick={() => setFormat('story')}
+                  >
+                    <strong>Story</strong>
+                    <span>1080 × 1920</span>
+                    <small>Facebook & Instagram story</small>
+                  </button>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -729,8 +751,35 @@ export default function SocialArtworkWizard() {
             <h2>Review & export</h2>
             <p className="sa-panel-desc">
               {posts.length} post{posts.length !== 1 ? 's' : ''} · {selectedTemplate} ·{' '}
-              {format === 'post' ? '1080×1080' : '1080×1920'}
+              {format === 'post' ? '1080×1080' : format === 'linkedin' ? '1200×628' : '1080×1920'}
             </p>
+            {posts.length > 1 && (
+              <label className="mb-3 flex items-center gap-2 text-sm">
+                Video for post
+                <select
+                  className="rounded border px-2 py-1"
+                  value={videoPostIndex}
+                  onChange={(e) => setVideoPostIndex(Number(e.target.value))}
+                >
+                  {posts.map((_, i) => (
+                    <option key={i} value={i}>
+                      Post {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <VideoPanel
+              template={selectedTemplate}
+              content={posts[videoPostIndex]?.content ?? posts[0].content}
+              format={format}
+              layoutOffsets={layoutOffsets[selectedTemplate] ?? {}}
+              hiddenLayers={hiddenLayers[selectedTemplate] ?? {}}
+              layerSizes={layerSizes[selectedTemplate] ?? {}}
+              caption={posts[videoPostIndex]?.caption ?? ''}
+              prompt={contentPrompt.trim()}
+              postLabel={posts.length > 1 ? `Post ${videoPostIndex + 1}` : undefined}
+            />
             <div className="sa-preview-grid">
               {posts.map((post, i) => (
                 <div key={i} className="sa-download-card">

@@ -8,6 +8,7 @@ import { T2b } from './T2b';
 import { T2c } from './T2c';
 import { T3 } from './T3';
 import { T4 } from './T4';
+import { T5 } from './T5';
 import type { TemplateProps } from './shared';
 
 const MAP: Record<TemplateId, (p: TemplateProps) => JSX.Element> = {
@@ -18,6 +19,7 @@ const MAP: Record<TemplateId, (p: TemplateProps) => JSX.Element> = {
   T2c,
   T3,
   T4,
+  T5,
 };
 
 export function TemplateRenderer({

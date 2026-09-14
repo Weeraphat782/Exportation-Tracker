@@ -87,9 +87,43 @@ export function DesignProvider({
   )
 }
 
-function mergeTranslate(existing: string | undefined, offset: Offset): string {
-  const t = `translate(${offset.x}px, ${offset.y}px)`
-  return existing ? `${existing} ${t}` : t
+export type LayerStyleFn = (id: string) => CSSProperties
+
+const noopLayerStyle: LayerStyleFn = () => ({})
+
+const AnimationContext = createContext<LayerStyleFn>(noopLayerStyle)
+
+export function AnimationProvider({
+  value,
+  children,
+}: {
+  value: LayerStyleFn
+  children: ReactNode
+}) {
+  return <AnimationContext.Provider value={value}>{children}</AnimationContext.Provider>
+}
+
+function mergeChildStyle(
+  childStyle: CSSProperties | undefined,
+  offset: Offset,
+  isHidden: boolean,
+  heightStyle: CSSProperties,
+  animStyle: CSSProperties,
+): CSSProperties {
+  const transforms: string[] = []
+  if (childStyle?.transform) transforms.push(String(childStyle.transform))
+  if (animStyle.transform) transforms.push(String(animStyle.transform))
+  if (offset.x !== 0 || offset.y !== 0) transforms.push(`translate(${offset.x}px, ${offset.y}px)`)
+
+  return {
+    ...childStyle,
+    ...heightStyle,
+    ...(animStyle.opacity !== undefined ? { opacity: animStyle.opacity } : {}),
+    ...(animStyle.filter ? { filter: animStyle.filter } : {}),
+    ...(animStyle.transformOrigin ? { transformOrigin: animStyle.transformOrigin } : {}),
+    ...(transforms.length ? { transform: transforms.join(' ') } : {}),
+    ...(isHidden ? { visibility: 'hidden' as const } : {}),
+  }
 }
 
 /**
@@ -164,7 +198,8 @@ interface MovableProps {
 
 /** Wraps a single positioned root; applies drag offset / visibility / size without breaking layout. */
 export function Movable({ id, children, resizableHeight }: MovableProps) {
-  const { active, scale, offsets, hidden, sizes, onMove, onGuides } = useContext(DesignContext)
+  const { active, scale, offsets, hidden, sizes, onMove, onGuides } = useContext(DesignContext);
+  const getLayerStyle = useContext(AnimationContext);
   const nodeRef = useRef<HTMLDivElement>(null)
   const offset = offsets[id] ?? { x: 0, y: 0 }
   const isHidden = !!hidden[id]
@@ -185,17 +220,15 @@ export function Movable({ id, children, resizableHeight }: MovableProps) {
       : {}
 
   if (!active) {
-    if (!isHidden && dh === 0 && offset.x === 0 && offset.y === 0) return child
+    const animStyle = getLayerStyle(id);
+    const hasAnim =
+      animStyle.opacity !== undefined ||
+      animStyle.transform !== undefined ||
+      animStyle.filter !== undefined;
+    if (!isHidden && dh === 0 && offset.x === 0 && offset.y === 0 && !hasAnim) return child;
     return cloneElement(child, {
-      style: {
-        ...child.props.style,
-        ...(offset.x !== 0 || offset.y !== 0
-          ? { transform: mergeTranslate(child.props.style?.transform, offset) }
-          : {}),
-        ...(isHidden ? { visibility: 'hidden' as const } : {}),
-        ...heightStyle,
-      },
-    })
+      style: mergeChildStyle(child.props.style, offset, isHidden, heightStyle, animStyle),
+    });
   }
 
   const updateGuides = () => {

@@ -35,6 +35,7 @@ export const FIXED = {
 export const CANVAS = {
   post: { w: 1080, h: 1080 },
   story: { w: 1080, h: 1920, keepClearTop: 250, keepClearBottom: 320 },
+  linkedin: { w: 1200, h: 628 },
 } as const;
 
 export const GEOMETRY = {
@@ -62,8 +63,8 @@ export const TYPE = {
   fine: { size: 20, weight: 400 },
 } as const;
 
-export type Format = 'post' | 'story';
-export type TemplateId = 'T0' | 'T1' | 'T2' | 'T2b' | 'T2c' | 'T3' | 'T4';
+export type Format = 'post' | 'story' | 'linkedin';
+export type TemplateId = 'T0' | 'T1' | 'T2' | 'T2b' | 'T2c' | 'T3' | 'T4' | 'T5';
 export type LockupPosition = 'top-right' | 'top-left' | 'bottom-left';
 export type LockupTextColor = 'dark' | 'light';
 
@@ -99,6 +100,16 @@ export interface ArtworkContent {
   gsaText: string;
   /** Per-section font size (px) and color overrides. */
   textStyles: Partial<Record<TextStyleKey, TextStyleOverride>>;
+  /** T5 — muted follow-up line below body. */
+  bodyNote: string;
+  /** T5 — comparison card labels and copy. */
+  rejectLabel: string;
+  rejectText: string;
+  acceptLabel: string;
+  acceptText: string;
+  /** T5 — footer airline + route. */
+  airlineName: string;
+  routeLine: string;
 }
 
 export const TEMPLATE_META: Record<
@@ -112,6 +123,12 @@ export const TEMPLATE_META: Record<
   T2c: { label: 'T2c — Side panel', desc: 'Promo, one-third navy panel', needsPhoto: true, isPromo: true },
   T3: { label: 'T3 — Light card', desc: 'Festivals & announcements', needsPhoto: false, isPromo: false },
   T4: { label: 'T4 — Rate board', desc: 'Multi-lane transit updates', needsPhoto: false, isPromo: true },
+  T5: {
+    label: 'T5 — LinkedIn advisory',
+    desc: 'Policy update, accept/reject cards',
+    needsPhoto: true,
+    isPromo: false,
+  },
 };
 
 export interface LayerMeta {
@@ -169,6 +186,16 @@ export const TEMPLATE_LAYERS: Record<TemplateId, LayerMeta[]> = {
     { id: 'conditions', label: 'Conditions' },
     { id: 'credit', label: 'Brand credit' },
   ],
+  T5: [
+    { id: 'photo', label: 'Background photo' },
+    { id: 'scrim', label: 'Navy scrim' },
+    { id: 'lockup', label: 'Logo' },
+    { id: 'badge', label: 'Effective pill' },
+    { id: 'headline', label: 'Headline' },
+    { id: 'body', label: 'Body text' },
+    { id: 'cards', label: 'Accept / reject cards' },
+    { id: 'footer', label: 'Airline footer' },
+  ],
 };
 
 export function defaultContent(template: TemplateId): ArtworkContent {
@@ -200,6 +227,13 @@ export function defaultContent(template: TemplateId): ArtworkContent {
     fareConditionsText: FIXED.fareConditions,
     gsaText: FIXED.credit,
     textStyles: {},
+    bodyNote: '',
+    rejectLabel: '',
+    rejectText: '',
+    acceptLabel: '',
+    acceptText: '',
+    airlineName: '',
+    routeLine: '',
   };
 
   switch (template) {
@@ -242,6 +276,24 @@ export function defaultContent(template: TemplateId): ArtworkContent {
       };
     case 'T4':
       return { ...base, photoUrl: null };
+    case 'T5':
+      return {
+        ...base,
+        lockupPosition: 'top-left',
+        lockupTextColor: 'light',
+        eyebrow: 'EFFECTIVE SEPTEMBER 2026',
+        headline: 'PERMIT MUST *MATCH* THE\nDESTINATION',
+        body: 'From September 2026, **Lufthansa Cargo** will only accept medical cannabis import permits **only where the import permit is issued for the country of destination**.',
+        bodyNote:
+          'Customers are advised to confirm destination permits before booking space.',
+        rejectLabel: 'NOT ACCEPTED',
+        rejectText: 'Permit issued\nfor another country',
+        acceptLabel: 'ACCEPTED',
+        acceptText: 'Permit issued\nfor the destination country',
+        airlineName: 'LUFTHANSA CARGO',
+        routeLine: 'BKK → FRA · MUC · SKP',
+        contactWebsite: 'omgcargo.tech',
+      };
     default:
       return base;
   }

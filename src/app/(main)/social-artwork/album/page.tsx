@@ -1,10 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { Format, TemplateId } from '@/components/social-artwork/brand';
 import type { LibraryItem } from '@/components/social-artwork/SocialArtworkWizard';
+
+const VideoPanel = dynamic(
+  () => import('@/components/social-artwork/video/VideoPanel').then((m) => ({ default: m.VideoPanel })),
+  { ssr: false },
+);
+
+function canCreateVideo(item: LibraryItem) {
+  return item.kind === 'artwork' && !!item.source && !!item.template && !!item.format;
+}
 
 function safeZipBaseName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_|_$/g, '').slice(0, 80) || 'folder';
@@ -91,11 +103,23 @@ function CopyCaptionButton({ caption }: { caption: string }) {
   );
 }
 
-function ArtworkCard({ item, onDelete }: { item: LibraryItem; onDelete: (item: LibraryItem) => void }) {
+function ArtworkCard({
+  item,
+  onDelete,
+  onCreateVideo,
+}: {
+  item: LibraryItem;
+  onDelete: (item: LibraryItem) => void;
+  onCreateVideo: (item: LibraryItem) => void;
+}) {
   return (
     <div className="overflow-hidden rounded-lg border bg-white">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.url} alt={item.label ?? 'Image'} className="aspect-square w-full object-cover" />
+      {item.kind === 'video' ? (
+        <video src={item.url} controls className="aspect-square w-full object-cover bg-black" />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.url} alt={item.label ?? 'Image'} className="aspect-square w-full object-cover" />
+      )}
       <div className="space-y-2 p-3">
         <p className="truncate text-xs text-muted-foreground" title={item.label ?? undefined}>
           {item.label}
@@ -113,8 +137,13 @@ function ArtworkCard({ item, onDelete }: { item: LibraryItem; onDelete: (item: L
               <Link href={`/social-artwork?edit=${item.id}`}>Edit</Link>
             </Button>
           )}
+          {canCreateVideo(item) && (
+            <Button type="button" size="sm" variant="outline" onClick={() => onCreateVideo(item)}>
+              Create video
+            </Button>
+          )}
           <Button asChild size="sm" variant="outline">
-            <a href={item.url} download={item.label ?? 'image.png'}>
+            <a href={item.url} download={item.label ?? (item.kind === 'video' ? 'video.mp4' : 'image.png')}>
               Download
             </a>
           </Button>
@@ -131,10 +160,12 @@ function ArtworkCard({ item, onDelete }: { item: LibraryItem; onDelete: (item: L
 function PhotoGrid({
   items,
   onDelete,
+  onCreateVideo,
   emptyText,
 }: {
   items: LibraryItem[];
   onDelete: (item: LibraryItem) => void;
+  onCreateVideo?: (item: LibraryItem) => void;
   emptyText: string;
 }) {
   if (items.length === 0) {
@@ -143,7 +174,12 @@ function PhotoGrid({
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => (
-        <ArtworkCard key={item.id} item={item} onDelete={onDelete} />
+        <ArtworkCard
+          key={item.id}
+          item={item}
+          onDelete={onDelete}
+          onCreateVideo={onCreateVideo ?? (() => {})}
+        />
       ))}
     </div>
   );
@@ -222,16 +258,24 @@ export default function SocialArtworkAlbumPage() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const [videoItem, setVideoItem] = useState<LibraryItem | null>(null);
 
-  useEffect(() => {
-    fetch('/api/social-artwork/library')
-      .then((r) => r.json())
-      .then((d) => setItems(d.items ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const refetchLibrary = useCallback(async () => {
+    try {
+      const r = await fetch('/api/social-artwork/library');
+      const d = await r.json();
+      setItems(d.items ?? []);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
+  useEffect(() => {
+    void refetchLibrary().finally(() => setLoading(false));
+  }, [refetchLibrary]);
+
   const artworks = useMemo(() => items.filter((i) => i.kind === 'artwork'), [items]);
+  const videos = useMemo(() => items.filter((i) => i.kind === 'video'), [items]);
   const photos = useMemo(() => items.filter((i) => i.kind === 'photo'), [items]);
   const artworkGroups = useMemo(() => groupByPrompt(artworks), [artworks]);
   const openGroup = artworkGroups.find((g) => g.prompt === openFolder);
@@ -286,7 +330,12 @@ export default function SocialArtworkAlbumPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {openGroup.items.map((item) => (
-                    <ArtworkCard key={item.id} item={item} onDelete={onDelete} />
+                    <ArtworkCard
+                      key={item.id}
+                      item={item}
+                      onDelete={onDelete}
+                      onCreateVideo={setVideoItem}
+                    />
                   ))}
                 </div>
               </div>
@@ -304,6 +353,14 @@ export default function SocialArtworkAlbumPage() {
             )}
           </section>
           <section className="space-y-3">
+            <h2 className="text-lg font-semibold">Exported videos ({videos.length})</h2>
+            <PhotoGrid
+              items={videos}
+              onDelete={onDelete}
+              emptyText="No videos yet — create one from an exported artwork or the generator Download step."
+            />
+          </section>
+          <section className="space-y-3">
             <h2 className="text-lg font-semibold">Uploaded photos ({photos.length})</h2>
             <PhotoGrid
               items={photos}
@@ -313,6 +370,34 @@ export default function SocialArtworkAlbumPage() {
           </section>
         </>
       )}
+
+      <Dialog
+        open={videoItem !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setVideoItem(null);
+            void refetchLibrary();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create video from artwork</DialogTitle>
+          </DialogHeader>
+          {videoItem && videoItem.source && videoItem.template && videoItem.format && (
+            <VideoPanel
+              template={videoItem.template as TemplateId}
+              content={videoItem.source.content}
+              format={videoItem.format as Format}
+              layoutOffsets={videoItem.source.layoutOffsets?.[videoItem.template as TemplateId] ?? {}}
+              hiddenLayers={videoItem.source.hiddenLayers?.[videoItem.template as TemplateId] ?? {}}
+              layerSizes={videoItem.source.layerSizes?.[videoItem.template as TemplateId] ?? {}}
+              caption={videoItem.caption ?? ''}
+              prompt={videoItem.prompt ?? ''}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
