@@ -36,6 +36,8 @@ export const CANVAS = {
   post: { w: 1080, h: 1080 },
   story: { w: 1080, h: 1920, keepClearTop: 250, keepClearBottom: 320 },
   linkedin: { w: 1200, h: 628 },
+  linkedinSquare: { w: 1200, h: 1200 },
+  linkedinPortrait: { w: 1080, h: 1350 },
 } as const;
 
 export const GEOMETRY = {
@@ -63,7 +65,10 @@ export const TYPE = {
   fine: { size: 20, weight: 400 },
 } as const;
 
-export type Format = 'post' | 'story' | 'linkedin';
+export type Format = 'post' | 'story' | 'linkedin' | 'linkedinSquare' | 'linkedinPortrait';
+
+export const LINKEDIN_FORMATS: Format[] = ['linkedin', 'linkedinSquare', 'linkedinPortrait'];
+export const isLinkedinFormat = (f: Format) => LINKEDIN_FORMATS.includes(f);
 export type TemplateId = 'T0' | 'T1' | 'T2' | 'T2b' | 'T2c' | 'T3' | 'T4' | 'T5';
 export type LockupPosition = 'top-right' | 'top-left' | 'bottom-left';
 export type LockupTextColor = 'dark' | 'light';

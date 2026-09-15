@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import {
   CANVAS,
   defaultContent,
+  isLinkedinFormat,
   type ArtworkContent,
   type Format,
   type TemplateId,
@@ -495,7 +496,7 @@ export default function SocialArtworkWizard() {
               onChange={(ids) => {
                 setSelectedTemplates(ids);
                 if (ids[0] === 'T5') setFormat('linkedin');
-                else if (format === 'linkedin') setFormat('post');
+                else if (isLinkedinFormat(format)) setFormat('post');
                 if (ids[0]) {
                   setSelectedPhotoUrls([]);
                   setPosts(buildPosts(ids[0], []));
@@ -511,11 +512,35 @@ export default function SocialArtworkWizard() {
             <p className="sa-panel-desc">Where will you publish these artworks?</p>
             <div className="sa-format-cards">
               {selectedTemplate === 'T5' ? (
-                <button type="button" className="sa-format-card active" disabled>
-                  <strong>LinkedIn</strong>
-                  <span>1200 × 628</span>
-                  <small>LinkedIn landscape post</small>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={`sa-format-card${format === 'linkedin' ? ' active' : ''}`}
+                    onClick={() => setFormat('linkedin')}
+                  >
+                    <strong>LinkedIn landscape</strong>
+                    <span>1200 × 628</span>
+                    <small>1.91:1 feed post</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sa-format-card${format === 'linkedinSquare' ? ' active' : ''}`}
+                    onClick={() => setFormat('linkedinSquare')}
+                  >
+                    <strong>LinkedIn square</strong>
+                    <span>1200 × 1200</span>
+                    <small>1:1 feed post</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`sa-format-card${format === 'linkedinPortrait' ? ' active' : ''}`}
+                    onClick={() => setFormat('linkedinPortrait')}
+                  >
+                    <strong>LinkedIn portrait</strong>
+                    <span>1080 × 1350</span>
+                    <small>4:5 feed post</small>
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -751,7 +776,7 @@ export default function SocialArtworkWizard() {
             <h2>Review & export</h2>
             <p className="sa-panel-desc">
               {posts.length} post{posts.length !== 1 ? 's' : ''} · {selectedTemplate} ·{' '}
-              {format === 'post' ? '1080×1080' : format === 'linkedin' ? '1200×628' : '1080×1920'}
+              {CANVAS[format].w}×{CANVAS[format].h}
             </p>
             {posts.length > 1 && (
               <label className="mb-3 flex items-center gap-2 text-sm">

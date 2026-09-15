@@ -36,7 +36,17 @@ export function ArtworkPreview({
   onResize = () => {},
 }: ArtworkPreviewProps) {
   const { w, h } = CANVAS[format];
-  const previewScale = scale ?? (format === 'post' ? 0.28 : format === 'linkedin' ? 0.3 : 0.18);
+  const previewScale =
+    scale ??
+    (format === 'post'
+      ? 0.28
+      : format === 'linkedin'
+        ? 0.3
+        : format === 'linkedinSquare'
+          ? 0.28
+          : format === 'linkedinPortrait'
+            ? 0.22
+            : 0.18);
   const [guides, setGuides] = useState<AlignGuides>({ v: null, h: null });
 
   return (

@@ -1,6 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import type { Format } from '../brand';
 import { COLORS, FONTS, ts } from '../brand';
 import { Lockup } from '../Lockup';
 import { Movable, MovableLayer } from '../Movable';
@@ -9,6 +10,67 @@ import type { TemplateProps } from './shared';
 
 const GOLD = '#C9A227';
 const PANEL = 'rgba(13,44,77,0.72)';
+
+const T5_LAYOUT = {
+  linkedin: {
+    m: 48,
+    lockupH: 72,
+    headTop: 108,
+    headSize: 52,
+    bodyTop: 228,
+    bodySize: 18,
+    bodyNoteSize: 16,
+    cardTop: null as number | null,
+    cardBottom: 72,
+    cardGap: 16,
+    cardMinH: 88,
+    cardIcon: 36,
+    cardLabel: 13,
+    cardText: 18,
+    footBottom: 20,
+    footSize: 15,
+  },
+  linkedinSquare: {
+    m: 64,
+    lockupH: 88,
+    headTop: 200,
+    headSize: 76,
+    bodyTop: 440,
+    bodySize: 28,
+    bodyNoteSize: 22,
+    cardTop: 720,
+    cardBottom: null as number | null,
+    cardGap: 20,
+    cardMinH: 120,
+    cardIcon: 44,
+    cardLabel: 15,
+    cardText: 24,
+    footBottom: 56,
+    footSize: 18,
+  },
+  linkedinPortrait: {
+    m: 60,
+    lockupH: 80,
+    headTop: 260,
+    headSize: 68,
+    bodyTop: 520,
+    bodySize: 26,
+    bodyNoteSize: 20,
+    cardTop: 900,
+    cardBottom: null as number | null,
+    cardGap: 18,
+    cardMinH: 110,
+    cardIcon: 40,
+    cardLabel: 14,
+    cardText: 22,
+    footBottom: 64,
+    footSize: 17,
+  },
+} as const;
+
+function t5Cfg(format: Format) {
+  return T5_LAYOUT[format as keyof typeof T5_LAYOUT] ?? T5_LAYOUT.linkedin;
+}
 
 /** Split on *word* markers and render the wrapped segment in green. */
 export function renderHighlight(text: string, color = COLORS.green500): ReactNode {
@@ -40,10 +102,18 @@ function StatusCard({
   tone,
   label,
   text,
+  minH,
+  iconSize,
+  labelSize,
+  textSize,
 }: {
   tone: 'reject' | 'accept';
   label: string;
   text: string;
+  minH: number;
+  iconSize: number;
+  labelSize: number;
+  textSize: number;
 }) {
   const accent = tone === 'reject' ? GOLD : COLORS.green500;
   const icon = tone === 'reject' ? '✕' : '✓';
@@ -58,20 +128,20 @@ function StatusCard({
         background: PANEL,
         borderLeft: `4px solid ${accent}`,
         borderRadius: 4,
-        minHeight: 88,
+        minHeight: minH,
       }}
     >
       <div
         style={{
-          width: 36,
-          height: 36,
+          width: iconSize,
+          height: iconSize,
           borderRadius: '50%',
           border: `2px solid ${accent}`,
           color: accent,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 18,
+          fontSize: iconSize * 0.5,
           fontWeight: 700,
           flexShrink: 0,
         }}
@@ -83,7 +153,7 @@ function StatusCard({
           style={{
             fontFamily: FONTS.display,
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: labelSize,
             letterSpacing: '0.12em',
             color: accent,
             marginBottom: 6,
@@ -95,7 +165,7 @@ function StatusCard({
           style={{
             fontFamily: FONTS.body,
             fontWeight: 600,
-            fontSize: 18,
+            fontSize: textSize,
             lineHeight: 1.25,
             color: COLORS.white,
             whiteSpace: 'pre-line',
@@ -108,11 +178,21 @@ function StatusCard({
   );
 }
 
-export function T5({ content }: TemplateProps) {
-  const m = 48;
-  const headlineS = ts(content, 'headline', { size: 52, color: COLORS.white });
-  const bodyS = ts(content, 'body', { size: 18, color: COLORS.white90 });
+export function T5({ content, format }: TemplateProps) {
+  const cfg = t5Cfg(format);
+  const headlineS = ts(content, 'headline', { size: cfg.headSize, color: COLORS.white });
+  const bodyS = ts(content, 'body', { size: cfg.bodySize, color: COLORS.white90 });
   const eyebrowS = ts(content, 'eyebrow', { size: 13, color: COLORS.navy900 });
+
+  const cardsStyle: CSSProperties = {
+    position: 'absolute',
+    left: cfg.m + 8,
+    right: cfg.m,
+    zIndex: 3,
+    display: 'flex',
+    gap: cfg.cardGap,
+    ...(cfg.cardBottom != null ? { bottom: cfg.cardBottom } : { top: cfg.cardTop! }),
+  };
 
   return (
     <>
@@ -169,8 +249,8 @@ export function T5({ content }: TemplateProps) {
         />
       </svg>
       <MovableLayer id="lockup">
-        <div style={{ position: 'absolute', top: m - 8, left: m + 8, zIndex: 4 }}>
-          <Lockup textColor="light" position="top-left" height={72} embedded />
+        <div style={{ position: 'absolute', top: cfg.m - 8, left: cfg.m + 8, zIndex: 4 }}>
+          <Lockup textColor="light" position="top-left" height={cfg.lockupH} embedded />
         </div>
       </MovableLayer>
       <Movable id="badge">
@@ -178,8 +258,8 @@ export function T5({ content }: TemplateProps) {
           <div
             style={{
               position: 'absolute',
-              top: m,
-              right: m,
+              top: cfg.m,
+              right: cfg.m,
               zIndex: 4,
               background: COLORS.green500,
               color: eyebrowS.color,
@@ -201,9 +281,9 @@ export function T5({ content }: TemplateProps) {
           <div
             style={{
               position: 'absolute',
-              top: 108,
-              left: m + 8,
-              right: m,
+              top: cfg.headTop,
+              left: cfg.m + 8,
+              right: cfg.m,
               zIndex: 3,
               fontFamily: FONTS.display,
               fontWeight: 800,
@@ -222,9 +302,9 @@ export function T5({ content }: TemplateProps) {
         <div
           style={{
             position: 'absolute',
-            top: 228,
-            left: m + 8,
-            right: m,
+            top: cfg.bodyTop,
+            left: cfg.m + 8,
+            right: cfg.m,
             zIndex: 3,
           }}
         >
@@ -247,7 +327,7 @@ export function T5({ content }: TemplateProps) {
                 marginTop: 10,
                 fontFamily: FONTS.body,
                 fontWeight: 400,
-                fontSize: 16,
+                fontSize: cfg.bodyNoteSize,
                 lineHeight: 1.4,
                 color: COLORS.white60,
               }}
@@ -258,28 +338,34 @@ export function T5({ content }: TemplateProps) {
         </div>
       </Movable>
       <Movable id="cards">
-        <div
-          style={{
-            position: 'absolute',
-            left: m + 8,
-            right: m,
-            bottom: 72,
-            zIndex: 3,
-            display: 'flex',
-            gap: 16,
-          }}
-        >
-          <StatusCard tone="reject" label={content.rejectLabel} text={content.rejectText} />
-          <StatusCard tone="accept" label={content.acceptLabel} text={content.acceptText} />
+        <div style={cardsStyle}>
+          <StatusCard
+            tone="reject"
+            label={content.rejectLabel}
+            text={content.rejectText}
+            minH={cfg.cardMinH}
+            iconSize={cfg.cardIcon}
+            labelSize={cfg.cardLabel}
+            textSize={cfg.cardText}
+          />
+          <StatusCard
+            tone="accept"
+            label={content.acceptLabel}
+            text={content.acceptText}
+            minH={cfg.cardMinH}
+            iconSize={cfg.cardIcon}
+            labelSize={cfg.cardLabel}
+            textSize={cfg.cardText}
+          />
         </div>
       </Movable>
       <Movable id="footer">
         <div
           style={{
             position: 'absolute',
-            left: m + 8,
-            right: m,
-            bottom: 20,
+            left: cfg.m + 8,
+            right: cfg.m,
+            bottom: cfg.footBottom,
             zIndex: 4,
             borderTop: `1px solid ${COLORS.white60}`,
             paddingTop: 12,
@@ -288,7 +374,7 @@ export function T5({ content }: TemplateProps) {
             justifyContent: 'space-between',
             gap: 16,
             fontFamily: FONTS.body,
-            fontSize: 15,
+            fontSize: cfg.footSize,
             color: COLORS.white,
           }}
         >
