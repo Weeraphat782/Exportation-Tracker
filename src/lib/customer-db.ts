@@ -388,8 +388,8 @@ export async function createCustomerQuoteRequest(
 
     // Get customer profile + company record
     const [{ data: profile }, { data: customerCompany }] = await Promise.all([
-      queryClient.from('profiles').select('full_name, company, email').eq('id', user.id).single(),
-      queryClient.from('companies').select('id, name').eq('customer_user_id', user.id).single(),
+      queryClient.from('profiles').select('full_name, company, email').eq('id', user.id).maybeSingle(),
+      queryClient.from('companies').select('id, name').eq('customer_user_id', user.id).maybeSingle(),
     ]);
 
     const customerName = profile?.full_name || profile?.email || 'Customer';
@@ -613,7 +613,7 @@ export async function getCustomerCompany(): Promise<{ id: string; name: string; 
       .from('companies')
       .select('id, name, address, tax_id, contact_person, contact_email, contact_phone')
       .eq('customer_user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (error) return null;
     return data;
