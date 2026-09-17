@@ -36,6 +36,7 @@ OMG Cargo ships from Bangkok Suvarnabhumi (BKK) to several international destina
 Rates and availability are subject to confirmation by the OMG Cargo team.`;
 
 const KNOWLEDGE_TTL_MS = 30 * 60 * 1000;
+const isDev = process.env.NODE_ENV !== 'production';
 let knowledgeCache: { expires: number; body: string } | null = null;
 
 const FALLBACK_KNOWLEDGE = `# OMG Cargo
@@ -49,6 +50,21 @@ const FALLBACK_KNOWLEDGE = `# OMG Cargo
 - Air freight export coordination from BKK
 - Thai customs documentation (ภ.ท.32)
 - Partner GDP warehousing and ISO-certified lab COA coordination
+
+## Required export documents (cannabis)
+- Company Registration / DBD certificate (เอกสารจดทะเบียนบริษัท)
+- Company Declaration — the company's statement affirming the product is produced to quality standards
+- ID card copy of the company director(s) (สำเนาบัตรประชาชนกรรมการ)
+- ภ.ท.10 — cannabis export licence (ใบอนุญาตส่งออกกัญชานอกประเทศ)
+- ภ.ท.11 — licence to sell/distribute (เอกสารสำหรับจำหน่าย)
+- ภ.ท.32 — per-shipment cannabis export certificate; required and essential for every shipment
+- ภ.ท.31 — monthly export report; its details are drawn from the ภ.ท.32 records
+- Purchase Order from the overseas buyer
+- Commercial Invoice
+- Packing List — list of what is packed in the shipment
+- Import Permit for Cannabis — issued by the destination country
+- Hemp Letter — required when shipping hemp
+- Thai GACP certification
 
 ## Key pages
 - Services: /services
@@ -67,7 +83,7 @@ function marketingUrl(): string {
 }
 
 export async function getKnowledge(): Promise<string> {
-  if (knowledgeCache && knowledgeCache.expires > Date.now()) {
+  if (!isDev && knowledgeCache && knowledgeCache.expires > Date.now()) {
     return knowledgeCache.body;
   }
 
@@ -75,12 +91,14 @@ export async function getKnowledge(): Promise<string> {
   try {
     const res = await fetch(url, {
       headers: { Accept: 'text/plain' },
-      next: { revalidate: 1800 },
+      ...(isDev ? { cache: 'no-store' } : { next: { revalidate: 1800 } }),
     });
     if (!res.ok) throw new Error(`llms.txt fetch failed: ${res.status}`);
     const body = (await res.text()).trim();
     if (!body) throw new Error('llms.txt empty');
-    knowledgeCache = { expires: Date.now() + KNOWLEDGE_TTL_MS, body };
+    if (!isDev) {
+      knowledgeCache = { expires: Date.now() + KNOWLEDGE_TTL_MS, body };
+    }
     return body;
   } catch (err) {
     console.warn('chat knowledge fetch failed, using fallback:', err);
