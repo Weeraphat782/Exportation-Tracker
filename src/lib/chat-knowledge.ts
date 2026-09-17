@@ -63,8 +63,8 @@ const FALLBACK_KNOWLEDGE = `# OMG Cargo
 - Purchase Order from the overseas buyer
 - Commercial Invoice
 - Packing List — list of what is packed in the shipment
-- Import Permit for Cannabis — issued by the destination country
-- Hemp Letter — required when shipping hemp
+- Import Permit for Cannabis — issued by the destination country; required for cannabis (กัญชา) shipments only
+- Hemp Letter — required for hemp (กัญชง) shipments; hemp does not need an Import Permit, the Hemp Letter replaces it
 - Thai GACP certification
 
 ## Key pages
