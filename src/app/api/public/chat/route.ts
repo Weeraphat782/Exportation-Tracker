@@ -12,8 +12,11 @@ import {
   getKnowledge,
   parseModelResponse,
 } from '@/lib/chat-knowledge';
+import { isValidSessionId, logChatTurn } from '@/lib/chat-log';
+import { getSupabaseServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 const MAX_CONTEXT_MESSAGES = 20;
 const COOLDOWN_MS = 3_000;
@@ -136,12 +139,14 @@ export async function POST(request: NextRequest) {
       return marketingJsonResponse({ error: rate.error }, rate.status, origin);
     }
 
-    let body: { message?: string; history?: unknown };
+    let body: { message?: string; history?: unknown; sessionId?: unknown };
     try {
       body = await request.json();
     } catch {
       return marketingJsonResponse({ error: 'Invalid JSON body.' }, 400, origin);
     }
+
+    const sessionId = isValidSessionId(body.sessionId) ? body.sessionId : null;
 
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     if (!message || message.length > 2_000) {
@@ -188,6 +193,17 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.warn('public chat Gemini error:', err);
       result = fallbackResponse();
+    }
+
+    if (sessionId) {
+      try {
+        const supabase = getSupabaseServerClient();
+        if (supabase) {
+          await logChatTurn(supabase, sessionId, message, result.answer);
+        }
+      } catch (logErr) {
+        console.warn('public chat log error:', logErr);
+      }
     }
 
     recordChatRun(rateKey);

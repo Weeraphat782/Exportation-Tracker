@@ -29,6 +29,7 @@ import {
   BarChart3,
   UserCog,
   Palette,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,7 @@ const SETTINGS_ITEMS = [
 ];
 
 const ADMIN_ONLY_SETTINGS = [
+  { href: '/chat-logs', icon: MessageSquare, label: 'Chat Logs' },
   { href: '/settings/qc-lab-admins', icon: UserCog, label: 'QC Lab Admins' },
 ];
 
