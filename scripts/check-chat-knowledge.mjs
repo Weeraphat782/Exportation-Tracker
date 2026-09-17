@@ -2,6 +2,7 @@ import {
   parseModelResponse,
   fallbackResponse,
   normalizeAnswerMarkdown,
+  buildPrompt,
 } from '../src/lib/chat-knowledge.ts';
 
 function assert(condition, message) {
@@ -46,5 +47,11 @@ const parsedCollapsed = parseModelResponse(
   JSON.stringify({ answer: collapsedHeading, suggestions: ['test'] })
 );
 assert((parsedCollapsed.answer.match(/\n- /g) || []).length >= 2, 'parseModelResponse applies normalize');
+
+const knowledgeWithDocs = '## Required export documents (cannabis)\n- DBD\n- ภ.ท.32';
+const docPrompt = buildPrompt('What documents are needed for cannabis export?', knowledgeWithDocs);
+assert(docPrompt.includes('IMPORTANT'), 'buildPrompt: document hint for export question');
+const lanePrompt = buildPrompt('Which lanes do you serve?', knowledgeWithDocs);
+assert(!lanePrompt.includes('IMPORTANT'), 'buildPrompt: no document hint for lane question');
 
 console.log('check-chat-knowledge: OK');

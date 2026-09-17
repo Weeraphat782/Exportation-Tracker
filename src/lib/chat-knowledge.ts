@@ -11,6 +11,7 @@ Rules:
 - Never ask for or accept payment-card details, passport numbers, passwords, or other sensitive credentials.
 - OMG Cargo coordinates air freight, Thai customs (ภ.ท.32), and partner GDP warehousing and ISO-certified lab COA — we hold neither GDP nor ISO certification ourselves.
 - For information that can change, say the OMG Cargo team will confirm it.
+- When asked about export documents, paperwork, or เอกสาร (including ภ.ท.10, ภ.ท.11, ภ.ท.31, ภ.ท.32), and WEBSITE KNOWLEDGE contains "## Required export documents (cannabis)", list every bullet in that section. Do not replace the list with generic services or tell the visitor to contact the team for the document checklist.
 - When asked about getting a quote or pricing, explain that visitors can request a quote via the Contact page (Request a Quote) or the Export Portal, and that the team responds within one business day.
 - Do not claim OMG Cargo lacks a feature or service unless the website knowledge explicitly says so.
 - If the website knowledge does not answer the question, say so and direct the visitor to cargo@omgexp.com or 02-630-4600-1.
@@ -106,7 +107,18 @@ export async function getKnowledge(): Promise<string> {
   }
 }
 
+function isDocumentQuestion(message: string, knowledge: string): boolean {
+  if (!knowledge.includes('## Required export documents')) return false;
+  return /document|paperwork|เอกสาร|ภ\.?\s*ท\.?|what do i need|required for export|ใช้เอกสาร/i.test(
+    message
+  );
+}
+
 export function buildPrompt(message: string, knowledge: string): string {
+  const documentHint = isDocumentQuestion(message, knowledge)
+    ? `\nIMPORTANT: The visitor is asking about export documents. Under a ## Required documents (or similar) heading, list EVERY item from "## Required export documents (cannabis)" in WEBSITE KNOWLEDGE as separate bullets. Do not defer the list to the team.\n`
+    : '';
+
   return `WEBSITE KNOWLEDGE
 -----------------
 ${knowledge}
@@ -114,7 +126,7 @@ ${knowledge}
 
 VISITOR QUESTION
 ${message}
-
+${documentHint}
 Answer the visitor using only the website knowledge above. Format the answer with
 Markdown headings on their own line and bullet lists (- ) for any set of items.
 Do not use tables. Return only the structured response requested by the API schema.`;
